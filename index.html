@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"/>
+  <title>Scanner + Camera Ultimate v4.1</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.5/JsBarcode.all.min.js"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="theme-cyan">
+<div id="app">
+  <div class="hdr">
+    <div class="hdr-icon">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="#0a0c0f"><rect x="2" y="2" width="3" height="20"/><rect x="6" y="2" width="1" height="20"/><rect x="8" y="2" width="2" height="20"/><rect x="11" y="2" width="1" height="20"/><rect x="13" y="2" width="3" height="20"/><rect x="17" y="2" width="1" height="20"/><rect x="19" y="2" width="3" height="20"/></svg>
+    </div>
+    <div>
+      <div class="hdr-title">Scanner + Camera</div>
+      <div class="hdr-sub">SCAN · PHOTO · STORE [ULTIMATE]</div>
+    </div>
+    <div class="hdr-count" id="hdr-count">0BC / 0📷</div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab on" data-tab="scan">▶ スキャン</button>
+    <button class="tab" data-tab="history">≡ 履歴</button>
+    <button class="tab" data-tab="camera">📷 カメラ</button>
+    <button class="tab" data-tab="photos">🖼 写真</button>
+    <button class="tab" data-tab="settings">⚙ 設定</button>
+  </div>
+
+  <!-- スキャン画面 -->
+  <div class="page on scan-pg" id="pg-scan">
+    <div class="group-bar" id="scan-group-bar" style="display:flex;">
+      <span class="group-lbl">📂 グループ:</span>
+      <select id="scan-group-select" class="group-select"></select>
+    </div>
+    <div class="scan-top">
+      <div class="mode-row">
+        <button class="mode-btn" data-mode="all">全フォーマット</button>
+        <button class="mode-btn on" data-mode="ean13">EAN-13のみ</button>
+      </div>
+      <div class="finder" id="scan-finder">
+        <video id="scan-video" muted playsinline autoplay></video>
+        <div class="corner tl"></div><div class="corner tr"></div><div class="corner bl"></div><div class="corner br"></div>
+        <div class="scan-line" id="scan-line"></div>
+        <div class="ph" id="scan-ph"><p>スキャン開始を押してください</p></div>
+      </div>
+      <div class="sbar"><div class="sdot" id="sdot"></div><span id="stxt">待機中</span></div>
+      <button class="btn-main" id="btn-scan">▶ スキャン開始</button>
+    </div>
+    <div class="scan-bc-section" id="scan-bc-section">
+      <div class="scan-bc-placeholder" id="scan-bc-placeholder">— バーコード表示エリア —</div>
+      <div class="scan-bc-display" id="scan-bc-display" style="display:none">
+        <div class="scan-bc-val" id="scan-bc-val"></div>
+        <button id="btn-warp-cam" class="warp-cam-btn">📷 写真を撮影する</button>
+        <div class="scan-bc-canvas-wrap"><canvas id="scan-bc-canvas"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- カメラ画面 (比率切り替え機能統合) -->
+  <div class="page cam-pg" id="pg-camera">
+    <div class="group-bar" style="display:flex;">
+      <span class="group-lbl">📂 保存先:</span>
+      <select id="cam-group-select" class="group-select"></select>
+    </div>
+    <div class="vf" id="cam-vf">
+      <video id="cam-video" muted playsinline autoplay></video>
+      <div class="flash" id="flash"></div>
+      <div class="focus-ring" id="focus-ring"></div>
+    </div>
+
+    <!-- アスペクト比切り替えボタン -->
+    <div class="ratio-row">
+      <span class="ratio-lbl">ASPECT:</span>
+      <button class="ratio-btn" data-ratio="4/3">4:3</button>
+      <button class="ratio-btn on" data-ratio="16/9">16:9</button>
+      <button class="ratio-btn" data-ratio="21/9">21:9</button>
+    </div>
+
+    <div class="cam-controls">
+      <div class="btn-row">
+        <button id="btn-cam-switch" class="btn-sub">🔄</button>
+        <button id="btn-torch" class="btn-sub">🔦</button>
+        <button id="btn-shutter" class="btn-shutter"></button>
+        <button id="btn-goto-scan" class="btn-sub">SCAN</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 履歴画面 -->
+  <div class="page hist-pg" id="pg-history">
+    <div class="toolbar">
+      <input class="sbox" id="search-box" placeholder="バーコード値を検索..." type="search"/>
+      <button class="btn-sm" id="btn-bc-compact">≡ 1行</button>
+      <button class="btn-sm accent" id="btn-bc-csv">CSV</button>
+      <button class="btn-sm danger" id="btn-bc-clear">全削除</button>
+    </div>
+    <div class="list" id="bc-list"></div>
+  </div>
+
+  <!-- 写真画面 -->
+  <div class="page photo-pg" id="pg-photos">
+    <div class="photo-toolbar">
+      <span class="photo-count" id="photo-count-txt">0 枚</span>
+      <button class="btn-sm accent" id="btn-merge-mode">📐 結合</button>
+      <button class="btn-sm danger" id="btn-photo-clear">全削除</button>
+    </div>
+    <div class="photo-list" id="photo-grid"></div>
+  </div>
+
+  <!-- 設定画面 -->
+  <div class="page settings-pg" id="pg-settings">
+    <div class="settings-section">
+      <div class="settings-title">⚙ システム設定</div>
+      <div class="settings-row">
+        <div><div class="settings-lbl">ハプティック（振動）</div><div class="settings-sub">操作時の振動フィードバック</div></div>
+        <label class="toggle-sw"><input type="checkbox" id="set-vibration" checked/><span class="toggle-slider"></span></label>
+      </div>
+      <div class="settings-btn-row">
+        <button class="settings-btn danger" id="set-clear-all">全てのデータを初期化</button>
+      </div>
+    </div>
+    <div class="settings-ver">SCANNER + CAMERA v4.1 INTEGRATED</div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<div class="lb" id="lightbox" style="display:none">
+  <div class="lb-hdr"><span class="lb-ttl">VIEWER</span><button class="btn-close" id="lb-close">×</button></div>
+  <div class="lb-img"><img id="lb-img" src=""/></div>
+  <div class="lb-ftr">
+    <button class="btn-dl" id="lb-dl">本体保存</button>
+    <button class="btn-del" id="lb-del">削除</button>
+  </div>
+</div>
+
+<script src="state.js"></script>
+<script src="utils.js"></script>
+<script src="storage.js"></script>
+<script src="scanner.js"></script>
+<script src="camera.js"></script>
+<script src="photos.js"></script>
+<script src="main.js"></script>
+</body>
+</html>
