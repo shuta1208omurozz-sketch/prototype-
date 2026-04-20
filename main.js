@@ -20,7 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
       document.querySelectorAll('.ratio-btn').forEach(b => b.classList.remove('on'));
       btn.classList.add('on');
       state.aspectRatio = btn.dataset.ratio;
-      camera.start(); // 比率を変えてカメラ再起動
+      camera.start(); 
     });
   });
 
@@ -43,7 +43,6 @@ const ui = {
     this.updateCounts();
     this.updatePhotoGrid();
     this.renderHistory();
-    // 初期のアスペクト比ボタン設定
     document.querySelectorAll('.ratio-btn').forEach(btn => {
       if(btn.dataset.ratio === state.aspectRatio) btn.classList.add('on');
       else btn.classList.remove('on');
@@ -95,9 +94,12 @@ const ui = {
 
   updateScanUI() {
     const btn = document.getElementById('btn-scan');
+    if (!btn) return;
     btn.textContent = state.isScanning ? "■ スキャン停止" : "▶ スキャン開始";
-    btn.style.background = state.isScanning ? "#ff4466" : var(--accent);
-    document.getElementById('scan-ph').style.display = state.isScanning ? 'none' : 'flex';
+    // 修正ポイント：引用符 "" を追加しました
+    btn.style.background = state.isScanning ? "#ff4466" : "var(--accent)";
+    const ph = document.getElementById('scan-ph');
+    if (ph) ph.style.display = state.isScanning ? 'none' : 'flex';
   },
 
   renderHistory() {
@@ -121,12 +123,17 @@ const ui = {
     document.getElementById('lb-img').src = src;
     lb.style.display = 'flex';
     document.getElementById('lb-close').onclick = () => lb.style.display = 'none';
+  },
+
+  showToast(msg) {
+    const t = document.getElementById('toast');
+    if (!t) return;
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2000);
   }
 };
 
 function showToast(msg) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2000);
+  ui.showToast(msg);
 }
