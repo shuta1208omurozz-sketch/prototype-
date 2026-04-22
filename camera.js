@@ -1,12 +1,27 @@
-'use strict';
+import { state } from './state.js';
+import { $, vibrate, blobToDataUrl, updateCounts, switchTab, saveCfg } from './utils.js';
+import { stopScan } from './scanner.js';
+import { updateThumbStrip, renderPhotoGrid } from './photos.js';
+import { autoSaveToDevice, dbPut, dbPrune } from './storage.js';
 
 let isStarting = false;
 
+/* ════ WebKit toBlob ポリフィル（iPhone Safari 対応） ════ */
+if (typeof HTMLCanvasElement !== 'undefined' && !HTMLCanvasElement.prototype.toBlob) {
+  HTMLCanvasElement.prototype.toBlob = function(cb, type, q) {
+    const data = this.toDataURL(type, q);
+    const bin  = atob(data.split(',')[1]);
+    const arr  = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+    cb(new Blob([arr], { type: type || 'image/jpeg' }));
+  };
+}
+
 /* ════ カメラ停止 ════ */
-function stopCam() {
-  if (camStream) { camStream.getTracks().forEach(t => t.stop()); camStream = null; }
-  camTrack  = null;
-  camActive = false;
+export function stopCam() {
+  if (state.camStream) { state.camStream.getTracks().forEach(t => t.stop()); state.camStream = null; }
+  state.camTrack  = null;
+  state.camActive = false;
   const video = $('cam-video');
   if (video) { video.pause(); video.srcObject = null; try { video.load(); } catch(_){} }
   const ph = $('cam-ph');
@@ -14,11 +29,11 @@ function stopCam() {
 }
 
 /* ════ カメラ起動 ════ */
-async function startCam() {
+export async function startCam() {
   if (isStarting) return;
   isStarting = true;
   stopCam();
-  if (typeof stopScan === 'function') stopScan();
+  stopScan();
 
   const video  = $('cam-video');
   const ph     = $('cam-ph');
@@ -28,17 +43,20 @@ async function startCam() {
   if (txt)    txt.textContent      = 'カメラ初期化中...';
   if (errBox) errBox.style.display = 'none';
 
-  const qBase = CAM_QUALITY[cfg.camQuality] || CAM_QUALITY.mid;
-  const [arW, arH] = (cfg.aspectRatio || '16/9').split('/').map(Number);
+  const qBase = state.CAM_QUALITY[state.cfg.camQuality] || state.CAM_QUALITY.mid;
+  const [arW, arH] = (state.cfg.aspectRatio || '16/9').split('/').map(Number);
 
   const constraints = {
-    video: { facingMode, width: qBase.width, height: qBase.height, aspectRatio: { ideal: arW / arH } },
+    video: { facingMode: state.facingMode, width: qBase.width, height: qBase.height, aspectRatio: { ideal: arW / arH } },
     audio: false
   };
 
+  // state.camera.facingMode と同期
+  state.camera.facingMode = state.facingMode;
+
   try {
     const stream = await navigator.mediaDevices.getUserMedia(constraints);
-    camStream = stream;
+    state.camStream = stream;
     if (video) {
       video.srcObject = stream;
       Object.assign(video.style, { objectFit:'cover', width:'100%', height:'100%', backgroundColor:'#000' });
@@ -47,11 +65,11 @@ async function startCam() {
           await video.play();
           if (ph) ph.style.display = 'none';
           const vf = $('cam-vf');
-          if (vf) { vf.style.aspectRatio = cfg.aspectRatio; vf.style.overflow = 'hidden'; }
-          camTrack  = stream.getVideoTracks()[0];
-          camActive = true;
-          initCamFeatures(camTrack);
-          showCropOverlay(cfg.aspectRatio);
+          if (vf) { vf.style.aspectRatio = state.cfg.aspectRatio; vf.style.overflow = 'hidden'; }
+          state.camTrack  = stream.getVideoTracks()[0];
+          state.camActive = true;
+          initCamFeatures(state.camTrack);
+          showCropOverlay(state.cfg.aspectRatio);
         } catch (e) { console.warn('[Camera] Play interrupted:', e); }
       };
     }
@@ -85,7 +103,7 @@ async function initCamFeatures(track) {
       if (zoomCtrls) zoomCtrls.style.display = 'flex';
       const uwLabel = $('uw-label');
       if (uwLabel) uwLabel.style.display = dMin < 1 ? 'inline-block' : 'none';
-      if (cfg.zoom && cfg.zoom !== cur) applyZoom(cfg.zoom);
+      if (state.cfg.zoom && state.cfg.zoom !== cur) applyZoom(state.cfg.zoom);
     } else if (zoomCtrls) {
       zoomCtrls.style.display = 'none';
     }
@@ -97,15 +115,16 @@ async function initCamFeatures(track) {
       torchBtn.style.opacity = caps.torch ? '' : '0.35';
     }
 
-    if (typeof applyCfgToUI === 'function') applyCfgToUI();
+    // applyCfgToUI() is in main.js, which imports this file. 
+    // We should handle UI updates in main.js or export a function to be called.
   } catch (e) { console.warn('[Camera] Feature init:', e); }
 }
 
 /* ════ ズーム ════ */
 async function applyZoom(val) {
-  if (!camTrack) return;
+  if (!state.camTrack) return;
   try {
-    await camTrack.applyConstraints({ advanced: [{ zoom: val }] });
+    await state.camTrack.applyConstraints({ advanced: [{ zoom: val }] });
     const lbl = $('zoom-level');
     if (lbl) { lbl.textContent = `${val.toFixed(2)}x`; lbl.style.color = val < 1 ? '#ffaa44' : 'var(--accent)'; }
   } catch (e) { console.error('[Camera] Zoom:', e); }
@@ -113,18 +132,18 @@ async function applyZoom(val) {
 
 /* ════ トーチ ════ */
 async function toggleTorch() {
-  if (!camTrack) return;
+  if (!state.camTrack) return;
   try {
-    const newState = !camTrack.getSettings().torch;
-    await camTrack.applyConstraints({ advanced: [{ torch: newState }] });
+    const newState = !state.camTrack.getSettings().torch;
+    await state.camTrack.applyConstraints({ advanced: [{ torch: newState }] });
     const btn = $('btn-torch');
     if (btn) { btn.classList.toggle('on', newState); btn.style.color = newState ? 'var(--accent)' : ''; }
   } catch (e) { console.error('[Camera] Torch:', e); }
 }
 
 /* ════ 撮影 ════ */
-async function takePhoto() {
-  if (!camActive || !camStream) return;
+export async function takePhoto() {
+  if (!state.camActive || !state.camStream) return;
   const video   = $('cam-video');
   const shutter = $('btn-shutter');
   if (!video || video.readyState < 2) return;
@@ -132,8 +151,14 @@ async function takePhoto() {
 
   const canvas = document.createElement('canvas');
   const ctx    = canvas.getContext('2d', { alpha: false, desynchronized: true });
-  const vw = video.videoWidth, vh = video.videoHeight;
-  const [rW, rH]  = (cfg.aspectRatio || '16/9').split('/');
+
+  // ── Android対策: videoWidth/Height が 0 になるバグ ──
+  let vw = video.videoWidth  || video.clientWidth;
+  let vh = video.videoHeight || video.clientHeight;
+
+  const isFront = state.camera.facingMode === 'user';
+
+  const [rW, rH]  = (state.cfg.aspectRatio || '16/9').split('/');
   const tgtRatio  = parseFloat(rW) / parseFloat(rH);
   const videoRatio = vw / vh;
 
@@ -141,29 +166,50 @@ async function takePhoto() {
   if (videoRatio > tgtRatio) { sh = vh; sw = vh * tgtRatio; sx = (vw - sw) / 2; sy = 0; }
   else                        { sw = vw; sh = vw / tgtRatio; sx = 0; sy = (vh - sh) / 2; }
 
-  const maxW   = { low:1024, mid:1920, high:2560, max:4096 }[cfg.camQuality] || 1920;
+  const maxW   = { low:1024, mid:1920, high:2560, max:4096 }[state.cfg.camQuality] || 1920;
+  const MAX_SAFE = 1920; // クラッシュ防止の絶対上限
 
-  // ── 横向き補正 ──
-  const orientAngle = window._deviceOrientAngle ?? 0;
-  const needsRotate = (orientAngle === 90 || orientAngle === 270 || orientAngle === -90);
+  // ── 横向き強制保存モード ──
+  const camIsPortrait = vh > vw;   // 実ストリーム解像度で判定
+  const needsRotate   = state.camera.forceHorizontal && camIsPortrait;
+
+  let outW, outH;
+  if (needsRotate) {
+    // 回転後に横長になるよう outW/outH を入れ替える
+    outW = Math.min(sh, maxW, MAX_SAFE);
+    outH = Math.round(outW / tgtRatio);
+  } else {
+    outW = Math.min(sw, maxW, MAX_SAFE);
+    outH = Math.round(outW / tgtRatio);
+  }
+
+  canvas.width  = outW;
+  canvas.height = outH;
+
+  ctx.save();
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+
+  // 中心基準で変換（回転・ミラーの合成に必須）
+  ctx.translate(outW / 2, outH / 2);
 
   if (needsRotate) {
-    canvas.width  = Math.min(sh, maxW);
-    canvas.height = canvas.width / tgtRatio;
-    ctx.save();
-    ctx.translate(canvas.width / 2, canvas.height / 2);
-    ctx.rotate((orientAngle === 270 || orientAngle === -90 ? -90 : 90) * Math.PI / 180);
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = 'high';
-    ctx.drawImage(video, sx, sy, sw, sh, -Math.min(sw, maxW) / 2, -Math.min(sw, maxW) / tgtRatio / 2, Math.min(sw, maxW), Math.min(sw, maxW) / tgtRatio);
-    ctx.restore();
-  } else {
-    canvas.width  = Math.min(sw, maxW);
-    canvas.height = canvas.width / tgtRatio;
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = 'high';
-    ctx.drawImage(video, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+    ctx.rotate(Math.PI / 2);   // 時計回り 90°
   }
+
+  // ── フロントカメラ左右反転補正（重要） ──
+  if (isFront) {
+    ctx.scale(-1, 1);
+  }
+
+  if (needsRotate) {
+    // 回転後は幅高さが入れ替わるため dst サイズも反転
+    ctx.drawImage(video, sx, sy, sw, sh, -outH / 2, -outW / 2, outH, outW);
+  } else {
+    ctx.drawImage(video, sx, sy, sw, sh, -outW / 2, -outH / 2, outW, outH);
+  }
+
+  ctx.restore();
 
   // サムネイル生成
   const thumbC = document.createElement('canvas');
@@ -171,16 +217,16 @@ async function takePhoto() {
   thumbC.getContext('2d').drawImage(canvas, 0, 0, thumbC.width, thumbC.height);
   const thumbDataUrl = thumbC.toDataURL('image/jpeg', 0.6);
 
-  const grp   = cfg.useGroup ? cfg.currentGroup : '未分類';
+  const grp   = state.cfg.useGroup ? state.cfg.currentGroup : '未分類';
   const photo = {
     id: Date.now() + Math.random(), dataUrl: thumbDataUrl, thumbDataUrl,
-    timestamp: Date.now(), facingMode, aspectRatio: cfg.aspectRatio,
-    group: grp, scannedCode: lastScannedValue || ''
+    timestamp: Date.now(), facingMode: state.facingMode, aspectRatio: state.cfg.aspectRatio,
+    group: grp, scannedCode: state.lastScannedValue || ''
   };
-  photos.unshift(photo);
+  state.photos.unshift(photo);
   updateCounts();
   updateThumbStrip();
-  if (activeTab === 'photos') renderPhotoGrid();
+  if (state.activeTab === 'photos') renderPhotoGrid();
   showFlashEffect();
   vibrate([50]);
   if (shutter) shutter.disabled = false;
@@ -188,12 +234,12 @@ async function takePhoto() {
   // 高画質を非同期保存
   setTimeout(async () => {
     try {
-      const q    = { low:0.7, mid:0.85, high:0.92, max:0.98 }[cfg.camQuality] || 0.85;
+      const q    = { low:0.7, mid:0.85, high:0.92, max:0.98 }[state.cfg.camQuality] || 0.85;
       const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', q));
       if (!blob) return;
       photo.dataUrl = await blobToDataUrl(blob);
-      if (typeof autoSaveToDevice === 'function') autoSaveToDevice(photo, blob);
-      if (typeof dbPut === 'function') { await dbPut(photo); await dbPrune(cfg.maxPhotos); }
+      autoSaveToDevice(photo, blob);
+      await dbPut(photo); await dbPrune(state.cfg.maxPhotos);
     } catch (e) { console.error('[Camera] Save:', e); }
   }, 50);
 }
@@ -239,28 +285,47 @@ function showCropOverlay(ratio) {
   overlay.classList.add('show');
 }
 
-function setAspectRatio(ratio) {
-  if (cfg.aspectRatio === ratio) return;
-  cfg.aspectRatio = ratio;
-  if (typeof saveCfg === 'function') saveCfg();
+export function setAspectRatio(ratio) {
+  if (state.cfg.aspectRatio === ratio) return;
+  state.cfg.aspectRatio = ratio;
+  saveCfg();
   document.querySelectorAll('.ratio-btn').forEach(btn => btn.classList.toggle('on', btn.dataset.r === ratio));
   const vf = $('cam-vf');
   if (vf) vf.style.aspectRatio = ratio;
   showCropOverlay(ratio);
-  if (camActive) startCam();
-  else if (typeof applyCfgToUI === 'function') applyCfgToUI();
+  if (state.camActive) startCam();
+}
+
+/* ════ 横向き強制保存トグル ════ */
+export function toggleForceHorizontal() {
+  state.camera.forceHorizontal = !state.camera.forceHorizontal;
+  const btn = $('btn-force-h');
+  if (btn) {
+    btn.classList.toggle('on', state.camera.forceHorizontal);
+    btn.title = state.camera.forceHorizontal ? '横向き強制保存: ON' : '横向き強制保存: OFF';
+  }
+  localStorage.setItem('forceH', state.camera.forceHorizontal ? '1' : '0');
 }
 
 /* ════ イベント登録 ════ */
 document.addEventListener('DOMContentLoaded', () => {
+  // ── state 初期化（localStorage から復元） ──
+  state.camera.forceHorizontal = localStorage.getItem('forceH') === '1';
+  const forceBtn = $('btn-force-h');
+  if (forceBtn) {
+    forceBtn.classList.toggle('on', state.camera.forceHorizontal);
+    forceBtn.title = state.camera.forceHorizontal ? '横向き強制保存: ON' : '横向き強制保存: OFF';
+  }
+
   const on = (id, fn) => { const el = $(id); if (el) el.onclick = fn; };
   on('btn-shutter', takePhoto);
   on('btn-torch',   toggleTorch);
+  on('btn-force-h', toggleForceHorizontal);
   on('cam-retry',   startCam);
-  on('btn-goto-scan', () => { if (typeof switchTab === 'function') switchTab('scan'); });
+  on('btn-goto-scan', () => { switchTab('scan'); });
 
   const RATIOS = ['4/3', '16/9', '21/9'];
-  let ratioIdx = Math.max(0, RATIOS.indexOf(cfg.aspectRatio));
+  let ratioIdx = Math.max(0, RATIOS.indexOf(state.cfg.aspectRatio));
   document.querySelectorAll('.ratio-btn').forEach(btn => {
     btn.onclick = () => { setAspectRatio(btn.dataset.r); ratioIdx = RATIOS.indexOf(btn.dataset.r); };
   });
@@ -283,7 +348,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (zoomSlider) {
     zoomSlider.oninput = e => {
       const v = parseFloat(e.target.value);
-      applyZoom(v); cfg.zoom = v;
+      applyZoom(v); state.cfg.zoom = v;
       const min = parseFloat(e.target.min) || 1, max = parseFloat(e.target.max) || 5;
       e.target.style.setProperty('--zoom-progress', (((v - min) / (max - min)) * 100).toFixed(1) + '%');
     };
@@ -291,10 +356,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.querySelectorAll('.quality-btn').forEach(btn => {
     btn.onclick = () => {
-      cfg.camQuality = btn.dataset.q;
-      if (typeof saveCfg === 'function') saveCfg();
-      if (typeof applyCfgToUI === 'function') applyCfgToUI();
-      if (camActive) startCam();
+      state.cfg.camQuality = btn.dataset.q;
+      saveCfg();
+      // UI update will be handled in main.js or via direct DOM manipulation here
+      if (state.camActive) startCam();
     };
   });
 

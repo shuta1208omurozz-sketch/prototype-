@@ -169,7 +169,7 @@
         <button class="quality-btn" data-q="max">ULTRA</button>
       </div>
       
-      <!-- アスペクト比選択セクション [INTEGRATED] -->
+      <!-- アスペクト比選択セクション -->
       <div class="ratio-row" id="ratio-row">
         <span class="ratio-lbl">ASPECT:</span>
         <button class="ratio-btn" data-r="4/3">4:3</button>
@@ -182,6 +182,7 @@
         <button id="btn-cam-switch" class="btn-sub">🔄</button>
         <button id="btn-torch" class="btn-sub">🔦</button>
         <button id="btn-shutter" class="btn-shutter"></button>
+        <button id="btn-force-h" class="btn-sub" title="横向き強制保存: OFF">⟲</button>
         <button id="btn-folder-toggle" class="btn-sub">📁</button>
         <button id="btn-goto-scan" class="btn-sub">SCAN</button>
       </div>
@@ -224,28 +225,27 @@
   <!-- ==================== 写真ギャラリー画面 ==================== -->
   <div class="page photo-pg" id="pg-photos">
     <div class="photo-toolbar">
-      <span class="photo-count" id="photo-count-txt">0 / 200 枚</span>
-      <div id="hist-ph-group-sel" style="display:flex;">
+      <button class="btn-sm" id="btn-ph-sort">↓ 新しい順</button>
+      <button class="btn-sm accent" id="btn-ph-select-mode" style="display:none">☑ 選択</button>
+      <button class="btn-sm accent" id="btn-merge-mode" style="display:none">⧉ 結合</button>
+      <button class="btn-sm danger" id="btn-photo-clear" style="display:none">全削除</button>
+      <div id="hist-ph-group-sel" style="margin-left:auto; display:flex;">
         <select id="hist-ph-group-select" class="group-select" style="padding:2px 4px; font-size:10px;"></select>
       </div>
-      <button class="btn-sm" id="btn-ph-sort" style="margin-left:auto;">↓ 新しい順</button>
-      <button class="btn-sm accent" id="btn-ph-select-mode" style="display:none">☑ 選択</button>
-      <button class="btn-sm accent" id="btn-merge-mode" style="display:none">📐 結合</button>
-      <button class="btn-sm danger" id="btn-photo-clear" style="display:none">全削除</button>
-    </div>
-    <div class="merge-bar" id="merge-bar">
-      <div class="merge-sel-preview" id="merge-sel-preview"></div>
-      <span class="merge-bar-txt" id="merge-bar-txt">写真をタップして選択（2枚以上）</span>
-      <button class="btn-merge-exec" id="btn-merge-exec" disabled>結合</button>
-      <button class="btn-merge-cancel" id="btn-merge-cancel">✕</button>
     </div>
     <div class="multi-sel-bar" id="multi-sel-bar">
       <span class="multi-sel-txt" id="multi-sel-txt">0枚 選択中</span>
       <button class="btn-multi-all" id="btn-multi-all">全選択</button>
-      <button class="btn-multi-move" id="btn-multi-move">📁 移動</button>
       <button class="btn-multi-dl" id="btn-multi-dl">↓ 保存</button>
+      <button class="btn-multi-move" id="btn-multi-move">📁 移動</button>
       <button class="btn-multi-del" id="btn-multi-del">削除</button>
       <button class="btn-multi-cancel" id="btn-multi-cancel">✕</button>
+    </div>
+    <div class="multi-sel-bar merge-bar" id="merge-bar">
+      <span class="multi-sel-txt" id="merge-bar-txt">写真をタップして選択</span>
+      <div id="merge-sel-preview" class="merge-sel-preview"></div>
+      <button class="btn-multi-exec" id="btn-merge-exec" disabled>結合実行</button>
+      <button class="btn-multi-cancel" id="btn-merge-cancel">✕</button>
     </div>
     <div class="empty" id="photo-empty">
       <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#2a3a4a" stroke-width="1.5">
@@ -380,7 +380,7 @@
     <div class="merge-layout-grid">
       <button class="merge-layout-btn" data-layout="h"><span class="merge-layout-icon">⬛⬛</span>横並び</button>
       <button class="merge-layout-btn" data-layout="v"><span class="merge-layout-icon">⬛<br>⬛</span>縦並び</button>
-      <button class="merge-layout-btn" data-layout="grid"><span class="merge-layout-icon">⬛⬛<br>⬛⬛</span>グリッド</button>
+      <button class="merge-layout-grid-btn" data-layout="grid"><span class="merge-layout-icon">⬛⬛<br>⬛⬛</span>グリッド</button>
       <button class="merge-layout-btn" data-layout="strip"><span class="merge-layout-icon">⬛⬛⬛</span>ストリップ</button>
     </div>
     <button class="merge-cancel-btn" id="merge-modal-cancel">キャンセル</button>
@@ -413,13 +413,7 @@
 <div class="toast" id="toast"></div>
 
 <!-- ==================== JSモジュールの読み込み ==================== -->
-<script src="state.js"></script>
-<script src="utils.js"></script>
-<script src="storage.js"></script>
-<script src="scanner.js"></script>
-<script src="camera.js"></script>
-<script src="photos.js"></script>
-<script src="main.js"></script>
+<script type="module" src="./main.js"></script>
 
 </body>
 </html>

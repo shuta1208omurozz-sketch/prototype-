@@ -1,51 +1,52 @@
-'use strict';
+import { state, BC_KEY } from './state.js';
+import { $, showToast, vibrate, fmtTime, fmtShort, updateCounts, renderBC } from './utils.js';
 
 /* ════ スキャンUI ════ */
 function setScanUI(active) {
-  $('scan-line').style.display = (!active || scanMode !== 'all') ? 'none' : '';
-  $('ean-guide').style.display = (active && scanMode === 'ean13') ? '' : 'none';
+  $('scan-line').style.display = (!active || state.scanMode !== 'all') ? 'none' : '';
+  $('ean-guide').style.display = (active && state.scanMode === 'ean13') ? '' : 'none';
   $('scan-ov').style.display   = active ? '' : 'none';
   $('scan-ph').style.display   = active ? 'none' : '';
-  $('scan-ov').className       = 'finder-ov' + (scanMode === 'ean13' ? ' ean' : '');
-  $('scan-ov').textContent     = scanMode === 'ean13' ? 'EAN-13 MODE' : 'SCANNING...';
+  $('scan-ov').className       = 'finder-ov' + (state.scanMode === 'ean13' ? ' ean' : '');
+  $('scan-ov').textContent     = state.scanMode === 'ean13' ? 'EAN-13 MODE' : 'SCANNING...';
 }
 
 function setStatus(dot, txt) {
-  const cls = dot === 'go' ? ` go${scanMode === 'ean13' ? ' ean' : ''}` : dot === 'ok' ? ' ok' : dot === 'err' ? ' err' : '';
+  const cls = dot === 'go' ? ` go${state.scanMode === 'ean13' ? ' ean' : ''}` : dot === 'ok' ? ' ok' : dot === 'err' ? ' err' : '';
   $('sdot').className   = 'sdot' + cls;
   $('stxt').textContent = txt;
 }
 
 /* ════ スキャン制御 ════ */
-function stopScan() {
-  if (raf) { cancelAnimationFrame(raf); raf = null; }
-  if (scanStream) { scanStream.getTracks().forEach(t => t.stop()); scanStream = null; }
+export function stopScan() {
+  if (state.raf) { cancelAnimationFrame(state.raf); state.raf = null; }
+  if (state.scanStream) { state.scanStream.getTracks().forEach(t => t.stop()); state.scanStream = null; }
   const v = $('scan-video');
   if (v) v.srcObject = null;
-  scanning = false;
+  state.scanning = false;
   setScanUI(false);
   setStatus('', '待機中');
   $('btn-scan').textContent = '▶ スキャン開始';
   $('btn-scan').classList.remove('stop');
 }
 
-async function startScan() {
-  if (scanning) return;
+export async function startScan() {
+  if (state.scanning) return;
   if (!('BarcodeDetector' in window)) {
     setStatus('err', '[E001] BarcodeDetector 非対応 (Chrome等が必要)');
     return;
   }
   try {
-    scanStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    state.scanStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
     const v = $('scan-video');
-    v.srcObject = scanStream;
+    v.srcObject = state.scanStream;
     v.setAttribute('playsinline', '');
     v.setAttribute('muted', '');
     await v.play();
-    detector = new BarcodeDetector({ formats: scanMode === 'ean13' ? ['ean_13'] : ALL_FMTS });
-    scanning = true;
+    state.detector = new BarcodeDetector({ formats: state.scanMode === 'ean13' ? ['ean_13'] : state.ALL_FMTS });
+    state.scanning = true;
     setScanUI(true);
-    setStatus('go', scanMode === 'ean13' ? 'EAN-13 スキャン中...' : 'スキャン中...');
+    setStatus('go', state.scanMode === 'ean13' ? 'EAN-13 スキャン中...' : 'スキャン中...');
     $('btn-scan').textContent = '■ スキャン停止';
     $('btn-scan').classList.add('stop');
     detect();
@@ -57,24 +58,24 @@ async function startScan() {
 
 async function detect() {
   const v = $('scan-video');
-  if (!v || !scanning || v.readyState < 2) { raf = requestAnimationFrame(detect); return; }
+  if (!v || !state.scanning || v.readyState < 2) { state.raf = requestAnimationFrame(detect); return; }
   try {
-    const codes = await detector.detect(v);
+    const codes = await state.detector.detect(v);
     if (codes.length) {
       const { rawValue, format } = codes[0];
       const now = Date.now();
       // EAN-13モード時は13桁のみ受理
-      if (scanMode === 'ean13' && rawValue.length !== 13) { /* skip */ }
+      if (state.scanMode === 'ean13' && rawValue.length !== 13) { /* skip */ }
       else {
-        const waitTime = cfg.continuousScan ? 500 : 3000;
-        if (rawValue !== lastCode || now - lastCodeTime > waitTime) {
-          lastCode = rawValue; lastCodeTime = now;
+        const waitTime = state.cfg.continuousScan ? 500 : 3000;
+        if (rawValue !== state.lastCode || now - state.lastCodeTime > waitTime) {
+          state.lastCode = rawValue; state.lastCodeTime = now;
           onDetected(rawValue, format);
         }
       }
     }
   } catch (_) {}
-  if (scanning) raf = requestAnimationFrame(detect);
+  if (state.scanning) state.raf = requestAnimationFrame(detect);
 }
 
 /* ════ 検出時処理 ════ */
@@ -93,7 +94,7 @@ function showLargeBarcode(value, format, isDup) {
   $('scan-bc-meta').textContent          = (format || '').toUpperCase().replace('_', ' ');
   $('scan-bc-dup').className             = 'scan-bc-dup' + (isDup ? ' show' : '');
   const cv   = $('scan-bc-canvas');
-  const jf   = JS_FMT[format];
+  const jf   = state.JS_FMT[format];
   if (jf && window.JsBarcode) {
     try {
       const wrap = $('scan-bc-canvas-wrap');
@@ -108,63 +109,63 @@ function showLargeBarcode(value, format, isDup) {
 }
 
 function onDetected(value, format) {
-  lastScannedValue = value;
+  state.lastScannedValue = value;
   const now   = Date.now();
-  const isDup = bcHistory.some(x => x.value === value);
+  const isDup = state.bcHistory.some(x => x.value === value);
   flashFinder();
   vibrate([50]);
   showLargeBarcode(value, format, isDup);
-  const wait = cfg.continuousScan ? 300 : 1500;
+  const wait = state.cfg.continuousScan ? 300 : 1500;
   if (isDup) {
     showToast('⊘ 登録済み: ' + value, 'dup', 1800);
     setStatus('ok', '登録済み: ' + value.slice(0, 20));
-    setTimeout(() => { if (scanning) setStatus('go', scanMode === 'ean13' ? 'EAN-13 スキャン中...' : 'スキャン中...'); }, wait);
+    setTimeout(() => { if (state.scanning) setStatus('go', state.scanMode === 'ean13' ? 'EAN-13 スキャン中...' : 'スキャン中...'); }, wait);
     return;
   }
-  const grp   = cfg.useGroup ? cfg.currentGroup : '';
+  const grp   = state.cfg.useGroup ? state.cfg.currentGroup : '';
   const entry = { id: now + Math.random(), value, format, timestamp: now, checked: false, group: grp };
-  bcHistory   = [entry, ...bcHistory];
-  localStorage.setItem(BC_KEY, JSON.stringify(bcHistory));
+  state.bcHistory   = [entry, ...state.bcHistory];
+  localStorage.setItem(BC_KEY, JSON.stringify(state.bcHistory));
   updateCounts();
   setStatus('ok', '検出！ ' + value.slice(0, 22));
-  setTimeout(() => { if (scanning) setStatus('go', scanMode === 'ean13' ? 'EAN-13 スキャン中...' : 'スキャン中...'); }, wait);
+  setTimeout(() => { if (state.scanning) setStatus('go', state.scanMode === 'ean13' ? 'EAN-13 スキャン中...' : 'スキャン中...'); }, wait);
 }
 
 /* ════ バーコード履歴UI ════ */
 function toggleBcChecked(id) {
-  const item = bcHistory.find(x => x.id === id);
+  const item = state.bcHistory.find(x => x.id === id);
   if (!item) return;
   item.checked = !item.checked;
-  localStorage.setItem(BC_KEY, JSON.stringify(bcHistory));
+  localStorage.setItem(BC_KEY, JSON.stringify(state.bcHistory));
   renderBcList();
 }
 
-function getFilteredBc() {
+export function getFilteredBc() {
   const q = $('search-box').value.toLowerCase();
-  let f = bcHistory.slice();
+  let f = state.bcHistory.slice();
   if (q) f = f.filter(x => x.value.toLowerCase().includes(q));
-  if (histFilter === 'checked')   f = f.filter(x =>  x.checked);
-  if (histFilter === 'unchecked') f = f.filter(x => !x.checked);
-  if (cfg.useGroup) {
+  if (state.histFilter === 'checked')   f = f.filter(x =>  x.checked);
+  if (state.histFilter === 'unchecked') f = f.filter(x => !x.checked);
+  if (state.cfg.useGroup) {
     const g = $('hist-bc-group-select').value;
     if (g !== 'all') f = f.filter(x => x.group === g);
   }
-  if (sortOrderBc === 'asc') f.reverse();
+  if (state.sortOrderBc === 'asc') f.reverse();
   return f;
 }
 
-function renderBcList() {
+export function renderBcList() {
   const filtered = getFilteredBc();
   const list = $('bc-list'), empty = $('bc-empty');
   if (!filtered.length) { list.style.display = 'none'; empty.style.display = ''; return; }
   empty.style.display = 'none';
   list.style.display  = '';
   list.innerHTML      = '';
-  list.classList.toggle('compact-mode', cfg.bcCompactMode);
-  list.classList.toggle('multi-mode-bc', multiSelModeBc);
+  list.classList.toggle('compact-mode', state.cfg.bcCompactMode);
+  list.classList.toggle('multi-mode-bc', state.multiSelModeBc);
 
   filtered.forEach((item, i) => {
-    const isSel = multiSelModeBc && multiSelectedBc.includes(item.id);
+    const isSel = state.multiSelModeBc && state.multiSelectedBc.includes(item.id);
     const card  = document.createElement('div');
     card.className = 'bc-card' +
       (item.format === 'ean_13' ? ' ean' : '') +
@@ -175,7 +176,7 @@ function renderBcList() {
     selChk.className = 'bc-sel-chk'; selChk.textContent = '✓';
     card.appendChild(selChk);
 
-    if (cfg.useGroup && item.group) {
+    if (state.cfg.useGroup && item.group) {
       const gb = document.createElement('div');
       gb.className = 'card-group-badge'; gb.textContent = item.group;
       card.appendChild(gb);
@@ -186,15 +187,15 @@ function renderBcList() {
 
     const checkBtn = document.createElement('button');
     checkBtn.className = 'card-check'; checkBtn.textContent = '✓';
-    checkBtn.addEventListener('click', e => { e.stopPropagation(); if (!multiSelModeBc) toggleBcChecked(item.id); });
+    checkBtn.addEventListener('click', e => { e.stopPropagation(); if (!state.multiSelModeBc) toggleBcChecked(item.id); });
 
     const delBtn = document.createElement('button');
     delBtn.className = 'btn-x'; delBtn.textContent = '✕';
-    delBtn.addEventListener('click', e => { e.stopPropagation(); if (!multiSelModeBc) deleteBc(item.id); });
+    delBtn.addEventListener('click', e => { e.stopPropagation(); if (!state.multiSelModeBc) deleteBc(item.id); });
 
-    const dispNum = sortOrderBc === 'desc' ? (filtered.length - i) : (i + 1);
+    const dispNum = state.sortOrderBc === 'desc' ? (filtered.length - i) : (i + 1);
 
-    if (cfg.bcCompactMode) {
+    if (state.cfg.bcCompactMode) {
       card.appendChild(checkBtn);
       card.appendChild(valEl);
       const ts = document.createElement('span');
@@ -219,7 +220,7 @@ function renderBcList() {
 
       // バーコード描画を非同期で（レイアウト安定後）
       requestAnimationFrame(() => {
-        const jf = JS_FMT[item.format];
+        const jf = state.JS_FMT[item.format];
         if (!jf || !window.JsBarcode) {
           cv.replaceWith(Object.assign(document.createElement('div'), { className:'bc-thumb-txt', textContent: item.value }));
           return;
@@ -230,51 +231,51 @@ function renderBcList() {
       });
     }
 
-    card.addEventListener('click', () => multiSelModeBc ? toggleMultiSelectBc(item.id, card) : openBcModal(item));
+    card.addEventListener('click', () => state.multiSelModeBc ? toggleMultiSelectBc(item.id, card) : openBcModal(item));
     list.appendChild(card);
   });
 }
 
-function deleteBc(id) {
+export function deleteBc(id) {
   if (!confirm('このバーコードを削除しますか？')) return;
-  bcHistory = bcHistory.filter(x => x.id !== id);
-  localStorage.setItem(BC_KEY, JSON.stringify(bcHistory));
+  state.bcHistory = state.bcHistory.filter(x => x.id !== id);
+  localStorage.setItem(BC_KEY, JSON.stringify(state.bcHistory));
   updateCounts(); renderBcList();
 }
 
 /* ════ BC 一括選択 ════ */
-function enterMultiSelModeBc() {
-  multiSelModeBc = true; multiSelectedBc = [];
+export function enterMultiSelModeBc() {
+  state.multiSelModeBc = true; state.multiSelectedBc = [];
   $('btn-bc-select-mode').classList.add('on');
   $('multi-sel-bar-bc').classList.add('on');
   updateMultiSelTxtBc(); renderBcList();
 }
 
-function exitMultiSelModeBc() {
-  multiSelModeBc = false; multiSelectedBc = [];
+export function exitMultiSelModeBc() {
+  state.multiSelModeBc = false; state.multiSelectedBc = [];
   $('btn-bc-select-mode').classList.remove('on');
   $('multi-sel-bar-bc').classList.remove('on');
   renderBcList();
 }
 
 function toggleMultiSelectBc(id, itemEl) {
-  const idx = multiSelectedBc.indexOf(id);
-  if (idx >= 0) { multiSelectedBc.splice(idx, 1); itemEl.classList.remove('multi-selected'); }
-  else          { multiSelectedBc.push(id);        itemEl.classList.add('multi-selected'); }
+  const idx = state.multiSelectedBc.indexOf(id);
+  if (idx >= 0) { state.multiSelectedBc.splice(idx, 1); itemEl.classList.remove('multi-selected'); }
+  else          { state.multiSelectedBc.push(id);        itemEl.classList.add('multi-selected'); }
   updateMultiSelTxtBc();
 }
 
 function updateMultiSelTxtBc() {
-  $('multi-sel-txt-bc').textContent = multiSelectedBc.length + '件 選択中';
+  $('multi-sel-txt-bc').textContent = state.multiSelectedBc.length + '件 選択中';
 }
 
 /* ════ BC モーダル ════ */
-function openBcModal(item) {
-  currentDetail = item;
+export function openBcModal(item) {
+  state.currentDetail = item;
   $('modal-val').textContent  = item.value;
   $('modal-meta').textContent = (item.format||'').toUpperCase().replace('_',' ') + ' · ' + fmtTime(item.timestamp);
   $('copied-msg').style.display = 'none';
-  const hasFmt = !!JS_FMT[item.format];
+  const hasFmt = !!state.JS_FMT[item.format];
   $('modal-bc').style.display  = hasFmt ? '' : 'none';
   $('modal-2d').style.display  = hasFmt ? 'none' : '';
   $('btn-png').style.display   = hasFmt ? '' : 'none';
@@ -282,85 +283,87 @@ function openBcModal(item) {
   $('bc-modal').style.display = '';
 }
 
-function closeBcModal() {
+export function closeBcModal() {
   $('bc-modal').style.display = 'none';
-  currentDetail = null;
+  state.currentDetail = null;
 }
 
-function exportCSV() {
-  if (!bcHistory.length) return;
-  const hasG = cfg.useGroup;
-  const hdr  = hasG ? '\uFEFF値,フォーマット,グループ,日時,確認済み' : '\uFEFF値,フォーマット,日時,確認済み';
-  const rows = [hdr, ...bcHistory.map(x => {
-    const v = `"${x.value}","${(x.format||'').replace('_',' ')}"`;
-    const g = hasG ? `,"${x.group||''}"` : '';
-    return v + g + `,"${fmtTime(x.timestamp)}","${x.checked?'済':''}"`;
-  })];
+export function exportCSV() {
+  if (!state.bcHistory.length) return;
+  const hasG = state.cfg.useGroup;
+  const hdr  = hasG ? '\uFEFF値,フォーマット,日時,確認済み,グループ\n' : '\uFEFF値,フォーマット,日時,確認済み\n';
+  const csv  = hdr + state.bcHistory.map(x => {
+    const row = [x.value, (x.format||'').toUpperCase(), fmtTime(x.timestamp), x.checked ? 'YES' : 'NO'];
+    if (hasG) row.push(x.group || '');
+    return row.map(v => `"${v}"`).join(',');
+  }).join('\n');
+  const b = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const a = document.createElement('a');
-  a.href     = URL.createObjectURL(new Blob([rows.join('\n')], { type:'text/csv' }));
-  a.download = 'barcodes_' + Date.now() + '.csv';
+  a.href = URL.createObjectURL(b);
+  a.download = `bc_history_${new Date().getTime()}.csv`;
   a.click();
 }
 
-/* ════ イベント登録 ════ */
 document.addEventListener('DOMContentLoaded', () => {
   const on = (id, ev, fn) => $(id)?.addEventListener(ev, fn);
-
-  on('btn-scan', 'click', () => scanning ? stopScan() : startScan());
-  on('btn-warp-cam', 'click', () => switchTab('camera'));
+  on('btn-scan',  'click', () => state.scanning ? stopScan() : startScan());
   on('scan-bc-copy', 'click', () => {
-    if (!lastScannedValue) return;
-    navigator.clipboard.writeText(lastScannedValue).then(() => showToast('コピーしました', 'ok'));
+    if (!state.lastScannedValue) return;
+    navigator.clipboard.writeText(state.lastScannedValue).then(() => showToast('✓ コピーしました', 'ok'));
+  });
+  on('btn-bc-csv',   'click', exportCSV);
+  on('btn-bc-clear', 'click', () => {
+    if (!confirm('全てのバーコード履歴を削除しますか？')) return;
+    state.bcHistory = []; localStorage.setItem(BC_KEY, '[]'); updateCounts(); renderBcList();
+  });
+  on('btn-bc-sort', 'click', e => {
+    state.sortOrderBc = state.sortOrderBc === 'desc' ? 'asc' : 'desc';
+    e.target.textContent = state.sortOrderBc === 'desc' ? '↓ 新しい順' : '↑ 古い順';
+    renderBcList();
   });
   on('search-box', 'input', renderBcList);
   on('btn-bc-compact', 'click', () => {
-    cfg.bcCompactMode = !cfg.bcCompactMode; saveCfg(); applyCfgToUI(); renderBcList();
-  });
-  on('btn-bc-sort', 'click', e => {
-    sortOrderBc = sortOrderBc === 'desc' ? 'asc' : 'desc';
-    e.target.textContent = sortOrderBc === 'desc' ? '↓ 新しい順' : '↑ 古い順';
+    state.cfg.bcCompactMode = !state.cfg.bcCompactMode;
+    $('btn-bc-compact').classList.toggle('on', state.cfg.bcCompactMode);
     renderBcList();
   });
-  document.querySelectorAll('.flt-btn').forEach(btn => btn.addEventListener('click', () => {
-    document.querySelectorAll('.flt-btn').forEach(b => b.classList.remove('on'));
-    btn.classList.add('on'); histFilter = btn.dataset.filter; renderBcList();
-  }));
-
   on('modal-close', 'click', closeBcModal);
-  $('bc-modal')?.addEventListener('click', e => { if (e.target === $('bc-modal')) closeBcModal(); });
   on('btn-copy', 'click', () => {
-    if (!currentDetail) return;
-    navigator.clipboard.writeText(currentDetail.value).then(() => {
-      const msg = $('copied-msg');
-      if (msg) { msg.style.display = 'block'; setTimeout(() => msg.style.display = 'none', 2000); }
-      showToast('コピーしました', 'ok');
+    if (!state.currentDetail) return;
+    navigator.clipboard.writeText(state.currentDetail.value).then(() => {
+      $('copied-msg').style.display = '';
+      setTimeout(() => { if ($('copied-msg')) $('copied-msg').style.display = 'none'; }, 2000);
     });
   });
   on('btn-png', 'click', () => {
-    if (!currentDetail) return;
-    const a = Object.assign(document.createElement('a'), {
-      href: $('modal-canvas').toDataURL('image/png'),
-      download: `barcode_${currentDetail.value}.png`
-    });
+    if (!state.currentDetail) return;
+    const a = document.createElement('a');
+    a.href = $('modal-canvas').toDataURL('image/png');
+    a.download = `barcode_${state.currentDetail.value}.png`;
     a.click();
   });
-
-  on('btn-bc-select-mode', 'click', () => multiSelModeBc ? exitMultiSelModeBc() : enterMultiSelModeBc());
+  on('btn-bc-select-mode', 'click', () => state.multiSelModeBc ? exitMultiSelModeBc() : enterMultiSelModeBc());
   on('btn-multi-cancel-bc', 'click', exitMultiSelModeBc);
   on('btn-multi-all-bc', 'click', () => {
     const f = getFilteredBc();
-    multiSelectedBc = multiSelectedBc.length === f.length && f.length ? [] : f.map(x => x.id);
+    state.multiSelectedBc = state.multiSelectedBc.length === f.length && f.length ? [] : f.map(x => x.id);
     updateMultiSelTxtBc(); renderBcList();
   });
   on('btn-multi-del-bc', 'click', () => {
-    if (!multiSelectedBc.length) return;
-    if (!confirm(`${multiSelectedBc.length}件の履歴を削除しますか？`)) return;
-    bcHistory = bcHistory.filter(x => !multiSelectedBc.includes(x.id));
-    localStorage.setItem(BC_KEY, JSON.stringify(bcHistory));
+    if (!state.multiSelectedBc.length) { showToast('項目が選択されていません', 'warn'); return; }
+    if (!confirm(state.multiSelectedBc.length + '件の履歴を削除しますか？')) return;
+    state.bcHistory = state.bcHistory.filter(x => !state.multiSelectedBc.includes(x.id));
+    localStorage.setItem(BC_KEY, JSON.stringify(state.bcHistory));
     updateCounts(); exitMultiSelModeBc(); showToast('削除しました');
   });
   on('btn-multi-move-bc', 'click', () => {
-    if (!multiSelectedBc.length) return;
-    groupMoveTarget = 'bc'; $('group-move-popup').style.display = 'block';
+    if (!state.multiSelectedBc.length) { showToast('項目が選択されていません', 'warn'); return; }
+    state.groupMoveTarget = 'bc'; $('group-move-popup').style.display = '';
   });
+  document.querySelectorAll('.flt-btn').forEach(btn => btn.addEventListener('click', () => {
+    document.querySelectorAll('.flt-btn').forEach(b => b.classList.remove('on'));
+    btn.classList.add('on');
+    state.histFilter = btn.dataset.filter;
+    renderBcList();
+  }));
 });
