@@ -1,9 +1,9 @@
 import { state, BC_KEY } from './state.js';
-import { $, saveCfg, loadCfg, showToast, vibrate, updateCounts, initOrientationSensor } from './utils.js';
+import { $, saveCfg, loadCfg, showToast, vibrate, updateCounts, initOrientationSensor, dataUrlToBlob } from './utils.js';
 import { startScan, stopScan, renderBcList, exitMultiSelModeBc, exportCSV } from './scanner.js';
 import { startCam, stopCam } from './camera.js';
 import { renderPhotoGrid, updateThumbStrip, exitMergeMode, exitMultiSelModePh, setThumbVisible, mergeImages } from './photos.js';
-import { dbClear, dbAll, dbPut, dbDel, restoreFolderHandle, pickSaveFolder, clearSaveFolder, dataUrlToBlob, fallbackDownload } from './storage.js';
+import { dbClear, dbAll, dbPut, dbDel, restoreFolderHandle, pickSaveFolder, clearSaveFolder, fallbackDownload } from './storage.js';
 
 /* ════ グループUI ════ */
 function updateGroupUI() {
