@@ -3,47 +3,67 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"/>
-  <title>Scanner + Camera Ultimate v4.1</title>
+  <title>Scanner + Camera</title>
+  
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.5/JsBarcode.all.min.js"></script>
   <link rel="stylesheet" href="style.css">
 </head>
 <body class="theme-cyan">
 <div id="app">
+  <!-- ヘッダー -->
   <div class="hdr">
     <div class="hdr-icon">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="#0a0c0f"><rect x="2" y="2" width="3" height="20"/><rect x="6" y="2" width="1" height="20"/><rect x="8" y="2" width="2" height="20"/><rect x="11" y="2" width="1" height="20"/><rect x="13" y="2" width="3" height="20"/><rect x="17" y="2" width="1" height="20"/><rect x="19" y="2" width="3" height="20"/></svg>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="#0a0c0f">
+        <rect x="2" y="2" width="3" height="20"/><rect x="6" y="2" width="1" height="20"/>
+        <rect x="8" y="2" width="2" height="20"/><rect x="11" y="2" width="1" height="20"/>
+        <rect x="13" y="2" width="3" height="20"/><rect x="17" y="2" width="1" height="20"/>
+        <rect x="19" y="2" width="3" height="20"/>
+      </svg>
     </div>
     <div>
       <div class="hdr-title">Scanner + Camera</div>
-      <div class="hdr-sub">SCAN · PHOTO · STORE [ULTIMATE]</div>
+      <div class="hdr-sub">SCAN · PHOTO · STORE</div>
     </div>
     <div class="hdr-count" id="hdr-count">0BC / 0📷</div>
   </div>
 
+  <!-- タブナビゲーション -->
   <div class="tabs">
     <button class="tab on" data-tab="scan">▶ スキャン</button>
-    <button class="tab" data-tab="history">≡ 履歴</button>
+    <button class="tab" data-tab="history">≡ BC(<span id="bc-count">0</span>)</button>
     <button class="tab" data-tab="camera">📷 カメラ</button>
-    <button class="tab" data-tab="photos">🖼 写真</button>
+    <button class="tab" data-tab="photos">🖼 写真(<span id="ph-count">0</span>)</button>
     <button class="tab" data-tab="settings">⚙ 設定</button>
   </div>
 
-  <!-- スキャン画面 -->
+  <!-- ==================== スキャン画面 ==================== -->
   <div class="page on scan-pg" id="pg-scan">
-    <div class="group-bar" id="scan-group-bar" style="display:flex;">
+    <div id="scan-group-bar" class="group-bar">
       <span class="group-lbl">📂 グループ:</span>
       <select id="scan-group-select" class="group-select"></select>
     </div>
     <div class="scan-top">
       <div class="mode-row">
         <button class="mode-btn" data-mode="all">全フォーマット</button>
-        <button class="mode-btn on" data-mode="ean13">EAN-13のみ</button>
+        <button class="mode-btn on" data-mode="ean13">EAN-13のみ <span class="badge">EAN</span></button>
       </div>
       <div class="finder" id="scan-finder">
         <video id="scan-video" muted playsinline autoplay></video>
-        <div class="corner tl"></div><div class="corner tr"></div><div class="corner bl"></div><div class="corner br"></div>
-        <div class="scan-line" id="scan-line"></div>
-        <div class="ph" id="scan-ph"><p>スキャン開始を押してください</p></div>
+        <div class="corner tl"></div><div class="corner tr"></div>
+        <div class="corner bl"></div><div class="corner br"></div>
+        <div class="scan-line" id="scan-line" style="display:none"></div>
+        <div class="ean-guide" id="ean-guide" style="display:none">
+          <div class="ean-box"><div class="ean-line"></div><div class="ean-txt">EAN-13バーコードを枠内に合わせる</div></div>
+        </div>
+        <div class="finder-ov" id="scan-ov" style="display:none">SCANNING...</div>
+        <div class="finder-flash" id="finder-flash"></div>
+        <div class="ph" id="scan-ph">
+          <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="#4a6a8a" stroke-width="1.2">
+            <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/>
+            <circle cx="12" cy="13" r="4"/>
+          </svg>
+          <p id="scan-ph-txt">スキャン開始を押してください</p>
+        </div>
       </div>
       <div class="sbar"><div class="sdot" id="sdot"></div><span id="stxt">待機中</span></div>
       <button class="btn-main" id="btn-scan">▶ スキャン開始</button>
@@ -52,98 +72,354 @@
       <div class="scan-bc-placeholder" id="scan-bc-placeholder">— バーコード表示エリア —</div>
       <div class="scan-bc-display" id="scan-bc-display" style="display:none">
         <div class="scan-bc-val" id="scan-bc-val"></div>
-        <button id="btn-warp-cam" class="warp-cam-btn">📷 写真を撮影する</button>
-        <div class="scan-bc-canvas-wrap"><canvas id="scan-bc-canvas"></canvas></div>
+        <button id="btn-warp-cam" class="warp-cam-btn">📷 撮影する</button>
+        <div class="scan-bc-canvas-wrap" id="scan-bc-canvas-wrap">
+          <canvas id="scan-bc-canvas"></canvas>
+        </div>
+        <div class="scan-bc-footer">
+          <div class="scan-bc-meta" id="scan-bc-meta"></div>
+          <button class="scan-bc-copy" id="scan-bc-copy">📋 コピー</button>
+        </div>
       </div>
+      <div class="scan-bc-dup" id="scan-bc-dup">⊘ 登録済み</div>
     </div>
   </div>
 
-  <!-- カメラ画面 (比率切り替え機能統合) -->
+  <!-- ==================== バーコード履歴画面 ==================== -->
+  <div class="page hist-pg" id="pg-history">
+    <div class="toolbar">
+      <input class="sbox" id="search-box" placeholder="バーコード値を検索..." type="search"/>
+      <button class="btn-sm" id="btn-bc-compact" title="画像を隠して1行で表示">☰ 1行</button>
+      <button class="btn-sm" id="btn-bc-sort">↓ 新しい順</button>
+      <button class="btn-sm accent" id="btn-bc-select-mode" style="display:none">☑ 選択</button>
+      <button class="btn-sm accent" id="btn-bc-csv" style="display:none">CSV</button>
+      <button class="btn-sm danger" id="btn-bc-clear" style="display:none">全削除</button>
+    </div>
+    <div class="multi-sel-bar" id="multi-sel-bar-bc">
+      <span class="multi-sel-txt" id="multi-sel-txt-bc">0件 選択中</span>
+      <button class="btn-multi-all" id="btn-multi-all-bc">全選択</button>
+      <button class="btn-multi-move" id="btn-multi-move-bc">📁 移動</button>
+      <button class="btn-multi-del" id="btn-multi-del-bc">削除</button>
+      <button class="btn-multi-cancel" id="btn-multi-cancel-bc">✕</button>
+    </div>
+    <div class="hist-filter-row">
+      <span class="hist-filter-lbl">表示:</span>
+      <button class="flt-btn on" data-filter="all">全て</button>
+      <button class="flt-btn grn" data-filter="checked">✓ 済み</button>
+      <button class="flt-btn" data-filter="unchecked">未確認</button>
+      <div id="hist-bc-group-sel" style="margin-left:auto; display:flex;">
+        <select id="hist-bc-group-select" class="group-select" style="padding:2px 4px; font-size:10px;"></select>
+      </div>
+    </div>
+    <div class="empty" id="bc-empty">
+      <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#2a3a4a" stroke-width="1.5">
+        <rect x="2" y="2" width="4" height="16"/><rect x="7" y="2" width="2" height="16"/>
+        <rect x="10" y="2" width="4" height="16"/><rect x="15" y="2" width="2" height="16"/>
+        <rect x="18" y="2" width="4" height="16"/>
+      </svg>
+      <p>スキャン履歴がありません<br/>バーコードを読み取ると<br/>ここに表示されます</p>
+    </div>
+    <div class="list" id="bc-list" style="display:none"></div>
+  </div>
+
+  <!-- ==================== カメラ画面 ==================== -->
   <div class="page cam-pg" id="pg-camera">
-    <div class="group-bar" style="display:flex;">
-      <span class="group-lbl">📂 保存先:</span>
+    <div id="cam-group-bar" class="group-bar" style="margin-bottom:4px;">
+      <span class="group-lbl">📂 グループ:</span>
       <select id="cam-group-select" class="group-select"></select>
     </div>
     <div class="vf" id="cam-vf">
       <video id="cam-video" muted playsinline autoplay></video>
       <div class="flash" id="flash"></div>
       <div class="focus-ring" id="focus-ring"></div>
+      <!-- アスペクト比クロップ範囲オーバーレイ -->
+      <div id="crop-overlay" class="crop-overlay" style="display:none;">
+        <div class="crop-mask crop-mask-top"></div>
+        <div class="crop-mask crop-mask-bottom"></div>
+        <div class="crop-frame">
+          <div class="crop-corner crop-corner-tl"></div>
+          <div class="crop-corner crop-corner-tr"></div>
+          <div class="crop-corner crop-corner-bl"></div>
+          <div class="crop-corner crop-corner-br"></div>
+          <span id="crop-ratio-label" class="crop-ratio-label">16:9</span>
+        </div>
+      </div>
+      <div id="cam-ph" style="display:flex;position:absolute;inset:0;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:#000;">
+        <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#4a6a8a" stroke-width="1.5">
+          <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/>
+          <circle cx="12" cy="13" r="4"/>
+        </svg>
+        <p id="cam-ph-txt" style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#3a5a7a;text-align:center;max-width:180px;line-height:1.7;">カメラを起動中...</p>
+      </div>
     </div>
-
-    <!-- アスペクト比切り替えボタン -->
-    <div class="ratio-row">
-      <span class="ratio-lbl">ASPECT:</span>
-      <button class="ratio-btn" data-ratio="4/3">4:3</button>
-      <button class="ratio-btn on" data-ratio="16/9">16:9</button>
-      <button class="ratio-btn" data-ratio="21/9">21:9</button>
+    <div class="err-box" id="cam-err" style="display:none;">
+      <div class="err-title">🚫 カメラエラー</div>
+      <span class="err-code-badge" id="cam-err-code">E000</span>
+      <div class="err-body" id="cam-err-body"></div>
+      <button class="err-retry" id="cam-retry">↺ 再試行</button>
     </div>
-
-    <div class="cam-controls">
+    <!-- カメラ設定行: 画質とアスペクト比の制御 -->
+    <div class="cam-settings-row">
+      <!-- 画質選択セクション -->
+      <div class="quality-row" id="quality-row" style="display:none;">
+        <span class="quality-lbl">QUALITY:</span>
+        <button class="quality-btn" data-q="low">LOW</button>
+        <button class="quality-btn on" data-q="mid">MID</button>
+        <button class="quality-btn" data-q="high">HIGH</button>
+        <button class="quality-btn" data-q="max">ULTRA</button>
+      </div>
+      
+      <!-- アスペクト比選択セクション [INTEGRATED] -->
+      <div class="ratio-row" id="ratio-row">
+        <span class="ratio-lbl">ASPECT:</span>
+        <button class="ratio-btn" data-r="4/3">4:3</button>
+        <button class="ratio-btn on" data-r="16/9">16:9</button>
+        <button class="ratio-btn" data-r="21/9">21:9</button>
+      </div>
+    </div>
+    <div class="cam-controls" id="cam-controls">
       <div class="btn-row">
         <button id="btn-cam-switch" class="btn-sub">🔄</button>
         <button id="btn-torch" class="btn-sub">🔦</button>
         <button id="btn-shutter" class="btn-shutter"></button>
+        <button id="btn-folder-toggle" class="btn-sub">📁</button>
         <button id="btn-goto-scan" class="btn-sub">SCAN</button>
       </div>
+      <!-- ズームスライダー: 倍率1未満の超広角にも対応 -->
+      <div class="zoom-controls">
+        <span id="uw-label" style="display:none;font-family:'Share Tech Mono',monospace;font-size:9px;color:#ffaa44;letter-spacing:1px;">UW</span>
+        <input type="range" id="zoom-slider" min="0.5" max="5" step="0.05" value="1">
+        <span id="zoom-level">1.00x</span>
+      </div>
+    </div>
+    <div class="thumb-strip-wrap" id="thumb-strip-wrap" style="display:none;">
+      <div class="thumb-strip-hdr">
+        <span class="thumb-strip-lbl">最近の写真</span>
+        <button class="thumb-toggle-btn on" id="btn-thumb-toggle2">非表示</button>
+      </div>
+      <div class="thumb-strip" id="thumb-strip"></div>
+    </div>
+    <div class="cam-bottom-row">
+      <div class="orient-bar">
+        <div class="orient-dot" id="orient-dot"></div>
+        <span class="orient-label" id="orient-label">センサー待機中</span>
+      </div>
+      <span id="stab-ind" style="font-family:'Share Tech Mono',monospace;font-size:8px;color:#4a6a8a;letter-spacing:1px;"></span>
+      <button class="thumb-toggle-btn" id="btn-thumb-toggle">🖼 サムネ</button>
+    </div>
+    <div class="save-folder-row" id="save-folder-row" style="display:none;">
+      <div class="save-folder-hdr">
+        <span class="save-folder-label">📁 自動保存先</span>
+        <span class="save-folder-android">Android Chrome 限定</span>
+      </div>
+      <div class="save-folder-path none" id="folder-path-txt">未設定（Downloadsに保存）</div>
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+        <button class="btn-folder-pick" id="btn-folder-pick">📂 フォルダを選択</button>
+        <button class="btn-folder-clear" id="btn-folder-clear" style="display:none">× 解除</button>
+      </div>
+      <div class="save-folder-note">DCIMやピクチャも選択可。選択後は固定されます。<br/>iOSは非対応（Downloads/共有で保存）</div>
     </div>
   </div>
 
-  <!-- 履歴画面 -->
-  <div class="page hist-pg" id="pg-history">
-    <div class="toolbar">
-      <input class="sbox" id="search-box" placeholder="バーコード値を検索..." type="search"/>
-      <button class="btn-sm" id="btn-bc-compact">≡ 1行</button>
-      <button class="btn-sm accent" id="btn-bc-csv">CSV</button>
-      <button class="btn-sm danger" id="btn-bc-clear">全削除</button>
-    </div>
-    <div class="list" id="bc-list"></div>
-  </div>
-
-  <!-- 写真画面 -->
+  <!-- ==================== 写真ギャラリー画面 ==================== -->
   <div class="page photo-pg" id="pg-photos">
     <div class="photo-toolbar">
-      <span class="photo-count" id="photo-count-txt">0 枚</span>
-      <button class="btn-sm accent" id="btn-merge-mode">📐 結合</button>
-      <button class="btn-sm danger" id="btn-photo-clear">全削除</button>
+      <span class="photo-count" id="photo-count-txt">0 / 200 枚</span>
+      <div id="hist-ph-group-sel" style="display:flex;">
+        <select id="hist-ph-group-select" class="group-select" style="padding:2px 4px; font-size:10px;"></select>
+      </div>
+      <button class="btn-sm" id="btn-ph-sort" style="margin-left:auto;">↓ 新しい順</button>
+      <button class="btn-sm accent" id="btn-ph-select-mode" style="display:none">☑ 選択</button>
+      <button class="btn-sm accent" id="btn-merge-mode" style="display:none">📐 結合</button>
+      <button class="btn-sm danger" id="btn-photo-clear" style="display:none">全削除</button>
     </div>
-    <div class="photo-list" id="photo-grid"></div>
+    <div class="merge-bar" id="merge-bar">
+      <div class="merge-sel-preview" id="merge-sel-preview"></div>
+      <span class="merge-bar-txt" id="merge-bar-txt">写真をタップして選択（2枚以上）</span>
+      <button class="btn-merge-exec" id="btn-merge-exec" disabled>結合</button>
+      <button class="btn-merge-cancel" id="btn-merge-cancel">✕</button>
+    </div>
+    <div class="multi-sel-bar" id="multi-sel-bar">
+      <span class="multi-sel-txt" id="multi-sel-txt">0枚 選択中</span>
+      <button class="btn-multi-all" id="btn-multi-all">全選択</button>
+      <button class="btn-multi-move" id="btn-multi-move">📁 移動</button>
+      <button class="btn-multi-dl" id="btn-multi-dl">↓ 保存</button>
+      <button class="btn-multi-del" id="btn-multi-del">削除</button>
+      <button class="btn-multi-cancel" id="btn-multi-cancel">✕</button>
+    </div>
+    <div class="empty" id="photo-empty">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#2a3a4a" stroke-width="1.5">
+        <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/>
+        <circle cx="12" cy="13" r="4"/>
+      </svg>
+      <p>写真がありません<br/>カメラタブから撮影してください</p>
+    </div>
+    <div class="photo-list" id="photo-grid" style="display:none"></div>
   </div>
 
-  <!-- 設定画面 -->
+  <!-- ==================== 設定画面 ==================== -->
   <div class="page settings-pg" id="pg-settings">
     <div class="settings-section">
-      <div class="settings-title">⚙ システム設定</div>
-      <div class="settings-row">
-        <div><div class="settings-lbl">ハプティック（振動）</div><div class="settings-sub">操作時の振動フィードバック</div></div>
-        <label class="toggle-sw"><input type="checkbox" id="set-vibration" checked/><span class="toggle-slider"></span></label>
-      </div>
-      <div class="settings-btn-row">
-        <button class="settings-btn danger" id="set-clear-all">全てのデータを初期化</button>
+      <div class="settings-title">📱 UI設定</div>
+      <div class="settings-row" style="flex-direction:column; align-items:flex-start;">
+        <div style="display:flex; justify-content:space-between; width:100%;">
+          <div><div class="settings-lbl">写真サムネイルのサイズ</div><div class="settings-sub">履歴のタイルサイズ</div></div>
+          <div class="settings-lbl" id="val-photo-size" style="color:var(--accent);">80px</div>
+        </div>
+        <input type="range" id="set-photo-size" min="50" max="300" step="10" value="80" style="width:100%; margin-top:12px;" />
       </div>
     </div>
-    <div class="settings-ver">SCANNER + CAMERA v4.1 INTEGRATED</div>
+    <div class="settings-divider"></div>
+
+    <div class="settings-section">
+      <div class="settings-title">▶ スキャン設定</div>
+      <div class="settings-row">
+        <div><div class="settings-lbl">連続スキャンモード</div><div class="settings-sub">停止せずに素早く連続読取</div></div>
+        <label class="toggle-sw"><input type="checkbox" id="set-cont-scan"/><span class="toggle-slider"></span></label>
+      </div>
+      <div class="settings-row">
+        <div><div class="settings-lbl">スキャン自動開始</div><div class="settings-sub">タブを開くと自動でスキャン開始</div></div>
+        <label class="toggle-sw"><input type="checkbox" id="set-auto-scan" checked/><span class="toggle-slider"></span></label>
+      </div>
+      <div class="settings-row">
+        <div><div class="settings-lbl">デフォルトフォーマット</div><div class="settings-sub">スキャン対象コードの種類</div></div>
+        <div class="settings-ctrl">
+          <button class="seg-btn on" data-sf="ean13">EAN-13</button>
+          <button class="seg-btn" data-sf="all">全て</button>
+        </div>
+      </div>
+    </div>
+    <div class="settings-divider"></div>
+
+    <div class="settings-section">
+      <div class="settings-title">📁 グループ分け機能</div>
+      <div class="settings-row">
+        <div><div class="settings-lbl">グループ機能を有効化</div><div class="settings-sub">BCや写真をカテゴリ別に整理する</div></div>
+        <label class="toggle-sw"><input type="checkbox" id="set-use-group"/><span class="toggle-slider"></span></label>
+      </div>
+      <div id="group-mgr-area" style="display:none; padding-bottom:8px;">
+        <div class="grp-list" id="grp-list-el"></div>
+        <div class="grp-add-row">
+          <input type="text" id="grp-add-input" class="grp-add-input" placeholder="新しいグループ名"/>
+          <button id="grp-add-btn" class="grp-add-btn">追加</button>
+        </div>
+      </div>
+    </div>
+    <div class="settings-divider"></div>
+
+    <div class="settings-section">
+      <div class="settings-title">⚙ システム / 保存設定</div>
+      <div class="settings-row">
+        <div><div class="settings-lbl">ハプティック（振動）</div><div class="settings-sub">スキャン・撮影・操作時のバイブレーション</div></div>
+        <label class="toggle-sw"><input type="checkbox" id="set-vibration"/><span class="toggle-slider"></span></label>
+      </div>
+      <div class="settings-row">
+        <div><div class="settings-lbl">最大保存枚数</div><div class="settings-sub">超えると古いものから削除</div></div>
+        <div class="settings-ctrl">
+          <button class="seg-btn" data-mp="50">50</button>
+          <button class="seg-btn" data-mp="100">100</button>
+          <button class="seg-btn on" data-mp="200">200</button>
+          <button class="seg-btn" data-mp="500">500</button>
+        </div>
+      </div>
+      <div class="settings-row" style="margin-top:10px;">
+        <div><div class="settings-lbl" id="set-folder-name">未設定</div><div class="settings-sub" id="set-folder-note">Downloadsフォルダに保存</div></div>
+        <div class="settings-ctrl">
+          <button class="seg-btn" id="set-folder-pick-btn">選択</button>
+          <button class="seg-btn danger" id="set-folder-clear-btn" style="display:none;color:#ff6688">解除</button>
+        </div>
+      </div>
+    </div>
+    <div class="settings-divider"></div>
+
+    <div class="settings-section">
+      <div class="settings-title">🗄 データ管理</div>
+    </div>
+    <div class="settings-btn-row">
+      <button class="settings-btn" id="set-export-csv">📄 バーコード履歴をCSV出力</button>
+      <button class="settings-btn danger" id="set-clear-bc">BC履歴を全削除</button>
+      <button class="settings-btn danger" id="set-clear-photos">写真を全削除</button>
+    </div>
+    <div class="settings-divider"></div>
+    <div class="settings-ver">SCANNER + CAMERA · v4.0 Ultimate</div>
   </div>
 </div>
 
-<div class="toast" id="toast"></div>
+<!-- ==================== モーダル・ポップアップ群 ==================== -->
+<!-- 写真拡大表示 (Lightbox) -->
 <div class="lb" id="lightbox" style="display:none">
-  <div class="lb-hdr"><span class="lb-ttl">VIEWER</span><button class="btn-close" id="lb-close">×</button></div>
-  <div class="lb-img"><img id="lb-img" src=""/></div>
+  <div class="lb-hdr"><span class="lb-ttl" id="lb-ttl"></span><button class="btn-close" id="lb-close">×</button></div>
+  <div class="lb-img"><img id="lb-img" src="" alt=""/></div>
   <div class="lb-ftr">
-    <button class="btn-dl" id="lb-dl">本体保存</button>
+    <button class="btn-dl" id="lb-dl">↓ 本体に保存</button>
+    <button class="lb-rotate-btn" id="lb-rotate">↻ 回転</button>
     <button class="btn-del" id="lb-del">削除</button>
   </div>
 </div>
 
+<!-- バーコード詳細 (Modal) -->
+<div class="modal-bg" id="bc-modal" style="display:none">
+  <div class="modal">
+    <div class="modal-hdr"><span class="modal-lbl">バーコード詳細</span><button class="btn-close" id="modal-close">×</button></div>
+    <div class="modal-val" id="modal-val"></div>
+    <div class="modal-meta" id="modal-meta"></div>
+    <div class="modal-bc" id="modal-bc"><canvas id="modal-canvas"></canvas></div>
+    <div class="modal-2d" id="modal-2d" style="display:none">QRコード・2Dコードの画像生成は非対応です</div>
+    <div class="copied" id="copied-msg" style="display:none">✓ コピーしました</div>
+    <div class="modal-acts">
+      <button class="btn-png" id="btn-png" style="display:none">↓ PNG保存</button>
+      <button class="btn-copy" id="btn-copy">コピー</button>
+    </div>
+  </div>
+</div>
+
+<!-- 画像結合レイアウト選択 -->
+<div class="merge-modal-bg" id="merge-modal" style="display:none">
+  <div class="merge-modal">
+    <div class="merge-modal-title">結合レイアウトを選択</div>
+    <div class="merge-layout-grid">
+      <button class="merge-layout-btn" data-layout="h"><span class="merge-layout-icon">⬛⬛</span>横並び</button>
+      <button class="merge-layout-btn" data-layout="v"><span class="merge-layout-icon">⬛<br>⬛</span>縦並び</button>
+      <button class="merge-layout-btn" data-layout="grid"><span class="merge-layout-icon">⬛⬛<br>⬛⬛</span>グリッド</button>
+      <button class="merge-layout-btn" data-layout="strip"><span class="merge-layout-icon">⬛⬛⬛</span>ストリップ</button>
+    </div>
+    <button class="merge-cancel-btn" id="merge-modal-cancel">キャンセル</button>
+  </div>
+</div>
+
+<!-- グループ変更ポップアップ -->
+<div class="popup-bg" id="group-move-popup" style="display:none">
+  <div class="popup">
+    <div class="popup-title">📁 グループに移動</div>
+    <div class="popup-body">選択した項目のグループを変更します。<br/>移動先のグループを選択してください。</div>
+    <select id="group-move-select" class="grp-move-select"></select>
+    <div class="popup-btn-row">
+      <button class="popup-btn-cancel" id="group-move-cancel">キャンセル</button>
+      <button class="popup-btn-exec" id="group-move-exec">移動する</button>
+    </div>
+  </div>
+</div>
+
+<!-- iOS保存ポップアップ -->
+<div class="popup-bg" id="ios-popup" style="display:none">
+  <div class="popup">
+    <div class="popup-title">📷 写真を保存する</div>
+    <div class="popup-body">iOSではブラウザのセキュリティ制限のため<br/><b>自動保存ができません。</b><br/><br/>写真を選択して <b>↓ 保存</b> をタップすると<br/>共有シートが開き「<b>画像を追加</b>」または<br/>「<b>"ファイル"に保存</b>」が選べます。</div>
+    <button class="popup-btn" id="ios-popup-close">わかりました</button>
+  </div>
+</div>
+
+<!-- トースト通知 -->
+<div class="toast" id="toast"></div>
+
+<!-- ==================== JSモジュールの読み込み ==================== -->
 <script src="state.js"></script>
-  <script src="utils.js"></script>
-  <script src="storage.js"></script>
+<script src="utils.js"></script>
+<script src="storage.js"></script>
+<script src="scanner.js"></script>
+<script src="camera.js"></script>
+<script src="photos.js"></script>
+<script src="main.js"></script>
 
-  <script src="photos.js"></script>
-  <script src="scanner.js"></script>
-  <script src="camera.js"></script>
-
-  <script src="main.js"></script>
 </body>
-</html>
 </html>
