@@ -84,9 +84,6 @@ async function startCam(forceRestart = false) {
         camActive = true;
         initCamFeatures(camTrack);
         showCropOverlay(cfg.aspectRatio);
-        // 画質UIを表示
-        const qr = $('quality-row');
-        if (qr) qr.style.display = '';
       } catch (e) { console.warn('[Camera] Play interrupted:', e); }
     }
   } catch (e) {
@@ -167,13 +164,20 @@ async function takePhoto() {
   const canvas = document.createElement('canvas');
   const ctx    = canvas.getContext('2d', { alpha: false, desynchronized: true });
   const vw = video.videoWidth, vh = video.videoHeight;
-  const [rW, rH]  = (cfg.aspectRatio || '16/9').split('/');
-  const tgtRatio  = parseFloat(rW) / parseFloat(rH);
+  const isFull = (cfg.aspectRatio === 'full');
+  const [rW, rH] = isFull ? [vw, vh] : (cfg.aspectRatio || '16/9').split('/');
+  const tgtRatio   = parseFloat(rW) / parseFloat(rH);
   const videoRatio = vw / vh;
 
   let sw, sh, sx, sy;
-  if (videoRatio > tgtRatio) { sh = vh; sw = vh * tgtRatio; sx = (vw - sw) / 2; sy = 0; }
-  else                        { sw = vw; sh = vw / tgtRatio; sx = 0; sy = (vh - sh) / 2; }
+  if (isFull) {
+    // FULL: センサー全面、クロップなし
+    sw = vw; sh = vh; sx = 0; sy = 0;
+  } else if (videoRatio > tgtRatio) {
+    sh = vh; sw = vh * tgtRatio; sx = (vw - sw) / 2; sy = 0;
+  } else {
+    sw = vw; sh = vw / tgtRatio; sx = 0; sy = (vh - sh) / 2;
+  }
 
   const maxW   = { low:1024, mid:1920, high:2560, max:4096 }[cfg.camQuality] || 1920;
 
@@ -206,7 +210,7 @@ async function takePhoto() {
 
   // サムネイル生成
   const thumbC = document.createElement('canvas');
-  thumbC.width = 300; thumbC.height = 300 / tgtRatio;
+  thumbC.width = 300; thumbC.height = isFull ? Math.round(300 * vh / vw) : Math.round(300 / tgtRatio);
   thumbC.getContext('2d').drawImage(canvas, 0, 0, thumbC.width, thumbC.height);
   const thumbDataUrl = thumbC.toDataURL('image/jpeg', 0.6);
 
@@ -268,6 +272,7 @@ function handleCamError(err) {
 function showCropOverlay(ratio) {
   const overlay = $('crop-overlay');
   if (!overlay) return;
+  if (ratio === 'full') { overlay.style.display = 'none'; return; }
   const label = $('crop-ratio-label');
   if (label) label.textContent = ratio.replace('/', ':');
   ['crop-mask-top','crop-mask-bottom'].forEach(cls => {
@@ -296,7 +301,7 @@ function setAspectRatio(ratio) {
   if (typeof saveCfg === 'function') saveCfg();
   document.querySelectorAll('.ratio-btn').forEach(btn => btn.classList.toggle('on', btn.dataset.r === ratio));
   const vf = $('cam-vf');
-  if (vf) vf.style.aspectRatio = ratio;
+  if (vf) vf.style.aspectRatio = (ratio === 'full') ? 'auto' : ratio;
   showCropOverlay(ratio);
   if (camActive) startCam(true); // 解像度変更のため強制再起動
   else if (typeof applyCfgToUI === 'function') applyCfgToUI();
@@ -311,7 +316,7 @@ document.addEventListener('DOMContentLoaded', () => {
   on('btn-horizontal', toggleHorizontal);
   on('btn-goto-scan',  () => { if (typeof switchTab === 'function') switchTab('scan'); });
 
-  const RATIOS = ['4/3', '16/9', '21/9'];
+  const RATIOS = ['full', '4/3', '16/9', '21/9'];
   let ratioIdx = Math.max(0, RATIOS.indexOf(cfg.aspectRatio));
   document.querySelectorAll('.ratio-btn').forEach(btn => {
     btn.onclick = () => { setAspectRatio(btn.dataset.r); ratioIdx = RATIOS.indexOf(btn.dataset.r); };

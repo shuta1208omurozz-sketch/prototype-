@@ -18,7 +18,7 @@ let cfg = {
   useGroup:       false,
   groups:         ['未分類', '食品', '機械', '文具'],
   currentGroup:   '未分類',
-  aspectRatio:    '16/9'
+  aspectRatio:    'full'
 };
 
 /* ════ データ ════ */

@@ -5,7 +5,10 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"/>
   <title>Scanner + Camera</title>
   
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.5/JsBarcode.all.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.5/JsBarcode.all.min.js" defer></script>
   <link rel="stylesheet" href="style.css">
 </head>
 <body class="theme-cyan">
@@ -172,18 +175,19 @@
       <!-- アスペクト比選択セクション [INTEGRATED] -->
       <div class="ratio-row" id="ratio-row">
         <span class="ratio-lbl">ASPECT:</span>
+        <button class="ratio-btn on" data-r="full">FULL</button>
         <button class="ratio-btn" data-r="4/3">4:3</button>
-        <button class="ratio-btn on" data-r="16/9">16:9</button>
+        <button class="ratio-btn" data-r="16/9">16:9</button>
         <button class="ratio-btn" data-r="21/9">21:9</button>
       </div>
     </div>
     <div class="cam-controls" id="cam-controls">
       <div class="btn-row">
-        <button id="btn-folder-toggle" class="btn-sub">📁</button>
-        <button id="btn-torch" class="btn-sub">🔦</button>
-        <button id="btn-shutter" class="btn-shutter"></button>
-        <button id="btn-goto-scan" class="btn-sub">SCAN</button>
-        <button id="btn-horizontal" class="btn-sub" title="横固定モード">🧭</button>
+        <button id="btn-folder-toggle" class="btn-sub" aria-label="フォルダ切り替え">📁</button>
+        <button id="btn-torch" class="btn-sub" aria-label="ライト切り替え">🔦</button>
+        <button id="btn-shutter" class="shutter btn-shutter" aria-label="シャッター"></button>
+        <button id="btn-goto-scan" class="btn-sub" aria-label="スキャン画面へ">SCAN</button>
+        <button id="btn-horizontal" class="btn-sub" title="横固定モード" aria-label="横固定モード">🧭</button>
       </div>
       <!-- ズームスライダー: 倍率1未満の超広角にも対応 -->
       <div class="zoom-controls">

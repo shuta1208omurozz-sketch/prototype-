@@ -1,4 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700&display=swap');
 
 :root {
   --card-height: 100px;
@@ -65,7 +64,7 @@ body { color: #e0e8f0; font-family: 'Rajdhani', sans-serif; }
 .finder-ov.ean { color: rgba(255,170,0,.7); }
 .finder-flash { position: absolute; inset: 0; z-index: 4; pointer-events: none; opacity: 0; background: rgba(0,255,136,.18); transition: opacity .08s; }
 .finder-flash.show { opacity: 1; }
-.ph { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; }
+.ph { position: absolute; inset: 0; z-index: 3; background: #060809; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; }
 .ph p { font-family: 'Share Tech Mono', monospace; font-size: 10px; text-align: center; max-width: 200px; line-height: 1.8; color: #3a5a7a; }
 
 .sbar { width: 100%; max-width: 420px; padding: 6px 12px; background: #0d1117; border: 1px solid #1e2a38; font-family: 'Share Tech Mono', monospace; font-size: 10px; letter-spacing: 1px; color: #4a6a8a; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
@@ -88,8 +87,6 @@ body { color: #e0e8f0; font-family: 'Rajdhani', sans-serif; }
 .scan-bc-canvas-wrap { width: 100%; flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; background: #fff; overflow: hidden; }
 .scan-bc-canvas-wrap canvas { width: 100% !important; height: auto !important; max-height: 140px; display: block; }
 .scan-bc-val { font-family: 'Share Tech Mono', monospace; font-size: clamp(18px, 5.5vw, 28px); color: #e0e8f0; font-weight: 700; letter-spacing: 3px; text-align: center; line-height: 1; margin-top: 4px; }
-.btn-goto-cam { padding: 12px; margin: 4px 0 8px; width: 100%; max-width: 320px; background: var(--accent); color: #0a0c0f; border: none; font-family: 'Rajdhani', sans-serif; font-size: 16px; font-weight: 700; letter-spacing: 2px; border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 10px rgba(0,212,255,0.3); transition: transform 0.1s; flex-shrink: 0; }
-.btn-goto-cam:active { transform: scale(0.97); }
 
 .scan-bc-footer { display: flex; align-items: center; gap: 10px; flex-shrink: 0; margin-top: 4px; }
 .scan-bc-meta { font-family: 'Share Tech Mono', monospace; font-size: 9px; color: #4a6a8a; letter-spacing: 1px; }
@@ -233,6 +230,18 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px;
   background: #2a3a4a;
 }
 
+/* FULL モード: センサー等倍ボタンを目立たせる */
+.ratio-btn[data-r="full"].on {
+  background: linear-gradient(135deg, #1a4a2a 0%, #0d3320 100%);
+  border-color: #2ecc71;
+  color: #2ecc71;
+  box-shadow: 0 0 8px rgba(46,204,113,.4);
+}
+.ratio-btn[data-r="full"] {
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
 .ratio-btn.on {
   border-color: var(--accent);
   color: var(--accent);
@@ -246,12 +255,6 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px;
 }
 /* ════════════════════════════════════════════════ */
 
-.cam-ctrl { width: 100%; max-width: 440px; display: flex; align-items: center; justify-content: space-around; padding: 4px; flex-shrink: 0; gap: 8px; }
-.ctrl-btn { width: 50px; height: 50px; border-radius: 50%; border: 1px solid #1e2a38; background: #0d1117; color: #8ab4cc; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 20px; transition: all .2s; flex-shrink: 0; -webkit-tap-highlight-color: transparent; }
-.ctrl-btn:active { border-color: var(--accent); color: var(--accent); }
-.ctrl-btn.red { border-color: #ff4466; color: #ff4466; }
-.ctrl-btn.torch-on { border-color: #ffdd00 !important; color: #ffdd00 !important; box-shadow: 0 0 10px rgba(255,221,0,.35); }
-.ctrl-btn.hilite { border-color: var(--accent); color: var(--accent); }
 .shutter { width: 68px; height: 68px; border-radius: 50%; border: 3px solid #e0e8f0; background: transparent; cursor: pointer; position: relative; display: flex; align-items: center; justify-content: center; -webkit-tap-highlight-color: transparent; flex-shrink: 0; touch-action: none; /* シャッターボタン上でのスワイプを確実に捕捉 */ }
 .shutter::after { content: ''; width: 52px; height: 52px; border-radius: 50%; background: #e0e8f0; display: block; transition: transform .1s; }
 .shutter:active::after { transform: scale(.85); }
@@ -429,6 +432,11 @@ input:checked + .toggle-slider:before { transform: translateX(20px); background:
   font-weight: 700;
   font-size: 16px;
   clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
+  transition: transform 0.1s;
+  cursor: pointer;
+}
+.warp-cam-btn:active {
+  transform: scale(0.97);
 }
 
 /* カメラ画面のボタン配置（親指最適化） */
@@ -466,11 +474,6 @@ input:checked + .toggle-slider:before { transform: translateX(20px); background:
 .lb {
   touch-action: none; /* ブラウザ標準のスクロールを無効化してスワイプを優先 */
   transition: transform 0.3s ease-out;
-}
-
-/* プレビュー枠の動的なアスペクト比変更に対応するためのスタイル */
-.cam-vf {
-  transition: aspect-ratio 0.3s ease-in-out;
 }
 
 /* シャッターボタンのスワイプ操作を有効にするためのスタイル */

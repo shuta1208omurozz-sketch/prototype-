@@ -64,7 +64,7 @@ function applyCfgToUI() {
   document.querySelectorAll('.ratio-btn').forEach(b => b.classList.toggle('on', b.dataset.r   === cfg.aspectRatio));
 
   const camVf = $('cam-vf');
-  if (camVf) camVf.style.aspectRatio = cfg.aspectRatio;
+  if (camVf) camVf.style.aspectRatio = (cfg.aspectRatio === 'full') ? 'auto' : cfg.aspectRatio;
   scanMode   = cfg.scanFormat;
   camQuality = cfg.camQuality;
 
@@ -299,15 +299,18 @@ async function startGlobalCamera(forceRestart = false) {
     }
 
     const qBase = CAM_QUALITY[cfg.camQuality] || CAM_QUALITY.mid;
-    const [arW, arH] = (cfg.aspectRatio || '16/9').split('/').map(Number);
+    const isFull = cfg.aspectRatio === 'full';
+
+    // FULL モード: aspectRatio 制約を渡さずセンサー本来の画角を使う
+    const videoConstraints = isFull
+      ? { facingMode, width: qBase.width, height: qBase.height }
+      : (() => {
+          const [arW, arH] = (cfg.aspectRatio || '16/9').split('/').map(Number);
+          return { facingMode, width: qBase.width, height: qBase.height, aspectRatio: { ideal: arW / arH } };
+        })();
 
     globalStream = await navigator.mediaDevices.getUserMedia({
-      video: {
-        facingMode,
-        width:  qBase.width,
-        height: qBase.height,
-        aspectRatio: { ideal: arW / arH }
-      },
+      video: videoConstraints,
       audio: false
     });
     globalCamTrack = globalStream.getVideoTracks()[0];

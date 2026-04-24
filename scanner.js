@@ -25,6 +25,7 @@ function stopScan() {
   // scanning を先に false にして detect() の再帰を止める
   scanning = false;
   _lastScanTime = 0;
+  _requiresClearFrame = false; // 停止時はリセット（次回スキャン開始時に即反応できるよう）
   
   // RAF を確実にキャンセル
   if (raf) { cancelAnimationFrame(raf); raf = null; }
@@ -75,16 +76,30 @@ async function startScan() {
         btn.classList.add('stop', 'active');
       }
       detect();
-    } catch (e) { console.warn('[Scanner] Play interrupted:', e); }
+    } catch (e) {
+      console.warn('[Scanner] Play interrupted:', e);
+      setStatus('err', `[E007] 映像再生エラー: ${e.name}`);
+    }
   } catch (e) {
-    setStatus('err', `[${e.name === 'NotAllowedError' ? 'E002' : 'E005'}] ` +
-      (e.name === 'NotAllowedError' ? 'カメラの許可が必要です' : 'カメラエラー: ' + e.message));
+    const errMap = {
+      NotAllowedError:      ['E002', 'カメラの許可が必要です'],
+      NotFoundError:        ['E003', 'カメラが見つかりません'],
+      OverconstrainedError: ['E004', '解像度設定が非対応です'],
+      NotReadableError:     ['E005', 'カメラが使用中です'],
+    };
+    const [code, msg] = errMap[e.name] || ['E005', 'カメラエラー: ' + e.message.slice(0, 60)];
+    setStatus('err', `[${code}] ${msg}`);
   }
 }
 
 /* ════ スキャン頻度の厳密な制限（究極の節電） ════ */
 let _lastScanTime = 0;
 const SCAN_INTERVAL = 200; // 200ms (5fps) に厳密に固定。
+
+/* 同一バーコードの連続誤登録防止フラグ
+ * スキャン成功後 true → 空フレームを1回でも検出したら false に戻す
+ * このフラグが true の間は同じ値を再登録しない（持ち続け対策）*/
+let _requiresClearFrame = false;
 
 /* ROI用オフスクリーンcanvas */
 let _roiCanvas = null;
@@ -128,67 +143,73 @@ async function detect() {
   try {
     if (!detector) detector = new BarcodeDetector({ formats: ALL_FMTS });
     const barcodes = await detector.detect(detectTarget);
-    if (barcodes.length > 0 && scanning) {
+
+    if (barcodes.length === 0) {
+      // 空フレーム → 同一バーコードの再スキャンを解禁
+      _requiresClearFrame = false;
+    } else if (scanning) {
       const b = barcodes[0];
       let val = b.rawValue;
       if (scanMode === 'ean13' && val.length === 12) val = '0' + val;
       if (scanMode === 'ean13' && val.length !== 13) { raf = requestAnimationFrame(detect); return; }
-      
+
       handleScanSuccess(val, b.format);
     }
-  } catch (e) { console.error('[Scanner] Detect:', e); }
+  } catch (e) {
+    console.error('[Scanner] Detect:', e);
+    setStatus('err', `[E006] 検出エラー: ${e.name}`);
+  }
 
   if (scanning) raf = requestAnimationFrame(detect);
 }
 
 function handleScanSuccess(val, format) {
-  if (val === lastCode && (Date.now() - lastCodeTime < 2000)) return;
+  // ── 重複チェック ──
+  // 同じ値かつ「カメラから一度も消えていない」場合はスキップ（持ち続け対策）
+  // _requiresClearFrame が true = 前回スキャン後まだ空フレームを検出していない
+  if (val === lastCode && _requiresClearFrame) {
+    return; // バーコードがまだカメラに映ったまま → 無視
+  }
+  // 同じ値でも空フレームを経由したが、念のため最低1秒のクールダウン
+  if (val === lastCode && (Date.now() - lastCodeTime < 1000)) {
+    const dupEl = $('scan-bc-dup');
+    if (dupEl) { dupEl.style.display = ''; setTimeout(() => { dupEl.style.display = 'none'; }, 1500); }
+    return;
+  }
   lastCode = val; lastCodeTime = Date.now();
   lastScannedValue = val;
-  
+  _requiresClearFrame = true; // 次に同じ値を登録するにはカメラから消える必要がある
+
   vibrate([100]);
-  const grp = cfg.useGroup ? cfg.currentGroup : '未分類';
+  const grp  = cfg.useGroup ? cfg.currentGroup : '未分類';
   const item = { id: Date.now(), value: val, format, timestamp: Date.now(), group: grp, checked: false };
-  const isDup = bcHistory.some(x => x.value === val);
   bcHistory.unshift(item);
   localStorage.setItem(BC_KEY, JSON.stringify(bcHistory));
-  
-  // ── スキャン画面の結果エリアを更新 ──
-  const dispEl   = $('scan-bc-display');
-  const holdEl   = $('scan-bc-placeholder');
-  const valEl    = $('scan-bc-val');
-  const metaEl   = $('scan-bc-meta');
-  const dupEl    = $('scan-bc-dup');
-  const canvas   = $('scan-bc-canvas');
-  const flashEl  = $('finder-flash');
 
-  if (holdEl)   holdEl.style.display = 'none';
-  if (dispEl)   dispEl.style.display = 'flex';
-  if (valEl)    valEl.textContent = val;
-  if (metaEl)   metaEl.textContent = format.toUpperCase().replace('_',' ') + ' · ' + fmtShort(item.timestamp);
-  if (dupEl)    dupEl.classList.toggle('show', isDup);
-
-  // バーコード画像の描画（1Dフォーマットのみ）
-  if (canvas && JS_FMT[format]) {
-    setTimeout(() => renderBC(canvas, val, format, 60, false), 10);
-  } else if (canvas) {
-    // QR等2Dは描画不可のためクリア
-    const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-  }
-
-  // スキャン成功フラッシュ
-  if (flashEl) {
-    flashEl.classList.remove('show');
-    void flashEl.offsetWidth;
-    flashEl.classList.add('show');
-    setTimeout(() => flashEl.classList.remove('show'), 150);
+  /* ── スキャン結果表示エリアを更新 ── */
+  const dispEl = $('scan-bc-display');
+  const phEl   = $('scan-bc-placeholder');
+  const valEl  = $('scan-bc-val');
+  const metaEl = $('scan-bc-meta');
+  const cnvEl  = $('scan-bc-canvas');
+  const wrapEl = $('scan-bc-canvas-wrap');
+  if (phEl)   phEl.style.display   = 'none';
+  if (dispEl) dispEl.style.display = '';
+  if (valEl)  valEl.textContent    = val;
+  if (metaEl) metaEl.textContent   = (format || '').toUpperCase().replace('_', ' ') + ' · ' + fmtShort(item.timestamp);
+  if (cnvEl && wrapEl) {
+    if (JS_FMT[format]) {
+      wrapEl.style.display = '';
+      setTimeout(() => renderBC(cnvEl, val, format, 50, false), 10);
+    } else {
+      wrapEl.style.display = 'none';
+    }
   }
 
   updateCounts();
   renderBcList();
   showToast('スキャン成功: ' + val, 'ok');
-  
+
   if (!cfg.continuousScan) stopScan();
 }
 
@@ -347,11 +368,6 @@ document.addEventListener('DOMContentLoaded', () => {
     a.click();
   });
   on('btn-bc-select-mode', 'click', () => multiSelModeBc ? exitMultiSelModeBc() : enterMultiSelModeBc());
-  on('btn-bc-csv',         'click', exportCSV);
-  on('btn-bc-clear',       'click', () => {
-    if (!confirm('全てのバーコード履歴を削除しますか？')) return;
-    bcHistory = []; localStorage.setItem(BC_KEY, '[]'); updateCounts(); renderBcList(); showToast('BC履歴を削除しました');
-  });
   on('btn-multi-cancel-bc', 'click', exitMultiSelModeBc);
   on('btn-multi-all-bc', 'click', () => {
     const f = getFilteredBc();
