@@ -1,26 +1,24 @@
-import { state } from './state.js';
-import { $, getDayString, showToast, fmtTime, createThumbnail, dataUrlToBlob, updateCounts } from './utils.js';
-import { dbDel, dbPut, dbAll, dbPrune, fallbackDownload } from './storage.js';
+'use strict';
 
 /* ════ フィルタ・ソート ════ */
-export function getFilteredPh() {
-  let f = state.photos.slice();
-  if (state.cfg.useGroup) {
+function getFilteredPh() {
+  let f = photos.slice();
+  if (cfg.useGroup) {
     const g = $('hist-ph-group-select').value;
     if (g !== 'all') f = f.filter(x => x.group === g);
   }
-  if (state.sortOrderPh === 'asc') f.reverse();
+  if (sortOrderPh === 'asc') f.reverse();
   return f;
 }
 
 /* ════ フォトグリッド ════ */
-export function renderPhotoGrid() {
+function renderPhotoGrid() {
   const grid  = $('photo-grid');
   const empty = $('photo-empty');
-  if (!state.photos.length) { grid.style.display = 'none'; empty.style.display = ''; return; }
+  if (!photos.length) { grid.style.display = 'none'; empty.style.display = ''; return; }
   empty.style.display = 'none';
   grid.style.display  = '';
-  grid.className = 'photo-list' + (state.mergeMode ? ' merge-mode' : state.multiSelModePh ? ' multi-mode-ph' : '');
+  grid.className = 'photo-list' + (mergeMode ? ' merge-mode' : multiSelModePh ? ' multi-mode-ph' : '');
   grid.innerHTML = '';
 
   let lastDay = '';
@@ -31,14 +29,14 @@ export function renderPhotoGrid() {
       hdr.className = 'photo-section-header'; hdr.textContent = day;
       grid.appendChild(hdr); lastDay = day;
     }
-    const isSel = (state.mergeMode && state.mergeSelected.includes(p.id)) || (state.multiSelModePh && state.multiSelectedPh.includes(p.id));
+    const isSel = (mergeMode && mergeSelected.includes(p.id)) || (multiSelModePh && multiSelectedPh.includes(p.id));
     const item  = document.createElement('div');
     item.className = 'photo-card photo-item' + (isSel ? ' selected' : '');
 
     const imgWrap = document.createElement('div');
     imgWrap.className = 'photo-card-img';
 
-    if (state.cfg.useGroup && p.group) {
+    if (cfg.useGroup && p.group) {
       const gb = document.createElement('div');
       gb.className = 'card-group-badge'; gb.textContent = p.group;
       imgWrap.appendChild(gb);
@@ -53,8 +51,8 @@ export function renderPhotoGrid() {
     item.appendChild(imgWrap);
 
     item.addEventListener('click', () => {
-      if (state.mergeMode)       toggleMergeSelect(p.id, item);
-      else if (state.multiSelModePh) toggleMultiSelectPh(p.id, item);
+      if (mergeMode)       toggleMergeSelect(p.id, item);
+      else if (multiSelModePh) toggleMultiSelectPh(p.id, item);
       else                 openLightbox(p);
     });
     grid.appendChild(item);
@@ -62,28 +60,28 @@ export function renderPhotoGrid() {
 }
 
 /* ════ サムネストリップ ════ */
-export function updateThumbStrip() {
+function updateThumbStrip() {
   const wrap = $('thumb-strip-wrap');
-  if (!state.thumbStripVisible || !state.photos.length) { wrap.style.display = 'none'; return; }
+  if (!thumbStripVisible || !photos.length) { wrap.style.display = 'none'; return; }
   wrap.style.display = '';
   const strip = $('thumb-strip');
   strip.innerHTML = '';
-  state.photos.slice(0, 10).forEach(p => {
+  photos.slice(0, 10).forEach(p => {
     const d   = document.createElement('div'); d.className = 'mini-thumb';
     const img = document.createElement('img'); img.src = p.thumbDataUrl || p.dataUrl;
     d.appendChild(img); d.onclick = () => openLightbox(p);
     strip.appendChild(d);
   });
-  if (state.photos.length > 10) {
+  if (photos.length > 10) {
     const m = document.createElement('button');
-    m.className = 'more-btn'; m.textContent = '+' + (state.photos.length - 10);
+    m.className = 'more-btn'; m.textContent = '+' + (photos.length - 10);
     m.onclick = () => document.querySelector('[data-tab="photos"]').click();
     strip.appendChild(m);
   }
 }
 
-export function setThumbVisible(v) {
-  state.thumbStripVisible = v;
+function setThumbVisible(v) {
+  thumbStripVisible = v;
   localStorage.setItem('sc-thumb-vis', v ? '1' : '0');
   $('btn-thumb-toggle').classList.toggle('on', v);
   $('btn-thumb-toggle').textContent  = v ? '🖼 ON' : '🖼 OFF';
@@ -93,44 +91,44 @@ export function setThumbVisible(v) {
 }
 
 /* ════ 写真削除 ════ */
-export function deletePhoto(id) {
+function deletePhoto(id) {
   if (!confirm('この写真を削除しますか？')) return;
   dbDel(id).then(async () => {
-    state.photos = state.photos.filter(p => p.id !== id);
+    photos = photos.filter(p => p.id !== id);
     updateCounts(); renderPhotoGrid(); updateThumbStrip();
-    if (state.currentLightbox?.id === id) closeLightbox();
+    if (currentLightbox?.id === id) closeLightbox();
   });
 }
 
 /* ════ 複数選択 ════ */
-export function enterMultiSelModePh(initialId = null) {
-  state.multiSelModePh = true; state.multiSelectedPh = initialId ? [initialId] : [];
+function enterMultiSelModePh(initialId = null) {
+  multiSelModePh = true; multiSelectedPh = initialId ? [initialId] : [];
   $('btn-ph-select-mode').classList.add('on');
   $('multi-sel-bar').classList.add('on');
   updateMultiSelTxtPh(); renderPhotoGrid();
 }
 
-export function exitMultiSelModePh() {
-  state.multiSelModePh = false; state.multiSelectedPh = [];
+function exitMultiSelModePh() {
+  multiSelModePh = false; multiSelectedPh = [];
   $('btn-ph-select-mode').classList.remove('on');
   $('multi-sel-bar').classList.remove('on');
   renderPhotoGrid();
 }
 
 function toggleMultiSelectPh(id, itemEl) {
-  const idx = state.multiSelectedPh.indexOf(id);
-  if (idx >= 0) { state.multiSelectedPh.splice(idx, 1); itemEl.classList.remove('selected'); }
-  else          { state.multiSelectedPh.push(id);        itemEl.classList.add('selected'); }
+  const idx = multiSelectedPh.indexOf(id);
+  if (idx >= 0) { multiSelectedPh.splice(idx, 1); itemEl.classList.remove('selected'); }
+  else          { multiSelectedPh.push(id);        itemEl.classList.add('selected'); }
   updateMultiSelTxtPh();
 }
 
-export function updateMultiSelTxtPh() {
-  $('multi-sel-txt').textContent = state.multiSelectedPh.length + '枚 選択中';
+function updateMultiSelTxtPh() {
+  $('multi-sel-txt').textContent = multiSelectedPh.length + '枚 選択中';
 }
 
 /* ════ ライトボックス ════ */
-export function openLightbox(p) {
-  state.currentLightbox = p;
+function openLightbox(p) {
+  currentLightbox = p;
   $('lb-img').src       = p.dataUrl;
   $('lb-img').style.transform = `rotate(${p.rotation || 0}deg)`;
   $('lb-ttl').textContent = fmtTime(p.timestamp) + ' · ' +
@@ -138,9 +136,9 @@ export function openLightbox(p) {
   $('lightbox').style.display = '';
 }
 
-export function closeLightbox() {
+function closeLightbox() {
   $('lightbox').style.display = 'none';
-  state.currentLightbox = null;
+  currentLightbox = null;
 }
 
 /* ライトボックス スワイプ（統合：lbTouch と initSwipe を一本化） */
@@ -150,13 +148,13 @@ function initLightboxTouch() {
   let sx = 0, sy = 0;
   lb.addEventListener('touchstart', e => { sx = e.touches[0].clientX; sy = e.touches[0].clientY; }, { passive: true });
   lb.addEventListener('touchend',   e => {
-    if (!state.currentLightbox) return;
+    if (!currentLightbox) return;
     const dx = e.changedTouches[0].clientX - sx;
     const dy = e.changedTouches[0].clientY - sy;
     if (dy > 80 && Math.abs(dy) > Math.abs(dx)) { closeLightbox(); return; }
     if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy)) {
       const f   = getFilteredPh();
-      const idx = f.findIndex(p => p.id === state.currentLightbox.id);
+      const idx = f.findIndex(p => p.id === currentLightbox.id);
       if (idx === -1) return;
       if (dx < 0 && idx < f.length - 1) openLightbox(f[idx + 1]);
       if (dx > 0 && idx > 0)            openLightbox(f[idx - 1]);
@@ -165,10 +163,10 @@ function initLightboxTouch() {
 }
 
 /* ════ 写真回転 ════ */
-export async function rotateLightboxPhoto() {
-  if (!state.currentLightbox) return;
+async function rotateLightboxPhoto() {
+  if (!currentLightbox) return;
   const img = new Image();
-  img.src   = state.currentLightbox.dataUrl;
+  img.src   = currentLightbox.dataUrl;
   await new Promise(r => { img.onload = r; });
 
   const c   = document.createElement('canvas');
@@ -180,9 +178,9 @@ export async function rotateLightboxPhoto() {
 
   const newUrl      = c.toDataURL('image/jpeg', 0.9);
   const newThumbUrl = await createThumbnail(newUrl, 400);
-  state.currentLightbox   = { ...state.currentLightbox, dataUrl: newUrl, thumbDataUrl: newThumbUrl, rotation: 0 };
-  await dbPut(state.currentLightbox);
-  state.photos         = (await dbAll()).reverse();
+  currentLightbox   = { ...currentLightbox, dataUrl: newUrl, thumbDataUrl: newThumbUrl, rotation: 0 };
+  await dbPut(currentLightbox);
+  photos         = (await dbAll()).reverse();
   $('lb-img').src = newUrl;
   $('lb-img').style.transform = '';
   renderPhotoGrid(); updateThumbStrip();
@@ -190,7 +188,7 @@ export async function rotateLightboxPhoto() {
 }
 
 /* ════ 保存 ════ */
-export async function savePhotoToDevice(photo) {
+async function savePhotoToDevice(photo) {
   const ts     = fmtTime(photo.timestamp).replace(/[/:\s]/g, '-');
   const prefix = photo.scannedCode ? photo.scannedCode.slice(-5) : 'photo';
   const name   = `${prefix}_${ts}.jpg`;
@@ -207,8 +205,8 @@ export async function savePhotoToDevice(photo) {
 }
 
 /* ════ 結合モード ════ */
-export function enterMergeMode() {
-  exitMultiSelModePh(); state.mergeMode = true; state.mergeSelected = [];
+function enterMergeMode() {
+  exitMultiSelModePh(); mergeMode = true; mergeSelected = [];
   $('btn-merge-mode').classList.add('on');
   $('merge-bar').classList.add('on');
   $('merge-bar-txt').textContent = '写真をタップして選択（2枚以上）';
@@ -216,8 +214,8 @@ export function enterMergeMode() {
   renderPhotoGrid();
 }
 
-export function exitMergeMode() {
-  state.mergeMode = false; state.mergeSelected = [];
+function exitMergeMode() {
+  mergeMode = false; mergeSelected = [];
   $('btn-merge-mode').classList.remove('on');
   $('merge-bar').classList.remove('on');
   const prev = $('merge-sel-preview');
@@ -226,31 +224,31 @@ export function exitMergeMode() {
 }
 
 function toggleMergeSelect(id, itemEl) {
-  const idx = state.mergeSelected.indexOf(id);
-  if (idx >= 0) { state.mergeSelected.splice(idx, 1); itemEl.classList.remove('selected'); }
-  else          { state.mergeSelected.push(id);        itemEl.classList.add('selected'); }
-  const n = state.mergeSelected.length;
+  const idx = mergeSelected.indexOf(id);
+  if (idx >= 0) { mergeSelected.splice(idx, 1); itemEl.classList.remove('selected'); }
+  else          { mergeSelected.push(id);        itemEl.classList.add('selected'); }
+  const n = mergeSelected.length;
   $('merge-bar-txt').textContent  = n === 0 ? '写真をタップして選択（2枚以上）' : `${n}枚 選択中`;
   $('btn-merge-exec').disabled    = n < 2;
   const prev = $('merge-sel-preview');
   if (prev) {
     prev.innerHTML = '';
-    state.mergeSelected.slice(0, 5).forEach(sid => {
-      const ph = state.photos.find(p => p.id === sid);
+    mergeSelected.slice(0, 5).forEach(sid => {
+      const ph = photos.find(p => p.id === sid);
       if (!ph) return;
       const img = document.createElement('img'); img.src = ph.thumbDataUrl || ph.dataUrl;
       prev.appendChild(img);
     });
-    if (state.mergeSelected.length > 5) {
+    if (mergeSelected.length > 5) {
       const more = document.createElement('span');
       more.style.cssText = 'font-size:9px;color:var(--accent);font-family:monospace;';
-      more.textContent   = `+${state.mergeSelected.length - 5}`;
+      more.textContent   = `+${mergeSelected.length - 5}`;
       prev.appendChild(more);
     }
   }
 }
 
-export async function mergeImages(sel, layout) {
+async function mergeImages(sel, layout) {
   showToast('結合中...', '', 5000);
   try {
     const imgs = await Promise.all(sel.map(p => new Promise((res, rej) => {
@@ -295,10 +293,10 @@ export async function mergeImages(sel, layout) {
     const merged = {
       id: Date.now() + Math.random(), dataUrl, thumbDataUrl,
       timestamp: Date.now(), facingMode: 'merged', rotation: 0,
-      merged: true, group: state.cfg.useGroup ? state.cfg.currentGroup : ''
+      merged: true, group: cfg.useGroup ? cfg.currentGroup : ''
     };
-    await dbPut(merged); await dbPrune(state.cfg.MAX_PH);
-    state.photos = (await dbAll()).reverse();
+    await dbPut(merged); await dbPrune(MAX_PH);
+    photos = (await dbAll()).reverse();
     updateCounts(); exitMergeMode(); renderPhotoGrid(); updateThumbStrip();
     showToast('✓ ' + n + '枚を結合しました', 'ok');
     openLightbox(merged);
@@ -312,8 +310,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const on = (id, fn) => $(id)?.addEventListener('click', fn);
   on('lb-close',  closeLightbox);
   on('lb-rotate', rotateLightboxPhoto);
-  on('lb-dl',     () => { if (state.currentLightbox) savePhotoToDevice(state.currentLightbox); });
-  on('lb-del',    () => { if (state.currentLightbox) deletePhoto(state.currentLightbox.id); });
+  on('lb-dl',     () => { if (currentLightbox) savePhotoToDevice(currentLightbox); });
+  on('lb-del',    () => { if (currentLightbox) deletePhoto(currentLightbox.id); });
 
-  on('btn-ph-select-mode', () => state.multiSelModePh ? exitMultiSelModePh() : enterMultiSelModePh());
+  on('btn-ph-select-mode', () => multiSelModePh ? exitMultiSelModePh() : enterMultiSelModePh());
 });

@@ -70,15 +70,17 @@ body { color: #e0e8f0; font-family: 'Rajdhani', sans-serif; }
 
 .sbar { width: 100%; max-width: 420px; padding: 6px 12px; background: #0d1117; border: 1px solid #1e2a38; font-family: 'Share Tech Mono', monospace; font-size: 10px; letter-spacing: 1px; color: #4a6a8a; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 .sdot { width: 6px; height: 6px; border-radius: 50%; background: #2a3a4a; flex-shrink: 0; transition: background .3s, box-shadow .3s; }
-.sdot.go { background: var(--accent); box-shadow: 0 0 6px var(--accent); animation: pulse 1.2s ease-in-out infinite; }
-.sdot.go.ean { background: #ffaa00; box-shadow: 0 0 6px #ffaa00; }
-.sdot.ok { background: #00ff88; box-shadow: 0 0 6px #00ff88; }
-.sdot.err { background: #ff4466; box-shadow: 0 0 6px #ff4466; }
+.sdot.go { background: var(--accent); box-shadow: 0 0 4px var(--accent); animation: pulse 1.2s ease-in-out infinite; }
+.sdot.go.ean { background: #ffaa00; box-shadow: 0 0 4px #ffaa00; }
+.sdot.ok { background: #00ff88; box-shadow: 0 0 4px #00ff88; }
+.sdot.err { background: #ff4466; box-shadow: 0 0 4px #ff4466; }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .4; } }
 
 .btn-main { width: 100%; max-width: 420px; padding: 11px; background: var(--accent); color: #0a0c0f; border: none; font-family: 'Rajdhani', sans-serif; font-size: 13px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; cursor: pointer; clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px)); transition: background .2s, transform .1s; flex-shrink: 0; }
 .btn-main:active { transform: scale(.98); }
-.btn-main.stop { background: #ff4466; }
+.btn-main.stop { background: #ff4466; color: #fff; }
+.btn-main.active { background: #ff4466; color: #fff; animation: scan-pulse 1.4s ease-in-out infinite; }
+@keyframes scan-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .82; } }
 
 .scan-bc-section { flex-shrink: 0; min-height: 220px; border-top: 2px solid #1e2a38; background: #080b0f; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; position: relative; }
 .scan-bc-placeholder { font-family: 'Share Tech Mono', monospace; font-size: 11px; color: #2a3a4a; letter-spacing: 2px; text-align: center; }
@@ -456,7 +458,7 @@ input:checked + .toggle-slider:before { transform: translateX(20px); background:
   border-radius: 50%;
   background: white;
   border: 5px solid rgba(255,255,255,0.3);
-  box-shadow: 0 0 15px rgba(0,0,0,0.5);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
 }
 
 /* ライトボックスのスワイプアニメーション用 */
@@ -632,4 +634,11 @@ input:checked + .toggle-slider:before { transform: translateX(20px); background:
 #btn-torch:disabled {
   cursor: not-allowed;
   filter: grayscale(1);
+}
+/* 横固定ボタン ON状態 */
+#btn-horizontal.on {
+  background: rgba(80, 200, 255, 0.22);
+  border-color: rgba(80, 200, 255, 0.6);
+  color: #50c8ff;
+  box-shadow: 0 0 10px rgba(80, 200, 255, 0.38);
 }

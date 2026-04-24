@@ -1,23 +1,23 @@
-import { state, SETTINGS_KEY } from './state.js';
+'use strict';
 
 /* ════ DOM短縮 ════ */
-export const $ = id => document.getElementById(id);
+const $ = id => document.getElementById(id);
 
 /* ════ 設定管理 ════ */
-export function saveCfg() {
-  try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(state.cfg)); }
+function saveCfg() {
+  try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(cfg)); }
   catch (e) { console.error('[Utils] saveCfg:', e); }
 }
 
-export function loadCfg() {
+function loadCfg() {
   const saved = localStorage.getItem(SETTINGS_KEY);
   if (!saved) return;
-  try { state.cfg = { ...state.cfg, ...JSON.parse(saved) }; }
+  try { cfg = { ...cfg, ...JSON.parse(saved) }; }
   catch (e) { console.error('[Utils] loadCfg:', e); }
 }
 
 /* ════ トースト・バイブレーション ════ */
-export function showToast(msg, type = '', duration = 3000) {
+function showToast(msg, type = '', duration = 3000) {
   const t = $('toast');
   if (!t) return;
   if (t._timer) clearTimeout(t._timer);
@@ -26,8 +26,8 @@ export function showToast(msg, type = '', duration = 3000) {
   t._timer = setTimeout(() => { t.classList.remove('show'); t._timer = null; }, duration);
 }
 
-export function vibrate(pattern) {
-  if (state.cfg.useVibration && navigator.vibrate) {
+function vibrate(pattern) {
+  if (cfg.useVibration && navigator.vibrate) {
     try { navigator.vibrate(pattern); } catch (_) {}
   }
 }
@@ -35,21 +35,21 @@ export function vibrate(pattern) {
 /* ════ 日時フォーマット ════ */
 const pad = n => String(n).padStart(2, '0');
 
-export function fmtTime(ts) {
+function fmtTime(ts) {
   const d = new Date(ts);
   return `${d.getFullYear()}/${pad(d.getMonth()+1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 }
 
-export function fmtFileDate(d) {
+function fmtFileDate(d) {
   return `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
 }
 
-export function fmtShort(ts) {
+function fmtShort(ts) {
   const d = new Date(ts);
   return `${pad(d.getMonth()+1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-export function getDayString(ts) {
+function getDayString(ts) {
   const d = new Date(ts);
   return `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日`;
 }
@@ -57,13 +57,13 @@ export function getDayString(ts) {
 /* ════ データ変換 ════ */
 
 // fetch を使った高速変換（ArrayBuffer ループ不要）
-export async function dataUrlToBlob(dataUrl) {
+async function dataUrlToBlob(dataUrl) {
   if (!dataUrl?.startsWith('data:')) return null;
   try { return await (await fetch(dataUrl)).blob(); }
   catch (e) { console.error('[Utils] dataUrlToBlob:', e); return null; }
 }
 
-export function blobToDataUrl(blob) {
+function blobToDataUrl(blob) {
   return new Promise((res, rej) => {
     const r = new FileReader();
     r.onload = e => res(e.target.result);
@@ -72,7 +72,7 @@ export function blobToDataUrl(blob) {
   });
 }
 
-export async function createThumbnail(dataUrl, maxSide = 400) {
+async function createThumbnail(dataUrl, maxSide = 400) {
   return new Promise((res, rej) => {
     const img = new Image();
     img.onload = () => {
@@ -92,7 +92,7 @@ export async function createThumbnail(dataUrl, maxSide = 400) {
   });
 }
 
-export async function compressIfNeeded(blob, maxSize) {
+async function compressIfNeeded(blob, maxSize) {
   if (blob.size <= maxSize) return blob;
   const dataUrl = await blobToDataUrl(blob);
   return new Promise(res => {
@@ -108,8 +108,8 @@ export async function compressIfNeeded(blob, maxSize) {
 }
 
 /* ════ バーコード描画 ════ */
-export function renderBC(canvas, value, format, height = 60, displayValue = false) {
-  const jf = state.JS_FMT[format];
+function renderBC(canvas, value, format, height = 60, displayValue = false) {
+  const jf = JS_FMT[format];
   if (!jf || !window.JsBarcode) return;
   try {
     JsBarcode(canvas, value, {
@@ -126,8 +126,8 @@ export function renderBC(canvas, value, format, height = 60, displayValue = fals
 }
 
 /* ════ UI更新 ════ */
-export function updateCounts() {
-  const bc = state.bcHistory.length, ph = state.photos.length, max = state.cfg.maxPhotos || 200;
+function updateCounts() {
+  const bc = bcHistory.length, ph = photos.length, max = cfg.maxPhotos || 200;
   const set = (id, v) => { const el = $(id); if (el) el.textContent = v; };
   set('hdr-count',       `${bc}BC / ${ph}📷`);
   set('bc-count',        bc);
@@ -139,17 +139,17 @@ export function updateCounts() {
   show('btn-photo-clear',    ph >= 1);
 }
 
-export function switchTab(tabName) {
+function switchTab(tabName) {
   document.querySelector(`.tab[data-tab="${tabName}"]`)?.click();
 }
 
 /* ════ デバイス判定 ════ */
-export const isIOS             = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-export const isAndroid         = /Android/i.test(navigator.userAgent);
-export const hasFileSystemAccess = 'showDirectoryPicker' in window;
+const isIOS             = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+const isAndroid         = /Android/i.test(navigator.userAgent);
+const hasFileSystemAccess = 'showDirectoryPicker' in window;
 
 /* ════ 端末向きセンサー ════ */
-export function initOrientationSensor() {
+function initOrientationSensor() {
   const dot   = $('orient-dot');
   const label = $('orient-label');
 

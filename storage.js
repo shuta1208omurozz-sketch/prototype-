@@ -1,5 +1,4 @@
-import { state } from './state.js';
-import { $, showToast, fmtTime, dataUrlToBlob, isIOS } from './utils.js';
+'use strict';
 
 /* ════ File System Access API (フォルダ保存) ════ */
 let folderHandle = null, _pendingFH = null, _folderDB = null;
@@ -26,7 +25,7 @@ async function saveFHtoIDB(h) {
   localStorage.setItem('sc-folder-name', h.name);
 }
 
-export async function restoreFolderHandle() {
+async function restoreFolderHandle() {
   try {
     const db  = await openFolderDB();
     const rec = await new Promise((res, rej) => {
@@ -46,7 +45,7 @@ export async function restoreFolderHandle() {
   if (name) { updateFolderUI(null, name, true); updateSetFolderUI(); }
 }
 
-export async function pickSaveFolder() {
+async function pickSaveFolder() {
   if (!window.showDirectoryPicker) {
     showToast('[E003] フォルダ選択非対応（Android Chrome等をお使いください）', 'err', 4000); return;
   }
@@ -105,7 +104,7 @@ function updateSetFolderUI() {
   }
 }
 
-export function clearSaveFolder() {
+function clearSaveFolder() {
   folderHandle = null; _pendingFH = null;
   localStorage.removeItem('sc-folder-name');
   openFolderDB().then(db => {
@@ -132,9 +131,9 @@ async function saveToFolderHandle(blob, filename) {
   } catch (e) { return { ok: false, code: 'E007', msg: e.message }; }
 }
 
-export async function autoSaveToDevice(photo, originalBlob = null) {
+async function autoSaveToDevice(photo, originalBlob = null) {
   if (isIOS) {
-    if (!state.iosPopupShown) { state.iosPopupShown = true; $('ios-popup').style.display = ''; }
+    if (!iosPopupShown) { iosPopupShown = true; $('ios-popup').style.display = ''; }
     return;
   }
   const ts     = fmtTime(photo.timestamp).replace(/[/:\s]/g, '-');
@@ -153,14 +152,14 @@ export async function autoSaveToDevice(photo, originalBlob = null) {
   }
 }
 
-export function fallbackDownload(dataUrl, name) {
+function fallbackDownload(dataUrl, name) {
   const a = Object.assign(document.createElement('a'), { href: dataUrl, download: name });
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
 }
 
 /* ════ IndexedDB (写真保存) ════ */
 let _db = null;
-export function openDB() {
+function openDB() {
   if (_db) return Promise.resolve(_db);
   return new Promise((res, rej) => {
     const r = indexedDB.open('scanner-v1', 1);
@@ -187,12 +186,12 @@ async function dbTx(mode, fn) {
   });
 }
 
-export const dbPut   = p  => dbTx('readwrite', s => s.put(p));
-export const dbDel   = id => dbTx('readwrite', s => s.delete(id));
-export const dbClear = () => dbTx('readwrite', s => s.clear());
-export const dbAll   = () => dbTx('readonly',  s => s.index('ts').getAll());
+const dbPut   = p  => dbTx('readwrite', s => s.put(p));
+const dbDel   = id => dbTx('readwrite', s => s.delete(id));
+const dbClear = () => dbTx('readwrite', s => s.clear());
+const dbAll   = () => dbTx('readonly',  s => s.index('ts').getAll());
 
-export async function dbPrune(max) {
+async function dbPrune(max) {
   const all = await dbAll();
   if (all.length <= max) return;
   const db = await openDB();

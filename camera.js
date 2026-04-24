@@ -1,39 +1,36 @@
-import { state } from './state.js';
-import { $, vibrate, blobToDataUrl, updateCounts, switchTab, saveCfg } from './utils.js';
-import { stopScan } from './scanner.js';
-import { updateThumbStrip, renderPhotoGrid } from './photos.js';
-import { autoSaveToDevice, dbPut, dbPrune } from './storage.js';
+'use strict';
 
 let isStarting = false;
 
-/* ════ WebKit toBlob ポリフィル（iPhone Safari 対応） ════ */
-if (typeof HTMLCanvasElement !== 'undefined' && !HTMLCanvasElement.prototype.toBlob) {
-  HTMLCanvasElement.prototype.toBlob = function(cb, type, q) {
-    const data = this.toDataURL(type, q);
-    const bin  = atob(data.split(',')[1]);
-    const arr  = new Uint8Array(bin.length);
-    for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
-    cb(new Blob([arr], { type: type || 'image/jpeg' }));
-  };
-}
-
 /* ════ カメラ停止 ════ */
-export function stopCam() {
-  if (state.camStream) { state.camStream.getTracks().forEach(t => t.stop()); state.camStream = null; }
-  state.camTrack  = null;
-  state.camActive = false;
+function stopCam() {
+  if (camStream) { camStream.getTracks().forEach(t => t.stop()); camStream = null; }
+  camTrack  = null;
+  camActive = false;
   const video = $('cam-video');
-  if (video) { video.pause(); video.srcObject = null; try { video.load(); } catch(_){} }
+  if (video) {
+    video.pause();
+    video.srcObject = null;
+    try { video.load(); } catch(_){}
+  }
   const ph = $('cam-ph');
   if (ph) ph.style.display = 'flex';
 }
 
+/* ════ バックグラウンド時の自動停止 ════ */
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    stopCam();
+    if (typeof stopScan === 'function') stopScan();
+  }
+});
+
 /* ════ カメラ起動 ════ */
-export async function startCam() {
+async function startCam() {
   if (isStarting) return;
   isStarting = true;
   stopCam();
-  stopScan();
+  if (typeof stopScan === 'function') stopScan();
 
   const video  = $('cam-video');
   const ph     = $('cam-ph');
@@ -43,33 +40,32 @@ export async function startCam() {
   if (txt)    txt.textContent      = 'カメラ初期化中...';
   if (errBox) errBox.style.display = 'none';
 
-  const qBase = state.CAM_QUALITY[state.cfg.camQuality] || state.CAM_QUALITY.mid;
-  const [arW, arH] = (state.cfg.aspectRatio || '16/9').split('/').map(Number);
+  const qBase = CAM_QUALITY[cfg.camQuality] || CAM_QUALITY.mid;
+  const [arW, arH] = (cfg.aspectRatio || '16/9').split('/').map(Number);
 
   const constraints = {
-    video: { facingMode: state.facingMode, width: qBase.width, height: qBase.height, aspectRatio: { ideal: arW / arH } },
+    video: { facingMode, width: qBase.width, height: qBase.height, aspectRatio: { ideal: arW / arH } },
     audio: false
   };
 
-  // state.camera.facingMode と同期
-  state.camera.facingMode = state.facingMode;
-
   try {
     const stream = await navigator.mediaDevices.getUserMedia(constraints);
-    state.camStream = stream;
+    camStream = stream;
     if (video) {
       video.srcObject = stream;
+      video.playsInline = true;  // iOS対策
+      video.muted       = true;  // 無駄な音声処理防止
       Object.assign(video.style, { objectFit:'cover', width:'100%', height:'100%', backgroundColor:'#000' });
       video.onloadedmetadata = async () => {
         try {
           await video.play();
           if (ph) ph.style.display = 'none';
           const vf = $('cam-vf');
-          if (vf) { vf.style.aspectRatio = state.cfg.aspectRatio; vf.style.overflow = 'hidden'; }
-          state.camTrack  = stream.getVideoTracks()[0];
-          state.camActive = true;
-          initCamFeatures(state.camTrack);
-          showCropOverlay(state.cfg.aspectRatio);
+          if (vf) { vf.style.aspectRatio = cfg.aspectRatio; vf.style.overflow = 'hidden'; }
+          camTrack  = stream.getVideoTracks()[0];
+          camActive = true;
+          initCamFeatures(camTrack);
+          showCropOverlay(cfg.aspectRatio);
         } catch (e) { console.warn('[Camera] Play interrupted:', e); }
       };
     }
@@ -103,7 +99,7 @@ async function initCamFeatures(track) {
       if (zoomCtrls) zoomCtrls.style.display = 'flex';
       const uwLabel = $('uw-label');
       if (uwLabel) uwLabel.style.display = dMin < 1 ? 'inline-block' : 'none';
-      if (state.cfg.zoom && state.cfg.zoom !== cur) applyZoom(state.cfg.zoom);
+      if (cfg.zoom && cfg.zoom !== cur) applyZoom(cfg.zoom);
     } else if (zoomCtrls) {
       zoomCtrls.style.display = 'none';
     }
@@ -115,16 +111,15 @@ async function initCamFeatures(track) {
       torchBtn.style.opacity = caps.torch ? '' : '0.35';
     }
 
-    // applyCfgToUI() is in main.js, which imports this file. 
-    // We should handle UI updates in main.js or export a function to be called.
+    if (typeof applyCfgToUI === 'function') applyCfgToUI();
   } catch (e) { console.warn('[Camera] Feature init:', e); }
 }
 
 /* ════ ズーム ════ */
 async function applyZoom(val) {
-  if (!state.camTrack) return;
+  if (!camTrack) return;
   try {
-    await state.camTrack.applyConstraints({ advanced: [{ zoom: val }] });
+    await camTrack.applyConstraints({ advanced: [{ zoom: val }] });
     const lbl = $('zoom-level');
     if (lbl) { lbl.textContent = `${val.toFixed(2)}x`; lbl.style.color = val < 1 ? '#ffaa44' : 'var(--accent)'; }
   } catch (e) { console.error('[Camera] Zoom:', e); }
@@ -132,18 +127,18 @@ async function applyZoom(val) {
 
 /* ════ トーチ ════ */
 async function toggleTorch() {
-  if (!state.camTrack) return;
+  if (!camTrack) return;
   try {
-    const newState = !state.camTrack.getSettings().torch;
-    await state.camTrack.applyConstraints({ advanced: [{ torch: newState }] });
+    const newState = !camTrack.getSettings().torch;
+    await camTrack.applyConstraints({ advanced: [{ torch: newState }] });
     const btn = $('btn-torch');
     if (btn) { btn.classList.toggle('on', newState); btn.style.color = newState ? 'var(--accent)' : ''; }
   } catch (e) { console.error('[Camera] Torch:', e); }
 }
 
 /* ════ 撮影 ════ */
-export async function takePhoto() {
-  if (!state.camActive || !state.camStream) return;
+async function takePhoto() {
+  if (!camActive || !camStream) return;
   const video   = $('cam-video');
   const shutter = $('btn-shutter');
   if (!video || video.readyState < 2) return;
@@ -151,14 +146,8 @@ export async function takePhoto() {
 
   const canvas = document.createElement('canvas');
   const ctx    = canvas.getContext('2d', { alpha: false, desynchronized: true });
-
-  // ── Android対策: videoWidth/Height が 0 になるバグ ──
-  let vw = video.videoWidth  || video.clientWidth;
-  let vh = video.videoHeight || video.clientHeight;
-
-  const isFront = state.camera.facingMode === 'user';
-
-  const [rW, rH]  = (state.cfg.aspectRatio || '16/9').split('/');
+  const vw = video.videoWidth, vh = video.videoHeight;
+  const [rW, rH]  = (cfg.aspectRatio || '16/9').split('/');
   const tgtRatio  = parseFloat(rW) / parseFloat(rH);
   const videoRatio = vw / vh;
 
@@ -166,50 +155,34 @@ export async function takePhoto() {
   if (videoRatio > tgtRatio) { sh = vh; sw = vh * tgtRatio; sx = (vw - sw) / 2; sy = 0; }
   else                        { sw = vw; sh = vw / tgtRatio; sx = 0; sy = (vh - sh) / 2; }
 
-  const maxW   = { low:1024, mid:1920, high:2560, max:4096 }[state.cfg.camQuality] || 1920;
-  const MAX_SAFE = 1920; // クラッシュ防止の絶対上限
+  const maxW   = { low:1024, mid:1920, high:2560, max:4096 }[cfg.camQuality] || 1920;
 
-  // ── 横向き強制保存モード ──
-  const camIsPortrait = vh > vw;   // 実ストリーム解像度で判定
-  const needsRotate   = state.camera.forceHorizontal && camIsPortrait;
+  // ── 撮影後補正方式（センサー依存ゼロ・端末差吸収）──
+  // forceHorizontal=true かつ映像が縦長の場合だけ 90° 回転して横に直す
+  const needsRotate = forceHorizontal && (vh > vw);
 
-  let outW, outH;
-  if (needsRotate) {
-    // 回転後に横長になるよう outW/outH を入れ替える
-    outW = Math.min(sh, maxW, MAX_SAFE);
-    outH = Math.round(outW / tgtRatio);
-  } else {
-    outW = Math.min(sw, maxW, MAX_SAFE);
-    outH = Math.round(outW / tgtRatio);
-  }
-
-  canvas.width  = outW;
-  canvas.height = outH;
-
-  ctx.save();
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
 
-  // 中心基準で変換（回転・ミラーの合成に必須）
-  ctx.translate(outW / 2, outH / 2);
-
   if (needsRotate) {
-    ctx.rotate(Math.PI / 2);   // 時計回り 90°
-  }
-
-  // ── フロントカメラ左右反転補正（重要） ──
-  if (isFront) {
-    ctx.scale(-1, 1);
-  }
-
-  if (needsRotate) {
-    // 回転後は幅高さが入れ替わるため dst サイズも反転
-    ctx.drawImage(video, sx, sy, sw, sh, -outH / 2, -outW / 2, outH, outW);
+    // 縦映像を右90°回転 → 横画像として出力
+    canvas.width  = Math.min(sh, maxW);
+    canvas.height = Math.round(canvas.width * (sw / sh));
+    ctx.save();
+    ctx.translate(canvas.width, 0);
+    ctx.rotate(Math.PI / 2);
+    // 回転後の座標系で描画（sw↔sh が入れ替わっている）
+    ctx.drawImage(video, sx, sy, sw, sh, 0, 0, canvas.height, canvas.width);
+    ctx.restore();
   } else {
-    ctx.drawImage(video, sx, sy, sw, sh, -outW / 2, -outH / 2, outW, outH);
+    canvas.width  = Math.min(sw, maxW);
+    canvas.height = Math.round(canvas.width / (sw / sh));
+    ctx.drawImage(video, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
   }
 
-  ctx.restore();
+  // 撮影後は横固定を自動OFF（状態が残らない設計）
+  forceHorizontal = false;
+  updateHorizontalUI();
 
   // サムネイル生成
   const thumbC = document.createElement('canvas');
@@ -217,16 +190,16 @@ export async function takePhoto() {
   thumbC.getContext('2d').drawImage(canvas, 0, 0, thumbC.width, thumbC.height);
   const thumbDataUrl = thumbC.toDataURL('image/jpeg', 0.6);
 
-  const grp   = state.cfg.useGroup ? state.cfg.currentGroup : '未分類';
+  const grp   = cfg.useGroup ? cfg.currentGroup : '未分類';
   const photo = {
     id: Date.now() + Math.random(), dataUrl: thumbDataUrl, thumbDataUrl,
-    timestamp: Date.now(), facingMode: state.facingMode, aspectRatio: state.cfg.aspectRatio,
-    group: grp, scannedCode: state.lastScannedValue || ''
+    timestamp: Date.now(), facingMode, aspectRatio: cfg.aspectRatio,
+    group: grp, scannedCode: lastScannedValue || ''
   };
-  state.photos.unshift(photo);
+  photos.unshift(photo);
   updateCounts();
   updateThumbStrip();
-  if (state.activeTab === 'photos') renderPhotoGrid();
+  if (activeTab === 'photos') renderPhotoGrid();
   showFlashEffect();
   vibrate([50]);
   if (shutter) shutter.disabled = false;
@@ -234,12 +207,12 @@ export async function takePhoto() {
   // 高画質を非同期保存
   setTimeout(async () => {
     try {
-      const q    = { low:0.7, mid:0.85, high:0.92, max:0.98 }[state.cfg.camQuality] || 0.85;
+      const q    = { low:0.7, mid:0.85, high:0.92, max:0.98 }[cfg.camQuality] || 0.85;
       const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', q));
       if (!blob) return;
       photo.dataUrl = await blobToDataUrl(blob);
-      autoSaveToDevice(photo, blob);
-      await dbPut(photo); await dbPrune(state.cfg.maxPhotos);
+      if (typeof autoSaveToDevice === 'function') autoSaveToDevice(photo, blob);
+      if (typeof dbPut === 'function') { await dbPut(photo); await dbPrune(cfg.maxPhotos); }
     } catch (e) { console.error('[Camera] Save:', e); }
   }, 50);
 }
@@ -285,47 +258,41 @@ function showCropOverlay(ratio) {
   overlay.classList.add('show');
 }
 
-export function setAspectRatio(ratio) {
-  if (state.cfg.aspectRatio === ratio) return;
-  state.cfg.aspectRatio = ratio;
-  saveCfg();
+/* ════ 横固定モード ════ */
+function updateHorizontalUI() {
+  const btn = $('btn-horizontal');
+  if (!btn) return;
+  btn.classList.toggle('on', forceHorizontal);
+}
+
+function toggleHorizontal() {
+  forceHorizontal = !forceHorizontal;
+  updateHorizontalUI();
+}
+
+function setAspectRatio(ratio) {
+  if (cfg.aspectRatio === ratio) return;
+  cfg.aspectRatio = ratio;
+  if (typeof saveCfg === 'function') saveCfg();
   document.querySelectorAll('.ratio-btn').forEach(btn => btn.classList.toggle('on', btn.dataset.r === ratio));
   const vf = $('cam-vf');
   if (vf) vf.style.aspectRatio = ratio;
   showCropOverlay(ratio);
-  if (state.camActive) startCam();
-}
-
-/* ════ 横向き強制保存トグル ════ */
-export function toggleForceHorizontal() {
-  state.camera.forceHorizontal = !state.camera.forceHorizontal;
-  const btn = $('btn-force-h');
-  if (btn) {
-    btn.classList.toggle('on', state.camera.forceHorizontal);
-    btn.title = state.camera.forceHorizontal ? '横向き強制保存: ON' : '横向き強制保存: OFF';
-  }
-  localStorage.setItem('forceH', state.camera.forceHorizontal ? '1' : '0');
+  if (camActive) startCam();
+  else if (typeof applyCfgToUI === 'function') applyCfgToUI();
 }
 
 /* ════ イベント登録 ════ */
 document.addEventListener('DOMContentLoaded', () => {
-  // ── state 初期化（localStorage から復元） ──
-  state.camera.forceHorizontal = localStorage.getItem('forceH') === '1';
-  const forceBtn = $('btn-force-h');
-  if (forceBtn) {
-    forceBtn.classList.toggle('on', state.camera.forceHorizontal);
-    forceBtn.title = state.camera.forceHorizontal ? '横向き強制保存: ON' : '横向き強制保存: OFF';
-  }
-
   const on = (id, fn) => { const el = $(id); if (el) el.onclick = fn; };
-  on('btn-shutter', takePhoto);
-  on('btn-torch',   toggleTorch);
-  on('btn-force-h', toggleForceHorizontal);
-  on('cam-retry',   startCam);
-  on('btn-goto-scan', () => { switchTab('scan'); });
+  on('btn-shutter',    takePhoto);
+  on('btn-torch',      toggleTorch);
+  on('cam-retry',      startCam);
+  on('btn-horizontal', toggleHorizontal);
+  on('btn-goto-scan',  () => { if (typeof switchTab === 'function') switchTab('scan'); });
 
   const RATIOS = ['4/3', '16/9', '21/9'];
-  let ratioIdx = Math.max(0, RATIOS.indexOf(state.cfg.aspectRatio));
+  let ratioIdx = Math.max(0, RATIOS.indexOf(cfg.aspectRatio));
   document.querySelectorAll('.ratio-btn').forEach(btn => {
     btn.onclick = () => { setAspectRatio(btn.dataset.r); ratioIdx = RATIOS.indexOf(btn.dataset.r); };
   });
@@ -348,7 +315,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (zoomSlider) {
     zoomSlider.oninput = e => {
       const v = parseFloat(e.target.value);
-      applyZoom(v); state.cfg.zoom = v;
+      applyZoom(v); cfg.zoom = v;
       const min = parseFloat(e.target.min) || 1, max = parseFloat(e.target.max) || 5;
       e.target.style.setProperty('--zoom-progress', (((v - min) / (max - min)) * 100).toFixed(1) + '%');
     };
@@ -356,10 +323,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.querySelectorAll('.quality-btn').forEach(btn => {
     btn.onclick = () => {
-      state.cfg.camQuality = btn.dataset.q;
-      saveCfg();
-      // UI update will be handled in main.js or via direct DOM manipulation here
-      if (state.camActive) startCam();
+      cfg.camQuality = btn.dataset.q;
+      if (typeof saveCfg === 'function') saveCfg();
+      if (typeof applyCfgToUI === 'function') applyCfgToUI();
+      if (camActive) startCam();
     };
   });
 
