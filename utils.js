@@ -139,9 +139,7 @@ function updateCounts() {
   show('btn-photo-clear',    ph >= 1);
 }
 
-function switchTab(tabName) {
-  document.querySelector(`.tab[data-tab="${tabName}"]`)?.click();
-}
+// switchTab は main.js に統合されました
 
 /* ════ デバイス判定 ════ */
 const isIOS             = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;

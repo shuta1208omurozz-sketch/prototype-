@@ -11,7 +11,6 @@ function setScanUI(active) {
 }
 
 function setStatus(dot, txt) {
-  // 同じ内容なら更新しない（DOM操作を減らす）
   const dotEl = $('sdot'), txtEl = $('stxt');
   if (!dotEl || !txtEl) return;
   if (txtEl.textContent === txt && dotEl.dataset.dot === dot) return;
@@ -26,21 +25,18 @@ function stopScan() {
   // scanning を先に false にして detect() の再帰を止める
   scanning = false;
   _lastScanTime = 0;
-  _roiCanvas = null;
-  _roiCtx    = null;
-
+  
   // RAF を確実にキャンセル
   if (raf) { cancelAnimationFrame(raf); raf = null; }
 
-  // ストリーム解放
-  if (scanStream) { scanStream.getTracks().forEach(t => t.stop()); scanStream = null; }
+  // ビデオ要素の再生を停止（GPU負荷削減）
   const v = $('scan-video');
-  if (v) v.srcObject = null;
+  if (v) { v.pause(); }
+  scanStream = null;
 
   setScanUI(false);
   setStatus('', '待機中');
 
-  // ボタン状態を両クラスで管理（.stop と .active を同期）
   const btn = $('btn-scan');
   if (btn) {
     btn.textContent = '▶ スキャン開始';
@@ -55,52 +51,55 @@ async function startScan() {
     return;
   }
   try {
-    // EAN-13は横長バーコードのため低解像度で十分・速度＆バッテリー最優先
-    scanStream = await navigator.mediaDevices.getUserMedia({
-      video: {
-        facingMode: 'environment',
-        width:  { ideal: 640 },
-        height: { ideal: 480 }
-      }
-    });
-    const v = $('scan-video');
-    v.srcObject = scanStream;
-    v.playsInline = true;  // iOS対策
-    v.muted       = true;  // 無駄な音声処理防止
-    v.setAttribute('playsinline', '');
-    v.setAttribute('muted', '');
-    await v.play();
-    detector = new BarcodeDetector({ formats: scanMode === 'ean13' ? ['ean_13'] : ALL_FMTS });
-    scanning = true;
-    setScanUI(true);
-    setStatus('go', scanMode === 'ean13' ? 'EAN-13 スキャン中...' : 'スキャン中...');
+    // 共有ストリームを取得
+    const stream = await startGlobalCamera();
+    scanStream = stream;
 
-    // ボタン状態：.stop（赤背景）と .active（視覚フィードバック）を両方付与
-    const btn = $('btn-scan');
-    if (btn) {
-      btn.textContent = '■ スキャン停止';
-      btn.classList.add('stop', 'active');
+    const v = $('scan-video');
+    if (v.srcObject !== stream) v.srcObject = stream;
+    v.playsInline = true;
+    v.muted       = true;
+
+    if (v.readyState < 1) {
+      await new Promise(resolve => v.addEventListener('loadedmetadata', resolve, { once: true }));
     }
-    detect();
+
+    try {
+      await v.play();
+      scanning = true;
+      setScanUI(true);
+      setStatus('go', 'スキャン中...');
+      const btn = $('btn-scan');
+      if (btn) {
+        btn.textContent = '■ スキャン停止';
+        btn.classList.add('stop', 'active');
+      }
+      detect();
+    } catch (e) { console.warn('[Scanner] Play interrupted:', e); }
   } catch (e) {
     setStatus('err', `[${e.name === 'NotAllowedError' ? 'E002' : 'E005'}] ` +
       (e.name === 'NotAllowedError' ? 'カメラの許可が必要です' : 'カメラエラー: ' + e.message));
   }
 }
 
-/* スキャンFPS制限（電池消費削減） */
+/* ════ スキャン頻度の厳密な制限（究極の節電） ════ */
 let _lastScanTime = 0;
-const SCAN_INTERVAL = 250; // ms（4fps上限・EAN-13で十分・CPU削減）
+const SCAN_INTERVAL = 200; // 200ms (5fps) に厳密に固定。
 
-/* ROI用オフスクリーンcanvas（EAN-13中央帯クロップ） */
+/* ROI用オフスクリーンcanvas */
 let _roiCanvas = null;
 let _roiCtx    = null;
 
 async function detect() {
-  // ① 先頭でフラグ確認 — stopScan済みなら即抜ける
-  if (!scanning) return;
+  // ① タブ切り替えや停止時に即座に抜ける
+  if (!scanning || activeTab !== 'scan') {
+    if (raf) cancelAnimationFrame(raf);
+    raf = null;
+    return;
+  }
 
   const now = performance.now();
+  // 200ms 経過していない場合は、一切の計算を行わずに次のフレームへ（CPU負荷を最小化）
   if (now - _lastScanTime < SCAN_INTERVAL) {
     raf = requestAnimationFrame(detect);
     return;
@@ -110,213 +109,109 @@ async function detect() {
   const v = $('scan-video');
   if (!v || v.readyState < 2) { raf = requestAnimationFrame(detect); return; }
 
-  // ── ROI: 中央の横帯のみ処理（処理量を半分以下に削減）──
+  // ── ここから先は 200ms に一度だけ実行される ──
+
   let detectTarget = v;
+  // ROI: 中央帯のみ処理（EAN-13の場合、解析範囲を絞ることで計算量をさらに削減）
   if (scanMode === 'ean13' && v.videoWidth > 0 && v.videoHeight > 0) {
     if (!_roiCanvas) {
       _roiCanvas = document.createElement('canvas');
       _roiCtx    = _roiCanvas.getContext('2d', { alpha: false, willReadFrequently: true });
     }
-    const roiH = Math.round(v.videoHeight * 0.3);
-    const sy   = Math.round((v.videoHeight - roiH) / 2);
-    _roiCanvas.width  = v.videoWidth;
-    _roiCanvas.height = roiH;
-    _roiCtx.drawImage(v, 0, sy, v.videoWidth, roiH, 0, 0, v.videoWidth, roiH);
+    const vw = v.videoWidth, vh = v.videoHeight;
+    const h = vh * 0.25;
+    _roiCanvas.width = vw; _roiCanvas.height = h;
+    _roiCtx.drawImage(v, 0, (vh - h) / 2, vw, h, 0, 0, vw, h);
     detectTarget = _roiCanvas;
   }
 
   try {
-    const codes = await detector.detect(detectTarget);
-
-    // ② await 復帰後に再確認 — 非同期待機中に stopScan された場合を防ぐ
-    if (!scanning) return;
-
-    if (codes.length) {
-      const { rawValue, format } = codes[0];
-      const ts = Date.now();
-      // EAN-13モード時は13桁のみ受理
-      if (scanMode === 'ean13' && rawValue.length !== 13) { /* skip */ }
-      else {
-        const waitTime = cfg.continuousScan ? 500 : 1500; // 同一コード抑制：連続=500ms / 通常=1500ms
-        if (rawValue !== lastCode || ts - lastCodeTime > waitTime) {
-          lastCode = rawValue; lastCodeTime = ts;
-          onDetected(rawValue, format);
-        }
-      }
+    if (!detector) detector = new BarcodeDetector({ formats: ALL_FMTS });
+    const barcodes = await detector.detect(detectTarget);
+    if (barcodes.length > 0 && scanning) {
+      const b = barcodes[0];
+      let val = b.rawValue;
+      if (scanMode === 'ean13' && val.length === 12) val = '0' + val;
+      if (scanMode === 'ean13' && val.length !== 13) { raf = requestAnimationFrame(detect); return; }
+      
+      handleScanSuccess(val, b.format);
     }
-  } catch (_) {}
+  } catch (e) { console.error('[Scanner] Detect:', e); }
 
-  // ③ RAF発行前にも最終確認 — 二重ループを確実に防ぐ
   if (scanning) raf = requestAnimationFrame(detect);
 }
 
-/* ════ 検出時処理 ════ */
-let flashTimer = null;
-function flashFinder() {
-  const fl = $('finder-flash');
-  fl.classList.add('show');
-  if (flashTimer) clearTimeout(flashTimer);
-  flashTimer = setTimeout(() => fl.classList.remove('show'), 220);
-}
-
-function showLargeBarcode(value, format, isDup) {
-  $('scan-bc-placeholder').style.display = 'none';
-  $('scan-bc-display').style.display     = '';
-  $('scan-bc-val').textContent           = value;
-  $('scan-bc-meta').textContent          = (format || '').toUpperCase().replace('_', ' ');
-  $('scan-bc-dup').className             = 'scan-bc-dup' + (isDup ? ' show' : '');
-  const cv   = $('scan-bc-canvas');
-  const jf   = JS_FMT[format];
-  if (jf && window.JsBarcode) {
-    try {
-      const wrap = $('scan-bc-canvas-wrap');
-      const maxW = Math.min(wrap.clientWidth || window.innerWidth - 20, 600);
-      JsBarcode(cv, value, {
-        format: jf, width: Math.max(2, Math.floor(maxW / 80)),
-        height: 110, displayValue: true, fontSize: 18,
-        background: '#ffffff', lineColor: '#111111', margin: 10
-      });
-    } catch (_) { cv.width = 0; }
-  }
-}
-
-function onDetected(value, format) {
-  lastScannedValue = value;
-  const now   = Date.now();
-  const isDup = bcHistory.some(x => x.value === value);
-
-  // スキャン成功 → 横固定を強制OFF（状態リセット）
-  if (forceHorizontal) {
-    forceHorizontal = false;
-    if (typeof updateHorizontalUI === 'function') updateHorizontalUI();
-  }
-
-  flashFinder();
-  vibrate([50]);
-  showLargeBarcode(value, format, isDup);
-  const wait = cfg.continuousScan ? 300 : 1500;
-  if (isDup) {
-    showToast('⊘ 登録済み: ' + value, 'dup', 1800);
-    setStatus('ok', '登録済み: ' + value.slice(0, 20));
-    setTimeout(() => { if (scanning) setStatus('go', scanMode === 'ean13' ? 'EAN-13 スキャン中...' : 'スキャン中...'); }, wait);
-    return;
-  }
-  const grp   = cfg.useGroup ? cfg.currentGroup : '';
-  const entry = { id: now + Math.random(), value, format, timestamp: now, checked: false, group: grp };
-  bcHistory   = [entry, ...bcHistory];
+function handleScanSuccess(val, format) {
+  if (val === lastCode && (Date.now() - lastCodeTime < 2000)) return;
+  lastCode = val; lastCodeTime = Date.now();
+  lastScannedValue = val;
+  
+  vibrate([100]);
+  const grp = cfg.useGroup ? cfg.currentGroup : '未分類';
+  const item = { id: Date.now(), value: val, format, timestamp: Date.now(), group: grp, checked: false };
+  bcHistory.unshift(item);
   localStorage.setItem(BC_KEY, JSON.stringify(bcHistory));
+  
   updateCounts();
-  setStatus('ok', '検出！ ' + value.slice(0, 22));
-  setTimeout(() => { if (scanning) setStatus('go', scanMode === 'ean13' ? 'EAN-13 スキャン中...' : 'スキャン中...'); }, wait);
-}
-
-/* ════ バーコード履歴UI ════ */
-function toggleBcChecked(id) {
-  const item = bcHistory.find(x => x.id === id);
-  if (!item) return;
-  item.checked = !item.checked;
-  localStorage.setItem(BC_KEY, JSON.stringify(bcHistory));
   renderBcList();
+  showToast('スキャン成功: ' + val, 'ok');
+  
+  if (!cfg.continuousScan) stopScan();
 }
 
+/* ════ 履歴表示 ════ */
 function getFilteredBc() {
-  const q = $('search-box').value.toLowerCase();
-  let f = bcHistory.slice();
-  if (q) f = f.filter(x => x.value.toLowerCase().includes(q));
-  if (histFilter === 'checked')   f = f.filter(x =>  x.checked);
-  if (histFilter === 'unchecked') f = f.filter(x => !x.checked);
-  if (cfg.useGroup) {
-    const g = $('hist-bc-group-select').value;
-    if (g !== 'all') f = f.filter(x => x.group === g);
-  }
-  if (sortOrderBc === 'asc') f.reverse();
-  return f;
+  let list = bcHistory;
+  if (histFilter === 'checked') list = list.filter(x => x.checked);
+  else if (histFilter === 'unchecked') list = list.filter(x => !x.checked);
+  const q = $('search-box')?.value.toLowerCase();
+  if (q) list = list.filter(x => x.value.toLowerCase().includes(q));
+  const g = $('hist-bc-group-select')?.value;
+  if (g && g !== 'all') list = list.filter(x => x.group === g);
+  return list.sort((a, b) => sortOrderBc === 'desc' ? b.timestamp - a.timestamp : a.timestamp - b.timestamp);
 }
 
 function renderBcList() {
-  const filtered = getFilteredBc();
-  const list = $('bc-list'), empty = $('bc-empty');
-  if (!filtered.length) { list.style.display = 'none'; empty.style.display = ''; return; }
-  empty.style.display = 'none';
-  list.style.display  = '';
-  list.innerHTML      = '';
-  list.classList.toggle('compact-mode', cfg.bcCompactMode);
-  list.classList.toggle('multi-mode-bc', multiSelModeBc);
-
-  filtered.forEach((item, i) => {
-    const isSel = multiSelModeBc && multiSelectedBc.includes(item.id);
-    const card  = document.createElement('div');
-    card.className = 'bc-card' +
-      (item.format === 'ean_13' ? ' ean' : '') +
-      (item.checked ? ' checked' : '') +
-      (isSel ? ' multi-selected' : '');
-
-    const selChk = document.createElement('div');
-    selChk.className = 'bc-sel-chk'; selChk.textContent = '✓';
-    card.appendChild(selChk);
-
-    if (cfg.useGroup && item.group) {
-      const gb = document.createElement('div');
-      gb.className = 'card-group-badge'; gb.textContent = item.group;
-      card.appendChild(gb);
-    }
-
-    const valEl = document.createElement('div');
-    valEl.className = 'bc-val-large'; valEl.textContent = item.value;
-
-    const checkBtn = document.createElement('button');
-    checkBtn.className = 'card-check'; checkBtn.textContent = '✓';
-    checkBtn.addEventListener('click', e => { e.stopPropagation(); if (!multiSelModeBc) toggleBcChecked(item.id); });
-
-    const delBtn = document.createElement('button');
-    delBtn.className = 'btn-x'; delBtn.textContent = '✕';
-    delBtn.addEventListener('click', e => { e.stopPropagation(); if (!multiSelModeBc) deleteBc(item.id); });
-
-    const dispNum = sortOrderBc === 'desc' ? (filtered.length - i) : (i + 1);
-
-    if (cfg.bcCompactMode) {
-      card.appendChild(checkBtn);
-      card.appendChild(valEl);
-      const ts = document.createElement('span');
-      ts.className = 'card-time'; ts.textContent = fmtShort(item.timestamp);
-      card.appendChild(ts);
-      card.appendChild(delBtn);
-    } else {
-      const thumb = document.createElement('div');
-      thumb.className = 'bc-thumb';
-      const cv = document.createElement('canvas');
-      thumb.appendChild(cv); card.appendChild(thumb);
-
-      const metaRow  = document.createElement('div'); metaRow.className = 'bc-meta-row';
-      const metaInfo = document.createElement('div'); metaInfo.className = 'bc-meta-info';
-      metaInfo.innerHTML =
-        `<span class="card-fmt ${item.format === 'ean_13' ? 'ean' : ''}">${(item.format||'').replace('_',' ')}</span>` +
-        `<span class="card-time">${fmtTime(item.timestamp)}</span>` +
-        `<span class="card-num">#${String(dispNum).padStart(3,'0')}</span>` +
-        (item.checked ? '<span class="card-chk-lbl">✓ 確認済</span>' : '');
-      metaRow.appendChild(checkBtn); metaRow.appendChild(metaInfo); metaRow.appendChild(delBtn);
-      card.appendChild(valEl); card.appendChild(metaRow);
-
-      // バーコード描画を非同期で（レイアウト安定後）
-      requestAnimationFrame(() => {
-        const jf = JS_FMT[item.format];
-        if (!jf || !window.JsBarcode) {
-          cv.replaceWith(Object.assign(document.createElement('div'), { className:'bc-thumb-txt', textContent: item.value }));
-          return;
-        }
-        const w = Math.max(2, Math.floor(Math.max(thumb.clientWidth || window.innerWidth - 20, 200) / 105));
-        try { JsBarcode(cv, item.value, { format:jf, width:w, height:60, displayValue:false, background:'#ffffff', lineColor:'#111111', margin:6 }); }
-        catch (_) { cv.replaceWith(Object.assign(document.createElement('div'), { className:'bc-thumb-txt', textContent: item.value })); }
-      });
-    }
-
-    card.addEventListener('click', () => multiSelModeBc ? toggleMultiSelectBc(item.id, card) : openBcModal(item));
-    list.appendChild(card);
+  const container = $('bc-list');
+  if (!container) return;
+  const list = getFilteredBc();
+  container.innerHTML = list.length ? '' : '<div class="empty-msg">履歴がありません</div>';
+  
+  const frag = document.createDocumentFragment();
+  list.forEach(item => {
+    const el = document.createElement('div');
+    el.className = 'bc-item' + (item.checked ? ' checked' : '') + (multiSelectedBc.includes(item.id) ? ' multi-selected' : '');
+    el.innerHTML = `
+      <div class="bc-info">
+        <div class="bc-val">${item.value}</div>
+        <div class="bc-meta">${(item.format||'').toUpperCase().replace('_',' ')} · ${fmtShort(item.timestamp)}</div>
+      </div>
+      <div class="bc-actions">
+        <button class="btn-check">${item.checked ? '✓' : '未'}</button>
+        <button class="btn-del-single">×</button>
+      </div>
+    `;
+    el.onclick = (e) => {
+      if (multiSelModeBc) { toggleMultiSelectBc(item.id, el); return; }
+      if (e.target.closest('.btn-check') || e.target.closest('.btn-del-single')) return;
+      openBcModal(item);
+    };
+    el.querySelector('.btn-check').onclick = (e) => {
+      e.stopPropagation();
+      item.checked = !item.checked;
+      localStorage.setItem(BC_KEY, JSON.stringify(bcHistory));
+      renderBcList();
+    };
+    el.querySelector('.btn-del-single').onclick = (e) => {
+      e.stopPropagation();
+      if (confirm('この項目を削除しますか？')) deleteBc(item.id);
+    };
+    frag.appendChild(el);
   });
+  container.appendChild(frag);
 }
 
 function deleteBc(id) {
-  if (!confirm('このバーコードを削除しますか？')) return;
   bcHistory = bcHistory.filter(x => x.id !== id);
   localStorage.setItem(BC_KEY, JSON.stringify(bcHistory));
   updateCounts(); renderBcList();
@@ -329,21 +224,18 @@ function enterMultiSelModeBc() {
   $('multi-sel-bar-bc').classList.add('on');
   updateMultiSelTxtBc(); renderBcList();
 }
-
 function exitMultiSelModeBc() {
   multiSelModeBc = false; multiSelectedBc = [];
   $('btn-bc-select-mode').classList.remove('on');
   $('multi-sel-bar-bc').classList.remove('on');
   renderBcList();
 }
-
 function toggleMultiSelectBc(id, itemEl) {
   const idx = multiSelectedBc.indexOf(id);
   if (idx >= 0) { multiSelectedBc.splice(idx, 1); itemEl.classList.remove('multi-selected'); }
   else          { multiSelectedBc.push(id);        itemEl.classList.add('multi-selected'); }
   updateMultiSelTxtBc();
 }
-
 function updateMultiSelTxtBc() {
   $('multi-sel-txt-bc').textContent = multiSelectedBc.length + '件 選択中';
 }
@@ -361,7 +253,6 @@ function openBcModal(item) {
   if (hasFmt) setTimeout(() => renderBC($('modal-canvas'), item.value, item.format, 68, true), 10);
   $('bc-modal').style.display = '';
 }
-
 function closeBcModal() {
   $('bc-modal').style.display = 'none';
   currentDetail = null;
@@ -385,7 +276,6 @@ function exportCSV() {
 /* ════ イベント登録 ════ */
 document.addEventListener('DOMContentLoaded', () => {
   const on = (id, ev, fn) => $(id)?.addEventListener(ev, fn);
-
   on('btn-scan', 'click', () => scanning ? stopScan() : startScan());
   on('btn-warp-cam', 'click', () => switchTab('camera'));
   on('scan-bc-copy', 'click', () => {
@@ -405,7 +295,6 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.flt-btn').forEach(b => b.classList.remove('on'));
     btn.classList.add('on'); histFilter = btn.dataset.filter; renderBcList();
   }));
-
   on('modal-close', 'click', closeBcModal);
   $('bc-modal')?.addEventListener('click', e => { if (e.target === $('bc-modal')) closeBcModal(); });
   on('btn-copy', 'click', () => {
@@ -424,7 +313,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     a.click();
   });
-
   on('btn-bc-select-mode', 'click', () => multiSelModeBc ? exitMultiSelModeBc() : enterMultiSelModeBc());
   on('btn-multi-cancel-bc', 'click', exitMultiSelModeBc);
   on('btn-multi-all-bc', 'click', () => {

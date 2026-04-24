@@ -79,23 +79,43 @@ function applyCfgToUI() {
 }
 
 /* ════ タブ切替 ════ */
-document.querySelectorAll('.tab').forEach(btn => {
-  btn.onclick = () => {
-    const t = btn.dataset.tab;
-    if (t === activeTab) return;
-    document.querySelectorAll('.tab').forEach(b => b.classList.remove('on'));
-    document.querySelectorAll('.page').forEach(p => p.classList.remove('on'));
-    btn.classList.add('on');
-    $('pg-' + t).classList.add('on');
+function switchTab(newTab) {
+  if (newTab === activeTab) return;
+
+  // UI更新
+  document.querySelectorAll('.tab').forEach(b => b.classList.toggle('on', b.dataset.tab === newTab));
+  document.querySelectorAll('.page').forEach(p => p.classList.toggle('on', p.id === 'pg-' + newTab));
+
+  const prevTab = activeTab;
+  activeTab = newTab;
+
+  if (newTab === 'scan') {
+    // 1. スキャンループ開始（ストリーム再利用で瞬時）
+    if (cfg.autoStartScan) startScan();
+    // 2. カメラ側の描画は止めて節電
+    const cv = $('cam-video');
+    if (cv) cv.pause();
+
+  } else if (newTab === 'camera') {
+    // 1. スキャンループを即座に停止（最大の節電）
+    stopScan();
+    // 2. カメラ起動
+    startCam();
+    // 3. スキャン側の描画は止める
+    const sv = $('scan-video');
+    if (sv) sv.pause();
+
+  } else {
+    // スキャン・カメラ以外のタブ（履歴・写真・設定）
     stopScan();
     if (typeof stopCam === 'function') stopCam();
-    activeTab = t;
-    const delay = 300;
-    if      (t === 'scan')    setTimeout(() => { if (cfg.autoStartScan) startScan(); }, delay);
-    else if (t === 'camera')  setTimeout(startCam, delay);
-    else if (t === 'history') { exitMultiSelModeBc(); renderBcList(); }
-    else if (t === 'photos')  { exitMergeMode(); exitMultiSelModePh(); renderPhotoGrid(); }
-  };
+    if (newTab === 'history') { exitMultiSelModeBc(); renderBcList(); }
+    else if (newTab === 'photos') { exitMergeMode(); exitMultiSelModePh(); renderPhotoGrid(); }
+  }
+}
+
+document.querySelectorAll('.tab').forEach(btn => {
+  btn.onclick = () => switchTab(btn.dataset.tab);
 });
 
 /* ════ イベント登録 ════ */
@@ -247,6 +267,67 @@ function bindEvents() {
   // サムネトグル（修正: イベント登録欠落の対応）
   on('btn-thumb-toggle',  'click', () => setThumbVisible(!thumbStripVisible));
   on('btn-thumb-toggle2', 'click', () => setThumbVisible(!thumbStripVisible));
+}
+
+/* ════ グローバルカメラストリーム管理（省電力共有） ════
+ *  getUserMedia は1回のみ呼び出し、scan/camera 両タブで同一ストリームを使い回す。
+ *  タブ切替時は video.srcObject の付け替えのみ行い、物理カメラは停止しない。
+ *  ════ */
+
+// ストリーム取得中の二重実行防止
+let _isStartingGlobal = false;
+
+async function startGlobalCamera(forceRestart = false) {
+  // すでに有効なストリームがあり、強制再起動でなければ即座に再利用（最速・最小電力）
+  if (globalStream && globalStream.active && !forceRestart) {
+    return globalStream;
+  }
+  
+  if (_isStartingGlobal) {
+    // すでに起動処理中の場合は、完了まで待機して既存のものを返す
+    while (_isStartingGlobal) { await new Promise(r => setTimeout(r, 50)); }
+    if (globalStream && globalStream.active) return globalStream;
+  }
+
+  _isStartingGlobal = true;
+  try {
+    // 古いストリームを物理停止（画質変更時など）
+    if (globalStream) {
+      globalStream.getTracks().forEach(t => t.stop());
+      globalStream     = null;
+      globalCamTrack   = null;
+    }
+
+    const qBase = CAM_QUALITY[cfg.camQuality] || CAM_QUALITY.mid;
+    const [arW, arH] = (cfg.aspectRatio || '16/9').split('/').map(Number);
+
+    globalStream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode,
+        width:  qBase.width,
+        height: qBase.height,
+        aspectRatio: { ideal: arW / arH }
+      },
+      audio: false
+    });
+    globalCamTrack = globalStream.getVideoTracks()[0];
+    return globalStream;
+  } finally {
+    _isStartingGlobal = false;
+  }
+}
+
+function stopGlobalCamera() {
+  // 物理カメラを完全停止（バックグラウンド移行時のみ呼ぶ）
+  if (globalStream) {
+    globalStream.getTracks().forEach(t => t.stop());
+    globalStream   = null;
+    globalCamTrack = null;
+  }
+  // 後方互換参照もクリア
+  scanStream = null;
+  camStream  = null;
+  camTrack   = null;
 }
 
 /* ════ 初期化 ════ */

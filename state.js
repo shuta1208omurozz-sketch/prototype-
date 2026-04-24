@@ -33,8 +33,10 @@ let camQuality      = 'mid';
 let forceHorizontal = false; // 横固定モード（撮影後・スキャン成功後に自動OFF）
 
 /* ════ メディアストリーム ════ */
-let scanStream        = null;
-let camStream         = null;
+let globalStream      = null;   // 共有カメラストリーム（1回のみ取得）
+let globalCamTrack    = null;   // 共有トラック参照
+let scanStream        = null;   // 後方互換のための参照（globalStream と同一）
+let camStream         = null;   // 後方互換のための参照（globalStream と同一）
 let detector          = null;
 let raf               = null;
 let lastCode          = null;

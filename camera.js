@@ -4,14 +4,13 @@ let isStarting = false;
 
 /* ════ カメラ停止 ════ */
 function stopCam() {
-  if (camStream) { camStream.getTracks().forEach(t => t.stop()); camStream = null; }
-  camTrack  = null;
   camActive = false;
+  // ストリームは共有のため物理停止しない。ビデオ要素からのみ切断する
   const video = $('cam-video');
   if (video) {
     video.pause();
-    video.srcObject = null;
-    try { video.load(); } catch(_){}
+    // 他のタブで使う可能性があるため、完全に srcObject = null にせず pause のみにとどめる場合もあるが、
+    // 確実に描画を止めるために pause() は必須。
   }
   const ph = $('cam-ph');
   if (ph) ph.style.display = 'flex';
@@ -20,17 +19,32 @@ function stopCam() {
 /* ════ バックグラウンド時の自動停止 ════ */
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
-    stopCam();
+    // 全ビデオ要素を切断
+    const sv = $('scan-video');
+    if (sv) { sv.pause(); sv.srcObject = null; }
+    const cv = $('cam-video');
+    if (cv) { cv.pause(); cv.srcObject = null; }
+    // スキャンループを停止
     if (typeof stopScan === 'function') stopScan();
+    // 物理カメラを完全停止（省電力・発熱防止）
+    if (typeof stopGlobalCamera === 'function') stopGlobalCamera();
+    camActive = false;
+    camStream = null;
+    camTrack  = null;
+  } else {
+    // フォアグラウンド復帰：現在のタブを再開
+    if (activeTab === 'camera') {
+      if (typeof startCam === 'function') startCam();
+    } else if (activeTab === 'scan') {
+      if (cfg?.autoStartScan && typeof startScan === 'function') startScan();
+    }
   }
 });
 
 /* ════ カメラ起動 ════ */
-async function startCam() {
+async function startCam(forceRestart = false) {
   if (isStarting) return;
   isStarting = true;
-  stopCam();
-  if (typeof stopScan === 'function') stopScan();
 
   const video  = $('cam-video');
   const ph     = $('cam-ph');
@@ -40,34 +54,37 @@ async function startCam() {
   if (txt)    txt.textContent      = 'カメラ初期化中...';
   if (errBox) errBox.style.display = 'none';
 
-  const qBase = CAM_QUALITY[cfg.camQuality] || CAM_QUALITY.mid;
-  const [arW, arH] = (cfg.aspectRatio || '16/9').split('/').map(Number);
-
-  const constraints = {
-    video: { facingMode, width: qBase.width, height: qBase.height, aspectRatio: { ideal: arW / arH } },
-    audio: false
-  };
+  // 他タブの処理を停止（解析エンジンの物理停止）
+  if (typeof stopScan === 'function') stopScan();
 
   try {
-    const stream = await navigator.mediaDevices.getUserMedia(constraints);
+    // 共有ストリームを取得（すでに起動中なら再利用。ここでの getUserMedia 再走は物理停止時のみ）
+    const stream = await startGlobalCamera(forceRestart);
     camStream = stream;
+
     if (video) {
-      video.srcObject = stream;
-      video.playsInline = true;  // iOS対策
-      video.muted       = true;  // 無駄な音声処理防止
-      Object.assign(video.style, { objectFit:'cover', width:'100%', height:'100%', backgroundColor:'#000' });
-      video.onloadedmetadata = async () => {
-        try {
-          await video.play();
-          if (ph) ph.style.display = 'none';
-          const vf = $('cam-vf');
-          if (vf) { vf.style.aspectRatio = cfg.aspectRatio; vf.style.overflow = 'hidden'; }
-          camTrack  = stream.getVideoTracks()[0];
-          camActive = true;
-          initCamFeatures(camTrack);
-          showCropOverlay(cfg.aspectRatio);
-        } catch (e) { console.warn('[Camera] Play interrupted:', e); }
-      };
+      // ストリームが既にセットされている場合は再セットしない（スパイク防止）
+      if (video.srcObject !== stream) {
+        video.srcObject = stream;
+        video.playsInline = true;
+        video.muted       = true;
+        Object.assign(video.style, { objectFit:'cover', width:'100%', height:'100%', backgroundColor:'#000' });
+      }
+
+      if (video.readyState < 1) {
+        await new Promise(resolve => video.addEventListener('loadedmetadata', resolve, { once: true }));
+      }
+
+      try {
+        await video.play();
+        if (ph) ph.style.display = 'none';
+        const vf = $('cam-vf');
+        if (vf) { vf.style.aspectRatio = cfg.aspectRatio; vf.style.overflow = 'hidden'; }
+        camTrack  = stream.getVideoTracks()[0];
+        camActive = true;
+        initCamFeatures(camTrack);
+        showCropOverlay(cfg.aspectRatio);
+      } catch (e) { console.warn('[Camera] Play interrupted:', e); }
     }
   } catch (e) {
     handleCamError(e);
@@ -278,7 +295,7 @@ function setAspectRatio(ratio) {
   const vf = $('cam-vf');
   if (vf) vf.style.aspectRatio = ratio;
   showCropOverlay(ratio);
-  if (camActive) startCam();
+  if (camActive) startCam(true); // 解像度変更のため強制再起動
   else if (typeof applyCfgToUI === 'function') applyCfgToUI();
 }
 
@@ -326,7 +343,7 @@ document.addEventListener('DOMContentLoaded', () => {
       cfg.camQuality = btn.dataset.q;
       if (typeof saveCfg === 'function') saveCfg();
       if (typeof applyCfgToUI === 'function') applyCfgToUI();
-      if (camActive) startCam();
+      if (camActive) startCam(true); // 画質変更のため強制再起動
     };
   });
 
