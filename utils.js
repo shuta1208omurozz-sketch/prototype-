@@ -137,6 +137,10 @@ function updateCounts() {
   show('btn-ph-select-mode', ph >= 1);
   show('btn-merge-mode',     ph >= 2);
   show('btn-photo-clear',    ph >= 1);
+  // BC履歴ツールバーボタン
+  show('btn-bc-select-mode', bc >= 1);
+  show('btn-bc-csv',         bc >= 1);
+  show('btn-bc-clear',       bc >= 1);
 }
 
 // switchTab は main.js に統合されました

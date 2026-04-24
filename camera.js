@@ -84,6 +84,9 @@ async function startCam(forceRestart = false) {
         camActive = true;
         initCamFeatures(camTrack);
         showCropOverlay(cfg.aspectRatio);
+        // 画質UIを表示
+        const qr = $('quality-row');
+        if (qr) qr.style.display = '';
       } catch (e) { console.warn('[Camera] Play interrupted:', e); }
     }
   } catch (e) {

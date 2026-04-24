@@ -149,9 +149,42 @@ function handleScanSuccess(val, format) {
   vibrate([100]);
   const grp = cfg.useGroup ? cfg.currentGroup : '未分類';
   const item = { id: Date.now(), value: val, format, timestamp: Date.now(), group: grp, checked: false };
+  const isDup = bcHistory.some(x => x.value === val);
   bcHistory.unshift(item);
   localStorage.setItem(BC_KEY, JSON.stringify(bcHistory));
   
+  // ── スキャン画面の結果エリアを更新 ──
+  const dispEl   = $('scan-bc-display');
+  const holdEl   = $('scan-bc-placeholder');
+  const valEl    = $('scan-bc-val');
+  const metaEl   = $('scan-bc-meta');
+  const dupEl    = $('scan-bc-dup');
+  const canvas   = $('scan-bc-canvas');
+  const flashEl  = $('finder-flash');
+
+  if (holdEl)   holdEl.style.display = 'none';
+  if (dispEl)   dispEl.style.display = 'flex';
+  if (valEl)    valEl.textContent = val;
+  if (metaEl)   metaEl.textContent = format.toUpperCase().replace('_',' ') + ' · ' + fmtShort(item.timestamp);
+  if (dupEl)    dupEl.classList.toggle('show', isDup);
+
+  // バーコード画像の描画（1Dフォーマットのみ）
+  if (canvas && JS_FMT[format]) {
+    setTimeout(() => renderBC(canvas, val, format, 60, false), 10);
+  } else if (canvas) {
+    // QR等2Dは描画不可のためクリア
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }
+
+  // スキャン成功フラッシュ
+  if (flashEl) {
+    flashEl.classList.remove('show');
+    void flashEl.offsetWidth;
+    flashEl.classList.add('show');
+    setTimeout(() => flashEl.classList.remove('show'), 150);
+  }
+
   updateCounts();
   renderBcList();
   showToast('スキャン成功: ' + val, 'ok');
@@ -314,6 +347,11 @@ document.addEventListener('DOMContentLoaded', () => {
     a.click();
   });
   on('btn-bc-select-mode', 'click', () => multiSelModeBc ? exitMultiSelModeBc() : enterMultiSelModeBc());
+  on('btn-bc-csv',         'click', exportCSV);
+  on('btn-bc-clear',       'click', () => {
+    if (!confirm('全てのバーコード履歴を削除しますか？')) return;
+    bcHistory = []; localStorage.setItem(BC_KEY, '[]'); updateCounts(); renderBcList(); showToast('BC履歴を削除しました');
+  });
   on('btn-multi-cancel-bc', 'click', exitMultiSelModeBc);
   on('btn-multi-all-bc', 'click', () => {
     const f = getFilteredBc();
