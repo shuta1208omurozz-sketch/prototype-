@@ -102,11 +102,7 @@ document.querySelectorAll('.tab').forEach(btn => {
 function bindEvents() {
   const on = (id, ev, fn) => $(id)?.addEventListener(ev, fn);
 
-  // カメラ切替
-  $('btn-cam-switch')?.addEventListener('click', () => {
-    facingMode = facingMode === 'environment' ? 'user' : 'environment';
-    if (camActive) startCam();
-  });
+
 
   // UI設定
   on('set-photo-size', 'input',  e => { $('val-photo-size').textContent = e.target.value + 'px'; document.documentElement.style.setProperty('--photo-size', e.target.value + 'px'); });

@@ -434,8 +434,9 @@ input:checked + .toggle-slider:before { transform: translateX(20px); background:
 /* カメラ画面のボタン配置（親指最適化） */
 .cam-controls .btn-row {
   display: flex;
-  justify-content: space-around;
+  justify-content: center;
   align-items: center;
+  gap: 15px;
   padding: 20px 10px;
 }
 
