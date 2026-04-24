@@ -79,7 +79,18 @@ async function startCam(forceRestart = false) {
         await video.play();
         if (ph) ph.style.display = 'none';
         const vf = $('cam-vf');
-        if (vf) { vf.style.aspectRatio = cfg.aspectRatio; vf.style.overflow = 'hidden'; }
+        if (vf) {
+          if (cfg.aspectRatio === 'full') {
+            vf.style.aspectRatio = 'auto';
+            vf.style.flex = '1';
+            vf.style.maxHeight = 'calc(100% - 160px)';
+          } else {
+            vf.style.aspectRatio = cfg.aspectRatio;
+            vf.style.flex = 'none';
+            vf.style.maxHeight = '';
+          }
+          vf.style.overflow = 'hidden';
+        }
         camTrack  = stream.getVideoTracks()[0];
         camActive = true;
         initCamFeatures(camTrack);
@@ -301,7 +312,17 @@ function setAspectRatio(ratio) {
   if (typeof saveCfg === 'function') saveCfg();
   document.querySelectorAll('.ratio-btn').forEach(btn => btn.classList.toggle('on', btn.dataset.r === ratio));
   const vf = $('cam-vf');
-  if (vf) vf.style.aspectRatio = (ratio === 'full') ? 'auto' : ratio;
+  if (vf) {
+    if (ratio === 'full') {
+      vf.style.aspectRatio = 'auto';
+      vf.style.flex = '1';
+      vf.style.maxHeight = 'calc(100% - 160px)'; // シャッター等のコントロール分を確保
+    } else {
+      vf.style.aspectRatio = ratio;
+      vf.style.flex = 'none';
+      vf.style.maxHeight = '';
+    }
+  }
   showCropOverlay(ratio);
   if (camActive) startCam(true); // 解像度変更のため強制再起動
   else if (typeof applyCfgToUI === 'function') applyCfgToUI();
