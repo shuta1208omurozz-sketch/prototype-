@@ -227,41 +227,102 @@ function getFilteredBc() {
 
 function renderBcList() {
   const container = $('bc-list');
+  const emptyEl   = $('bc-empty');
   if (!container) return;
   const list = getFilteredBc();
-  container.innerHTML = list.length ? '' : '<div class="empty-msg">履歴がありません</div>';
-  
+
+  // 空状態の切り替え
+  if (emptyEl) emptyEl.style.display = list.length ? 'none' : '';
+  container.style.display = list.length ? 'flex' : 'none';
+
+  // 複数選択モードのクラス付与
+  container.classList.toggle('multi-mode-bc', multiSelModeBc);
+
+  container.innerHTML = '';
   const frag = document.createDocumentFragment();
+
   list.forEach(item => {
+    const isSelected = multiSelectedBc.includes(item.id);
+    const fmtUpper   = (item.format || '').toUpperCase().replace('_', ' ');
+    const isEan      = (item.format || '').includes('ean');
+
     const el = document.createElement('div');
-    el.className = 'bc-item' + (item.checked ? ' checked' : '') + (multiSelectedBc.includes(item.id) ? ' multi-selected' : '');
-    el.innerHTML = `
-      <div class="bc-info">
-        <div class="bc-val">${item.value}</div>
-        <div class="bc-meta">${(item.format||'').toUpperCase().replace('_',' ')} · ${fmtShort(item.timestamp)}</div>
-      </div>
-      <div class="bc-actions">
-        <button class="btn-check">${item.checked ? '✓' : '未'}</button>
-        <button class="btn-del-single">×</button>
-      </div>
-    `;
+    el.className = 'bc-card'
+      + (isEan         ? ' ean'           : '')
+      + (item.checked  ? ' checked'       : '')
+      + (isSelected    ? ' multi-selected': '');
+
+    // 複数選択チェック（絶対配置）
+    const selChk = document.createElement('button');
+    selChk.className = 'bc-sel-chk';
+    selChk.textContent = isSelected ? '✓' : '';
+
+    // バーコード画像エリア（コンパクトモード時は非表示）
+    const thumbDiv = document.createElement('div');
+    thumbDiv.className = 'bc-thumb';
+    const canvas = document.createElement('canvas');
+    thumbDiv.appendChild(canvas);
+    if (cfg.bcCompactMode) thumbDiv.style.display = 'none';
+
+    // 値テキスト
+    const valDiv = document.createElement('div');
+    valDiv.className = 'bc-val-large';
+    valDiv.textContent = item.value;
+
+    // メタ行
+    const metaRow = document.createElement('div');
+    metaRow.className = 'bc-meta-row';
+
+    const metaInfo = document.createElement('div');
+    metaInfo.className = 'bc-meta-info';
+    metaInfo.innerHTML = `<span class="card-fmt${isEan ? ' ean' : ''}">${fmtUpper}</span>`
+      + `<span class="card-time">${fmtShort(item.timestamp)}</span>`
+      + `<span class="card-num">#${item.value.slice(-4)}</span>`
+      + (item.checked ? '<span class="card-chk-lbl">✓済</span>' : '');
+    if (cfg.useGroup && item.group) {
+      const badge = document.createElement('span');
+      badge.className = 'card-group-badge';
+      badge.textContent = item.group;
+      el.appendChild(badge);
+    }
+
+    const checkBtn = document.createElement('button');
+    checkBtn.className = 'card-check';
+    checkBtn.textContent = item.checked ? '✓' : '';
+
+    metaRow.appendChild(metaInfo);
+    metaRow.appendChild(checkBtn);
+
+    el.appendChild(selChk);
+    el.appendChild(thumbDiv);
+    el.appendChild(valDiv);
+    el.appendChild(metaRow);
+
+    // イベント
     el.onclick = (e) => {
       if (multiSelModeBc) { toggleMultiSelectBc(item.id, el); return; }
-      if (e.target.closest('.btn-check') || e.target.closest('.btn-del-single')) return;
+      if (e.target === checkBtn || e.target === selChk) return;
       openBcModal(item);
     };
-    el.querySelector('.btn-check').onclick = (e) => {
+    checkBtn.onclick = (e) => {
       e.stopPropagation();
       item.checked = !item.checked;
       localStorage.setItem(BC_KEY, JSON.stringify(bcHistory));
       renderBcList();
     };
-    el.querySelector('.btn-del-single').onclick = (e) => {
+    selChk.onclick = (e) => {
       e.stopPropagation();
-      if (confirm('この項目を削除しますか？')) deleteBc(item.id);
+      toggleMultiSelectBc(item.id, el);
     };
+
     frag.appendChild(el);
+
+    // バーコード画像を非同期描画
+    if (JS_FMT[item.format] && !cfg.bcCompactMode) {
+      setTimeout(() => renderBC(canvas, item.value, item.format, 50, false), 0);
+    }
   });
+
   container.appendChild(frag);
 }
 
@@ -276,12 +337,14 @@ function enterMultiSelModeBc() {
   multiSelModeBc = true; multiSelectedBc = [];
   $('btn-bc-select-mode').classList.add('on');
   $('multi-sel-bar-bc').classList.add('on');
+  $('bc-list')?.classList.add('multi-mode-bc');
   updateMultiSelTxtBc(); renderBcList();
 }
 function exitMultiSelModeBc() {
   multiSelModeBc = false; multiSelectedBc = [];
   $('btn-bc-select-mode').classList.remove('on');
   $('multi-sel-bar-bc').classList.remove('on');
+  $('bc-list')?.classList.remove('multi-mode-bc');
   renderBcList();
 }
 function toggleMultiSelectBc(id, itemEl) {
@@ -355,7 +418,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!currentDetail) return;
     navigator.clipboard.writeText(currentDetail.value).then(() => {
       const msg = $('copied-msg');
-      if (msg) { msg.style.display = 'block'; setTimeout(() => msg.style.display = 'none', 2000); }
+      if (msg) { msg.style.display = ''; setTimeout(() => msg.style.display = 'none', 2000); }
       showToast('コピーしました', 'ok');
     });
   });
@@ -368,6 +431,12 @@ document.addEventListener('DOMContentLoaded', () => {
     a.click();
   });
   on('btn-bc-select-mode', 'click', () => multiSelModeBc ? exitMultiSelModeBc() : enterMultiSelModeBc());
+  on('btn-bc-csv',   'click', exportCSV);
+  on('btn-bc-clear', 'click', () => {
+    if (!confirm('全てのバーコード履歴を削除しますか？')) return;
+    bcHistory = []; localStorage.setItem(BC_KEY, '[]');
+    updateCounts(); renderBcList(); showToast('BC履歴を削除しました');
+  });
   on('btn-multi-cancel-bc', 'click', exitMultiSelModeBc);
   on('btn-multi-all-bc', 'click', () => {
     const f = getFilteredBc();
@@ -383,6 +452,6 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   on('btn-multi-move-bc', 'click', () => {
     if (!multiSelectedBc.length) return;
-    groupMoveTarget = 'bc'; $('group-move-popup').style.display = 'block';
+    groupMoveTarget = 'bc'; $('group-move-popup').style.display = 'flex';
   });
 });

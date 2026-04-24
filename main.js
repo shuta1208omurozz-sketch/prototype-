@@ -64,7 +64,17 @@ function applyCfgToUI() {
   document.querySelectorAll('.ratio-btn').forEach(b => b.classList.toggle('on', b.dataset.r   === cfg.aspectRatio));
 
   const camVf = $('cam-vf');
-  if (camVf) camVf.style.aspectRatio = (cfg.aspectRatio === 'full') ? 'auto' : cfg.aspectRatio;
+  if (camVf) {
+    if (cfg.aspectRatio === 'full') {
+      camVf.style.aspectRatio = 'auto';
+      camVf.style.flex = '1';
+      camVf.style.maxHeight = 'calc(100% - 160px)';
+    } else {
+      camVf.style.aspectRatio = cfg.aspectRatio;
+      camVf.style.flex = 'none';
+      camVf.style.maxHeight = '';
+    }
+  }
   scanMode   = cfg.scanFormat;
   camQuality = cfg.camQuality;
 

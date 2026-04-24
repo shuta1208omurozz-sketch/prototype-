@@ -134,7 +134,7 @@ async function initCamFeatures(track) {
 
     const torchBtn = $('btn-torch');
     if (torchBtn) {
-      torchBtn.style.display = 'block';
+      torchBtn.style.display = 'flex';
       torchBtn.disabled      = !caps.torch;
       torchBtn.style.opacity = caps.torch ? '' : '0.35';
     }
@@ -380,7 +380,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (folderToggle) {
     folderToggle.onclick = () => {
       const row = $('save-folder-row');
-      if (row) row.style.display = row.style.display === 'none' ? 'block' : 'none';
+      if (row) row.style.display = row.style.display === 'none' ? 'flex' : 'none';
     };
   }
 });
