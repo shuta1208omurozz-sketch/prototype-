@@ -1,0 +1,29 @@
+{
+  "name": "Scanner + Camera",
+  "short_name": "Scanner",
+  "description": "バーコードスキャン・カメラ撮影・データ保存アプリ",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#00d4ff",
+  "background_color": "#0a0c0f",
+  "lang": "ja",
+  "categories": ["utilities", "productivity"],
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [],
+  "prefer_related_applications": false
+}
