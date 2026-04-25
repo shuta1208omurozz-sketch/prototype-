@@ -13,12 +13,12 @@ let cfg = {
   maxPhotos:      200,
   photoSize:      80,
   bcCompactMode:  false,
-  useVibration:   true,
   continuousScan: false,
   useGroup:       false,
   groups:         ['未分類', '食品', '機械', '文具'],
   currentGroup:   '未分類',
-  aspectRatio:    'full'
+  aspectRatio:    'full',
+  outdoorMode:    false
 };
 
 /* ════ データ ════ */
@@ -31,6 +31,7 @@ let scanMode        = 'ean13';
 let camActive       = false;
 let camQuality      = 'mid';
 let forceHorizontal = false; // 横固定モード（撮影後・スキャン成功後に自動OFF）
+let rotateRight     = true;  // 横撮影の向き（true=右向き→, false=左向き←）
 
 /* ════ メディアストリーム ════ */
 let globalStream      = null;   // 共有カメラストリーム（1回のみ取得）

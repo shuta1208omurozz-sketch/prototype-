@@ -16,7 +16,7 @@ function loadCfg() {
   catch (e) { console.error('[Utils] loadCfg:', e); }
 }
 
-/* ════ トースト・バイブレーション ════ */
+/* ════ トースト ════ */
 function showToast(msg, type = '', duration = 3000) {
   const t = $('toast');
   if (!t) return;
@@ -24,12 +24,6 @@ function showToast(msg, type = '', duration = 3000) {
   t.textContent = msg;
   t.className   = `toast show ${type}`;
   t._timer = setTimeout(() => { t.classList.remove('show'); t._timer = null; }, duration);
-}
-
-function vibrate(pattern) {
-  if (cfg.useVibration && navigator.vibrate) {
-    try { navigator.vibrate(pattern); } catch (_) {}
-  }
 }
 
 /* ════ 日時フォーマット ════ */

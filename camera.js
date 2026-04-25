@@ -200,13 +200,17 @@ async function takePhoto() {
   ctx.imageSmoothingQuality = 'high';
 
   if (needsRotate) {
-    // 縦映像を右90°回転 → 横画像として出力
+    // 縦映像を回転して横画像として出力（rotateRight で方向切り替え）
     canvas.width  = Math.min(sh, maxW);
     canvas.height = Math.round(canvas.width * (sw / sh));
     ctx.save();
-    ctx.translate(canvas.width, 0);
-    ctx.rotate(Math.PI / 2);
-    // 回転後の座標系で描画（sw↔sh が入れ替わっている）
+    if (rotateRight) {
+      ctx.translate(canvas.width, 0);
+      ctx.rotate(Math.PI / 2);
+    } else {
+      ctx.translate(0, canvas.height);
+      ctx.rotate(-Math.PI / 2);
+    }
     ctx.drawImage(video, sx, sy, sw, sh, 0, 0, canvas.height, canvas.width);
     ctx.restore();
   } else {
@@ -218,6 +222,8 @@ async function takePhoto() {
   // 撮影後は横固定を自動OFF（状態が残らない設計）
   forceHorizontal = false;
   updateHorizontalUI();
+  updateArrow();
+  updatePreview(video);
 
   // サムネイル生成
   const thumbC = document.createElement('canvas');
@@ -236,7 +242,6 @@ async function takePhoto() {
   updateThumbStrip();
   if (activeTab === 'photos') renderPhotoGrid();
   showFlashEffect();
-  vibrate([50]);
   if (shutter) shutter.disabled = false;
 
   // 高画質を非同期保存
@@ -297,13 +302,67 @@ function showCropOverlay(ratio) {
 /* ════ 横固定モード ════ */
 function updateHorizontalUI() {
   const btn = $('btn-horizontal');
-  if (!btn) return;
-  btn.classList.toggle('on', forceHorizontal);
+  if (btn) btn.classList.toggle('on', forceHorizontal);
+  // 方向ボタン: 横固定ONのとき有効化、状態を反映
+  const dirBtn = $('btn-direction');
+  if (dirBtn) {
+    dirBtn.style.opacity      = forceHorizontal ? '1' : '0.35';
+    dirBtn.style.pointerEvents= forceHorizontal ? '' : 'none';
+    dirBtn.classList.toggle('direction-right',  forceHorizontal && rotateRight);
+    dirBtn.classList.toggle('direction-left',   forceHorizontal && !rotateRight);
+  }
+}
+
+function updateArrow() {
+  const arrow = $('direction-arrow');
+  if (!arrow) return;
+  if (!forceHorizontal) {
+    arrow.style.display = 'none';
+    return;
+  }
+  arrow.style.display = 'flex';
+  arrow.textContent = rotateRight ? '→' : '←';
+  // 方向ボタンのテキストも更新
+  const dirBtn = $('btn-direction');
+  if (dirBtn) {
+    dirBtn.textContent = rotateRight ? '→' : '←';
+    dirBtn.classList.toggle('direction-right',  rotateRight);
+    dirBtn.classList.toggle('direction-left',   !rotateRight);
+  }
+}
+
+function updatePreview(video) {
+  if (!video) video = $('cam-video');
+  if (!video) return;
+  if (!forceHorizontal) {
+    video.style.transform = '';
+    return;
+  }
+  // コンテナサイズに合わせてスケール計算（overflow:hidden対応）
+  const vf = $('cam-vf');
+  if (vf && vf.offsetWidth && vf.offsetHeight) {
+    const W = vf.offsetWidth, H = vf.offsetHeight;
+    const scale = Math.max(W / H, H / W);
+    const deg   = rotateRight ? 90 : -90;
+    video.style.transform = `rotate(${deg}deg) scale(${scale})`;
+  } else {
+    const deg = rotateRight ? 90 : -90;
+    video.style.transform = `rotate(${deg}deg)`;
+  }
 }
 
 function toggleHorizontal() {
   forceHorizontal = !forceHorizontal;
   updateHorizontalUI();
+  updateArrow();
+  updatePreview();
+}
+
+function toggleDirection() {
+  if (!forceHorizontal) return;
+  rotateRight = !rotateRight;
+  updateArrow();
+  updatePreview();
 }
 
 function setAspectRatio(ratio) {
@@ -328,6 +387,14 @@ function setAspectRatio(ratio) {
   else if (typeof applyCfgToUI === 'function') applyCfgToUI();
 }
 
+/* ════ フルスクリーン切り替え検知 ════ */
+document.addEventListener('fullscreenchange', () => {
+  document.body.classList.toggle('fullscreen', document.fullscreenElement != null);
+});
+document.addEventListener('webkitfullscreenchange', () => {
+  document.body.classList.toggle('fullscreen', document.webkitFullscreenElement != null);
+});
+
 /* ════ イベント登録 ════ */
 document.addEventListener('DOMContentLoaded', () => {
   const on = (id, fn) => { const el = $(id); if (el) el.onclick = fn; };
@@ -335,6 +402,7 @@ document.addEventListener('DOMContentLoaded', () => {
   on('btn-torch',      toggleTorch);
   on('cam-retry',      startCam);
   on('btn-horizontal', toggleHorizontal);
+  on('btn-direction',  toggleDirection);
   on('btn-goto-scan',  () => { if (typeof switchTab === 'function') switchTab('scan'); });
 
   const RATIOS = ['full', '4/3', '16/9', '21/9'];

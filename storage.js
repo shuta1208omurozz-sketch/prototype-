@@ -132,13 +132,31 @@ async function saveToFolderHandle(blob, filename) {
 }
 
 async function autoSaveToDevice(photo, originalBlob = null) {
-  if (isIOS) {
-    if (!iosPopupShown) { iosPopupShown = true; $('ios-popup').style.display = ''; }
-    return;
-  }
   const ts     = fmtTime(photo.timestamp).replace(/[/:\s]/g, '-');
   const prefix = photo.scannedCode ? photo.scannedCode.slice(-5) : 'photo';
   const name   = `${prefix}_${ts}.jpg`;
+
+  if (isIOS) {
+    // iOS: Web Share API でカメラロールへ誘導（fallbackDownloadは効かない）
+    try {
+      let blob = originalBlob;
+      if (!blob || blob.size === 0) blob = await dataUrlToBlob(photo.dataUrl);
+      if (!blob) { showToast('画像データの変換に失敗しました', 'err'); return; }
+      const file = new File([blob], name, { type: 'image/jpeg' });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: '写真を保存' });
+        return;
+      }
+    } catch (e) {
+      if (e.name === 'AbortError') return; // ユーザーがキャンセル
+      console.warn('[iOS Share]', e);
+    }
+    // Web Share が使えない場合はポップアップで案内
+    if (!iosPopupShown) { iosPopupShown = true; $('ios-popup').style.display = ''; }
+    return;
+  }
+
+  // Android / PC
   if (folderHandle) {
     let blob = originalBlob;
     if (!blob || blob.size === 0) blob = await dataUrlToBlob(photo.dataUrl);

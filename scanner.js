@@ -178,9 +178,7 @@ function handleScanSuccess(val, format) {
   }
   lastCode = val; lastCodeTime = Date.now();
   lastScannedValue = val;
-  _requiresClearFrame = true; // 次に同じ値を登録するにはカメラから消える必要がある
-
-  vibrate([100]);
+  _requiresClearFrame = true;
   const grp  = cfg.useGroup ? cfg.currentGroup : '未分類';
   const item = { id: Date.now(), value: val, format, timestamp: Date.now(), group: grp, checked: false };
   bcHistory.unshift(item);

@@ -51,10 +51,12 @@ function renderSettingsGroupList() {
 /* ════ UI反映 ════ */
 function applyCfgToUI() {
   const setChk = (id, v) => { const el = $(id); if (el) el.checked = v; };
-  setChk('set-auto-scan',   cfg.autoStartScan);
-  setChk('set-cont-scan',   cfg.continuousScan);
-  setChk('set-vibration',   cfg.useVibration);
-  setChk('set-use-group',   cfg.useGroup);
+  setChk('set-auto-scan',    cfg.autoStartScan);
+  setChk('set-cont-scan',    cfg.continuousScan);
+  setChk('set-use-group',    cfg.useGroup);
+  setChk('set-outdoor-mode', cfg.outdoorMode);
+  // 屋外モードをbodyクラスに反映
+  document.body.classList.toggle('outdoor-mode', !!cfg.outdoorMode);
 
   document.querySelectorAll('[data-sf]').forEach(b  => b.classList.toggle('on', b.dataset.sf  === cfg.scanFormat));
   document.querySelectorAll('[data-cq]').forEach(b  => b.classList.toggle('on', b.dataset.cq  === cfg.camQuality));
@@ -89,7 +91,7 @@ function applyCfgToUI() {
 }
 
 /* ════ タブ切替 ════ */
-function switchTab(newTab) {
+function switchTab(newTab, pushHistory = true) {
   if (newTab === activeTab) return;
 
   // UI更新
@@ -99,30 +101,41 @@ function switchTab(newTab) {
   const prevTab = activeTab;
   activeTab = newTab;
 
+  // 戻るボタン対策: タブ遷移を履歴に積む
+  if (pushHistory) {
+    history.pushState({ tab: newTab }, '', '#' + newTab);
+  }
+
   if (newTab === 'scan') {
-    // 1. スキャンループ開始（ストリーム再利用で瞬時）
     if (cfg.autoStartScan) startScan();
-    // 2. カメラ側の描画は止めて節電
     const cv = $('cam-video');
     if (cv) cv.pause();
 
   } else if (newTab === 'camera') {
-    // 1. スキャンループを即座に停止（最大の節電）
     stopScan();
-    // 2. カメラ起動
     startCam();
-    // 3. スキャン側の描画は止める
     const sv = $('scan-video');
     if (sv) sv.pause();
 
   } else {
-    // スキャン・カメラ以外のタブ（履歴・写真・設定）
     stopScan();
     if (typeof stopCam === 'function') stopCam();
     if (newTab === 'history') { exitMultiSelModeBc(); renderBcList(); }
     else if (newTab === 'photos') { exitMergeMode(); exitMultiSelModePh(); renderPhotoGrid(); }
   }
 }
+
+/* ════ 戻るボタン対策: ブラウザ履歴でタブを管理 ════ */
+window.addEventListener('popstate', (e) => {
+  if (e.state && e.state.tab) {
+    // 履歴の状態からタブを復元（push不要）
+    switchTab(e.state.tab, false);
+  } else {
+    // 履歴が尽きた場合 → スキャン画面に戻す（アプリ終了を防ぐ）
+    history.pushState({ tab: 'scan' }, '', '#scan');
+    switchTab('scan', false);
+  }
+});
 
 document.querySelectorAll('.tab').forEach(btn => {
   btn.onclick = () => switchTab(btn.dataset.tab);
@@ -167,7 +180,12 @@ function bindEvents() {
   });
 
   // システム設定
-  on('set-vibration', 'change', e => { cfg.useVibration = e.target.checked; saveCfg(); if (cfg.useVibration) vibrate([50]); });
+  on('set-outdoor-mode', 'change', e => {
+    cfg.outdoorMode = e.target.checked;
+    saveCfg();
+    document.body.classList.toggle('outdoor-mode', cfg.outdoorMode);
+    showToast(cfg.outdoorMode ? '☀ 屋外モード ON' : '屋外モード OFF', cfg.outdoorMode ? 'ok' : '');
+  });
   document.querySelectorAll('[data-mp]').forEach(btn => btn.addEventListener('click', () => {
     MAX_PH = +btn.dataset.mp; cfg.maxPhotos = MAX_PH; saveCfg(); applyCfgToUI(); updateCounts();
     showToast('最大保存枚数: ' + MAX_PH + '枚', 'ok');
@@ -236,6 +254,39 @@ function bindEvents() {
       await new Promise(r => setTimeout(r, 600));
     }
     exitMultiSelModePh();
+  });
+
+  // iOS 共有ボタン（Web Share API - iOSのカメラロールへ送れる）
+  on('btn-multi-share', 'click', async () => {
+    if (!multiSelectedPh.length) { showToast('[E025] 項目が選択されていません', 'warn'); return; }
+    showToast('共有シートを準備中...', '', 2000);
+    const selPhotos = multiSelectedPh.map(id => photos.find(p => p.id === id)).filter(Boolean);
+    try {
+      const files = (await Promise.all(selPhotos.map(async p => {
+        const blob = await dataUrlToBlob(p.dataUrl);
+        if (!blob) return null;
+        const ts = fmtTime(p.timestamp).replace(/[/:\s]/g, '-');
+        const name = `${p.scannedCode ? p.scannedCode.slice(-5) : 'photo'}_${ts}.jpg`;
+        return new File([blob], name, { type: 'image/jpeg' });
+      }))).filter(Boolean);
+
+      if (!files.length) { showToast('[E027] 画像変換に失敗しました', 'err'); return; }
+
+      if (navigator.canShare && navigator.canShare({ files })) {
+        await navigator.share({ files, title: 'スキャン写真' });
+        exitMultiSelModePh();
+      } else if (navigator.share) {
+        // ファイル共有非対応の場合はURLで試みる
+        await navigator.share({ title: 'スキャン写真', text: `${files.length}枚の写真` });
+      } else {
+        showToast('このブラウザは共有機能に対応していません', 'warn', 4000);
+      }
+    } catch (e) {
+      if (e.name !== 'AbortError') {
+        console.error('[Share]', e);
+        showToast('共有に失敗しました: ' + e.message, 'err', 4000);
+      }
+    }
   });
 
   on('btn-photo-clear', 'click', () => {
@@ -356,6 +407,11 @@ async function init() {
   restoreFolderHandle();
   bindEvents();
   initOrientationSensor();
+
+  // 戻るボタン対策: アプリの初期履歴を積む
+  // replaceState で現在エントリを上書きしてから、スキャン画面を「最初の状態」として登録
+  history.replaceState({ tab: 'scan' }, '', '#scan');
+
   if (cfg.autoStartScan) setTimeout(startScan, 400);
 }
 

@@ -144,6 +144,8 @@
       <video id="cam-video" muted playsinline autoplay></video>
       <div class="flash" id="flash"></div>
       <div class="focus-ring" id="focus-ring"></div>
+      <!-- 横固定モード方向インジケーター -->
+      <div id="direction-arrow" class="direction-arrow" style="display:none;">→</div>
       <!-- アスペクト比クロップ範囲オーバーレイ -->
       <div id="crop-overlay" class="crop-overlay" style="display:none;">
         <div class="crop-mask crop-mask-top"></div>
@@ -195,8 +197,8 @@
         <button id="btn-folder-toggle" class="btn-sub" aria-label="フォルダ切り替え">📁</button>
         <button id="btn-torch" class="btn-sub" aria-label="ライト切り替え">🔦</button>
         <button id="btn-shutter" class="shutter btn-shutter" aria-label="シャッター"></button>
-        <button id="btn-goto-scan" class="btn-sub" aria-label="スキャン画面へ">SCAN</button>
-        <button id="btn-horizontal" class="btn-sub" title="横固定モード" aria-label="横固定モード">🧭</button>
+        <button id="btn-horizontal" class="btn-sub" title="横固定モード" aria-label="横固定モード">⟲</button>
+        <button id="btn-direction" class="btn-sub" title="撮影方向を反転" aria-label="撮影方向を反転" style="font-size:13px;font-family:'Share Tech Mono',monospace;letter-spacing:-1px;">→</button>
       </div>
       <!-- ズームスライダー: 倍率1未満の超広角にも対応 -->
       <div class="zoom-controls">
@@ -256,6 +258,7 @@
       <span class="multi-sel-txt" id="multi-sel-txt">0枚 選択中</span>
       <button class="btn-multi-all" id="btn-multi-all">全選択</button>
       <button class="btn-multi-move" id="btn-multi-move">📁 移動</button>
+      <button class="btn-multi-share" id="btn-multi-share">📤 共有</button>
       <button class="btn-multi-dl" id="btn-multi-dl">↓ 保存</button>
       <button class="btn-multi-del" id="btn-multi-del">削除</button>
       <button class="btn-multi-cancel" id="btn-multi-cancel">✕</button>
@@ -274,6 +277,10 @@
   <div class="page settings-pg" id="pg-settings">
     <div class="settings-section">
       <div class="settings-title">📱 UI設定</div>
+      <div class="settings-row">
+        <div><div class="settings-lbl">屋外高コントラストモード</div><div class="settings-sub">太陽光下でも見やすい白背景に切替</div></div>
+        <label class="toggle-sw"><input type="checkbox" id="set-outdoor-mode"/><span class="toggle-slider"></span></label>
+      </div>
       <div class="settings-row" style="flex-direction:column; align-items:flex-start;">
         <div style="display:flex; justify-content:space-between; width:100%;">
           <div><div class="settings-lbl">写真サムネイルのサイズ</div><div class="settings-sub">履歴のタイルサイズ</div></div>
@@ -323,10 +330,6 @@
     <div class="settings-section">
       <div class="settings-title">⚙ システム / 保存設定</div>
       <div class="settings-row">
-        <div><div class="settings-lbl">ハプティック（振動）</div><div class="settings-sub">スキャン・撮影・操作時のバイブレーション</div></div>
-        <label class="toggle-sw"><input type="checkbox" id="set-vibration"/><span class="toggle-slider"></span></label>
-      </div>
-      <div class="settings-row">
         <div><div class="settings-lbl">最大保存枚数</div><div class="settings-sub">超えると古いものから削除</div></div>
         <div class="settings-ctrl">
           <button class="seg-btn" data-mp="50">50</button>
@@ -354,7 +357,7 @@
       <button class="settings-btn danger" id="set-clear-photos">写真を全削除</button>
     </div>
     <div class="settings-divider"></div>
-    <div class="settings-ver">SCANNER + CAMERA · v4.0 Ultimate</div>
+    <div class="settings-ver">SCANNER + CAMERA · v4.1</div>
   </div>
 </div>
 
