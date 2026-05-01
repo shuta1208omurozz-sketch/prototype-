@@ -220,6 +220,7 @@
         <span class="orient-label" id="orient-label">センサー待機中</span>
       </div>
       <span id="stab-ind" style="font-family:'Share Tech Mono',monospace;font-size:8px;color:#4a6a8a;letter-spacing:1px;"></span>
+      <button class="thumb-toggle-btn" id="btn-goto-scan" style="background:rgba(0,255,136,.08);border-color:#00ff88;color:#00ff88;">▶ スキャン</button>
       <button class="thumb-toggle-btn" id="btn-thumb-toggle">🖼 サムネ</button>
     </div>
     <div class="save-folder-row" id="save-folder-row" style="display:none;">
@@ -353,6 +354,8 @@
     </div>
     <div class="settings-btn-row">
       <button class="settings-btn" id="set-export-csv">📄 バーコード履歴をCSV出力</button>
+      <button class="settings-btn" id="set-import-csv">📥 CSVからバーコードを取り込む</button>
+      <input type="file" id="csv-import-input" accept=".csv,text/csv" style="display:none">
       <button class="settings-btn danger" id="set-clear-bc">BC履歴を全削除</button>
       <button class="settings-btn danger" id="set-clear-photos">写真を全削除</button>
     </div>
@@ -385,6 +388,7 @@
     <div class="modal-acts">
       <button class="btn-png" id="btn-png" style="display:none">↓ PNG保存</button>
       <button class="btn-copy" id="btn-copy">コピー</button>
+      <button class="btn-modal-del" id="btn-modal-del">削除</button>
     </div>
   </div>
 </div>

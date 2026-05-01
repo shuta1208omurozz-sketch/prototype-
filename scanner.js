@@ -179,6 +179,23 @@ function handleScanSuccess(val, format) {
   lastCode = val; lastCodeTime = Date.now();
   lastScannedValue = val;
   _requiresClearFrame = true;
+
+  // ── 同一数値の重複登録を禁止 ──
+  if (bcHistory.some(x => x.value === val)) {
+    const dupEl = $('scan-bc-dup');
+    if (dupEl) { dupEl.style.display = ''; setTimeout(() => { dupEl.style.display = 'none'; }, 1500); }
+    showToast('既に登録済み: ' + val, '');
+    // スキャン表示エリアだけ更新して終了
+    const dispEl = $('scan-bc-display');
+    const phEl   = $('scan-bc-placeholder');
+    const valEl  = $('scan-bc-val');
+    if (phEl)   phEl.style.display   = 'none';
+    if (dispEl) dispEl.style.display = '';
+    if (valEl)  valEl.textContent    = val;
+    if (!cfg.continuousScan) stopScan();
+    return;
+  }
+
   const grp  = cfg.useGroup ? cfg.currentGroup : '未分類';
   const item = { id: Date.now(), value: val, format, timestamp: Date.now(), group: grp, checked: false };
   bcHistory.unshift(item);
@@ -288,8 +305,14 @@ function renderBcList() {
     checkBtn.className = 'card-check';
     checkBtn.textContent = item.checked ? '✓' : '';
 
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'card-delete';
+    deleteBtn.title = '削除';
+    deleteBtn.innerHTML = '&#x1F5D1;';
+
     metaRow.appendChild(metaInfo);
     metaRow.appendChild(checkBtn);
+    metaRow.appendChild(deleteBtn);
 
     el.appendChild(selChk);
     el.appendChild(thumbDiv);
@@ -299,7 +322,7 @@ function renderBcList() {
     // イベント
     el.onclick = (e) => {
       if (multiSelModeBc) { toggleMultiSelectBc(item.id, el); return; }
-      if (e.target === checkBtn || e.target === selChk) return;
+      if (e.target === checkBtn || e.target === selChk || e.target === deleteBtn) return;
       openBcModal(item);
     };
     checkBtn.onclick = (e) => {
@@ -307,6 +330,10 @@ function renderBcList() {
       item.checked = !item.checked;
       localStorage.setItem(BC_KEY, JSON.stringify(bcHistory));
       renderBcList();
+    };
+    deleteBtn.onclick = (e) => {
+      e.stopPropagation();
+      deleteBc(item.id);
     };
     selChk.onclick = (e) => {
       e.stopPropagation();
@@ -388,6 +415,82 @@ function exportCSV() {
   a.click();
 }
 
+function importCSV(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      // BOM除去 & 行分割
+      let text = e.target.result.replace(/^\uFEFF/, '');
+      const lines = text.split(/\r?\n/).filter(l => l.trim());
+      if (lines.length < 2) { showToast('データが見つかりません', 'warn'); return; }
+
+      // ヘッダー行でカラム位置を特定
+      const headers = parseCsvRow(lines[0]).map(h => h.trim());
+      const iVal  = headers.findIndex(h => h === '値');
+      const iFmt  = headers.findIndex(h => h === 'フォーマット');
+      const iGrp  = headers.findIndex(h => h === 'グループ');
+      const iChk  = headers.findIndex(h => h === '確認済み');
+      if (iVal < 0) { showToast('「値」列が見つかりません', 'warn'); return; }
+
+      let added = 0, skipped = 0;
+      const grpDefault = cfg.useGroup ? cfg.currentGroup : '未分類';
+
+      lines.slice(1).forEach(line => {
+        if (!line.trim()) return;
+        const cols = parseCsvRow(line);
+        const val  = (cols[iVal] || '').trim();
+        if (!val) return;
+
+        // 重複チェック（同じ値がすでにある場合はスキップ）
+        if (bcHistory.some(x => x.value === val)) { skipped++; return; }
+
+        const fmtRaw = iFmt >= 0 ? (cols[iFmt] || '').trim().toLowerCase().replace(/ /g, '_') : '';
+        const grp    = iGrp >= 0 && cols[iGrp] ? cols[iGrp].trim() : grpDefault;
+        const chk    = iChk >= 0 && cols[iChk] ? cols[iChk].trim() === '済' : false;
+
+        bcHistory.push({
+          id:        Date.now() + added,
+          value:     val,
+          format:    fmtRaw || 'ean_13',
+          timestamp: Date.now() + added,
+          group:     grp,
+          checked:   chk
+        });
+        added++;
+      });
+
+      localStorage.setItem(BC_KEY, JSON.stringify(bcHistory));
+      updateCounts();
+      renderBcList();
+      showToast(`${added}件を取り込みました（重複スキップ: ${skipped}件）`, 'ok');
+    } catch (err) {
+      showToast('CSVの読み込みに失敗しました', 'warn');
+      console.error(err);
+    }
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+// シンプルなCSV行パーサー（ダブルクォート対応）
+function parseCsvRow(line) {
+  const cols = [];
+  let cur = '', inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') {
+      if (inQ && line[i+1] === '"') { cur += '"'; i++; }
+      else inQ = !inQ;
+    } else if (c === ',' && !inQ) {
+      cols.push(cur); cur = '';
+    } else {
+      cur += c;
+    }
+  }
+  cols.push(cur);
+  return cols;
+}
+
 /* ════ イベント登録 ════ */
 document.addEventListener('DOMContentLoaded', () => {
   const on = (id, ev, fn) => $(id)?.addEventListener(ev, fn);
@@ -430,6 +533,23 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   on('btn-bc-select-mode', 'click', () => multiSelModeBc ? exitMultiSelModeBc() : enterMultiSelModeBc());
   on('btn-bc-csv',   'click', exportCSV);
+
+  // ── モーダル内削除ボタン ──
+  on('btn-modal-del', 'click', () => {
+    if (!currentDetail) return;
+    if (!confirm(`「${currentDetail.value}」を削除しますか？`)) return;
+    deleteBc(currentDetail.id);
+    closeBcModal();
+  });
+
+  // ── CSV インポート ──
+  on('set-import-csv', 'click', () => $('csv-import-input')?.click());
+  $('csv-import-input')?.addEventListener('change', e => {
+    const file = e.target.files?.[0];
+    if (file) importCSV(file);
+    e.target.value = ''; // 同じファイルを再選択できるようリセット
+  });
+
   on('btn-bc-clear', 'click', () => {
     if (!confirm('全てのバーコード履歴を削除しますか？')) return;
     bcHistory = []; localStorage.setItem(BC_KEY, '[]');
