@@ -9,8 +9,7 @@ function stopCam() {
   const video = $('cam-video');
   if (video) {
     video.pause();
-    // 他のタブで使う可能性があるため、完全に srcObject = null にせず pause のみにとどめる場合もあるが、
-    // 確実に描画を止めるために pause() は必須。
+    // 描画停止。物理ストリームは switchTab 側で必要に応じて停止/再利用する。
   }
   const ph = $('cam-ph');
   if (ph) ph.style.display = 'flex';
@@ -78,19 +77,8 @@ async function startCam(forceRestart = false) {
       try {
         await video.play();
         if (ph) ph.style.display = 'none';
-        const vf = $('cam-vf');
-        if (vf) {
-          if (cfg.aspectRatio === 'full') {
-            vf.style.aspectRatio = 'auto';
-            vf.style.flex = '1';
-            vf.style.maxHeight = 'calc(100% - 160px)';
-          } else {
-            vf.style.aspectRatio = cfg.aspectRatio;
-            vf.style.flex = 'none';
-            vf.style.maxHeight = '';
-          }
-          vf.style.overflow = 'hidden';
-        }
+        if (typeof applyCameraViewportLayout === 'function') applyCameraViewportLayout();
+        if (typeof updateCameraModeClass === 'function') updateCameraModeClass();
         camTrack  = stream.getVideoTracks()[0];
         camActive = true;
         initCamFeatures(camTrack);
@@ -299,6 +287,35 @@ function showCropOverlay(ratio) {
   overlay.classList.add('show');
 }
 
+/* ════ カメラUI固定・FULL表示制御 ════ */
+function applyCameraViewportLayout() {
+  const vf = $('cam-vf');
+  if (!vf) return;
+  // 撮影比率は takePhoto 側でクロップする。プレビュー枠の高さは固定して、ボタン位置を動かさない。
+  vf.style.aspectRatio = 'auto';
+  vf.style.flex = '1 1 auto';
+  vf.style.maxHeight = 'none';
+  vf.style.minHeight = '0';
+  vf.style.overflow = 'hidden';
+}
+
+function updateCameraModeClass() {
+  const full = activeTab === 'camera' && cfg.aspectRatio === 'full';
+  document.body.classList.toggle('cam-full-mode', !!full);
+  document.body.classList.toggle('fullscreen', document.fullscreenElement != null || document.webkitFullscreenElement != null);
+}
+
+function goToScanModeFromCamera() {
+  // カメラUI状態をリセットしてからスキャンへ。FULL表示時でも確実に戻れるようにする。
+  forceHorizontal = false;
+  updateHorizontalUI();
+  updateArrow();
+  updatePreview();
+  if (typeof switchTab === 'function') switchTab('scan');
+  // 設定で自動開始OFFでも、このボタンは「スキャンモードへ移動」なので明示的に開始する。
+  setTimeout(() => { if (activeTab === 'scan' && typeof startScan === 'function') startScan(); }, 80);
+}
+
 /* ════ 横固定モード ════ */
 function updateHorizontalUI() {
   const btn = $('btn-horizontal');
@@ -370,29 +387,36 @@ function setAspectRatio(ratio) {
   cfg.aspectRatio = ratio;
   if (typeof saveCfg === 'function') saveCfg();
   document.querySelectorAll('.ratio-btn').forEach(btn => btn.classList.toggle('on', btn.dataset.r === ratio));
-  const vf = $('cam-vf');
-  if (vf) {
-    if (ratio === 'full') {
-      vf.style.aspectRatio = 'auto';
-      vf.style.flex = '1';
-      vf.style.maxHeight = 'calc(100% - 160px)'; // シャッター等のコントロール分を確保
-    } else {
-      vf.style.aspectRatio = ratio;
-      vf.style.flex = 'none';
-      vf.style.maxHeight = '';
-    }
-  }
+  if (typeof applyCameraViewportLayout === 'function') applyCameraViewportLayout();
+  if (typeof updateCameraModeClass === 'function') updateCameraModeClass();
   showCropOverlay(ratio);
   if (camActive) startCam(true); // 解像度変更のため強制再起動
   else if (typeof applyCfgToUI === 'function') applyCfgToUI();
 }
 
+
+/* ════ カメラ → スキャンへ移動（手動開始用） ════ */
+function goToScanFromCamera() {
+  // 横固定やプレビュー回転が残ったまま移動しないように戻す
+  forceHorizontal = false;
+  updateHorizontalUI();
+  updateArrow();
+  updatePreview();
+  if (typeof switchTab === 'function') switchTab('scan');
+  // autoStartScan=falseでも、このボタンだけは明示的にスキャン開始する
+  setTimeout(() => {
+    if (!scanning && typeof startScan === 'function') startScan();
+  }, 120);
+}
+
 /* ════ フルスクリーン切り替え検知 ════ */
 document.addEventListener('fullscreenchange', () => {
   document.body.classList.toggle('fullscreen', document.fullscreenElement != null);
+  if (typeof updateCameraModeClass === 'function') updateCameraModeClass();
 });
 document.addEventListener('webkitfullscreenchange', () => {
   document.body.classList.toggle('fullscreen', document.webkitFullscreenElement != null);
+  if (typeof updateCameraModeClass === 'function') updateCameraModeClass();
 });
 
 /* ════ イベント登録 ════ */
@@ -403,7 +427,7 @@ document.addEventListener('DOMContentLoaded', () => {
   on('cam-retry',      startCam);
   on('btn-horizontal', toggleHorizontal);
   on('btn-direction',  toggleDirection);
-  on('btn-goto-scan',  () => { if (typeof switchTab === 'function') switchTab('scan'); });
+  on('btn-goto-scan',  goToScanFromCamera);
 
   const RATIOS = ['full', '4/3', '16/9', '21/9'];
   let ratioIdx = Math.max(0, RATIOS.indexOf(cfg.aspectRatio));
