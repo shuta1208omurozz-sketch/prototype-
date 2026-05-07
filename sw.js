@@ -1,6 +1,6 @@
 // FIX2: GitHub Pages / PWA cache reset service worker
 // 以前のキャッシュが残ると、GitHubに上書きしても古いJS/CSSが表示されるため、常にネットワーク優先にします。
-const CACHE_VERSION = 'scanner-camera-fix2-20260507';
+const CACHE_VERSION = 'scanner-camera-fix4-20260508b';
 
 self.addEventListener('install', event => {
   self.skipWaiting();

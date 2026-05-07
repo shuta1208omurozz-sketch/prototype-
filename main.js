@@ -97,8 +97,6 @@ function switchTab(newTab, pushHistory = true) {
     history.pushState({ tab: newTab }, '', '#' + newTab);
   }
 
-  if (typeof updateCameraModeClass === 'function') updateCameraModeClass();
-
   if (newTab === 'scan') {
     // カメラ画面からの移動時は video だけ止め、共有ストリームは再利用する
     if (typeof stopCam === 'function') stopCam();

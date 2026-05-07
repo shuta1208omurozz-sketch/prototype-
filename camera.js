@@ -1,6 +1,68 @@
 'use strict';
 
 let isStarting = false;
+let zoomPanelOpen = false;
+let zoomAvailable = false;
+
+
+function updateCameraGuide() {
+  const vf = $('cam-vf');
+  const guide = $('cam-range-guide');
+  const box = $('cam-range-box');
+  const label = $('cam-range-label');
+  if (!vf || !guide || !box) return;
+
+  const W = vf.clientWidth || vf.offsetWidth || 0;
+  const H = vf.clientHeight || vf.offsetHeight || 0;
+  if (!W || !H) return;
+
+  const pad = 10;
+  const availW = Math.max(40, W - pad * 2);
+  const availH = Math.max(40, H - pad * 2);
+  let boxW = availW, boxH = availH;
+  let text = 'FULL';
+
+  if (cfg.aspectRatio && cfg.aspectRatio !== 'full') {
+    const parts = cfg.aspectRatio.split('/').map(Number);
+    const target = (parts[0] && parts[1]) ? (parts[0] / parts[1]) : (availW / availH);
+    if (availW / availH > target) {
+      boxH = availH;
+      boxW = boxH * target;
+    } else {
+      boxW = availW;
+      boxH = boxW / target;
+    }
+    text = cfg.aspectRatio.replace('/', ':');
+  }
+
+  box.style.width = Math.round(boxW) + 'px';
+  box.style.height = Math.round(boxH) + 'px';
+  if (label) label.textContent = text;
+}
+
+function setZoomPanel(open, forceHide = false) {
+  const row = document.querySelector('#pg-camera .zoom-toggle-row');
+  const ctrls = $('zoom-controls');
+  const btn = $('btn-zoom-toggle');
+  if (!row || !ctrls || !btn) return;
+
+  if (!zoomAvailable || forceHide) {
+    zoomPanelOpen = false;
+    row.style.display = zoomAvailable ? 'flex' : 'none';
+    ctrls.classList.remove('on');
+    ctrls.style.display = 'none';
+    btn.classList.remove('on');
+    btn.textContent = '🔍 倍率';
+    return;
+  }
+
+  zoomPanelOpen = !!open;
+  row.style.display = 'flex';
+  ctrls.classList.toggle('on', zoomPanelOpen);
+  ctrls.style.display = zoomPanelOpen ? 'flex' : 'none';
+  btn.classList.toggle('on', zoomPanelOpen);
+  btn.textContent = zoomPanelOpen ? '× 倍率を閉じる' : '🔍 倍率';
+}
 
 /* ════ カメラ停止 ════ */
 function stopCam() {
@@ -83,6 +145,8 @@ async function startCam(forceRestart = false) {
         camActive = true;
         initCamFeatures(camTrack);
         showCropOverlay(cfg.aspectRatio);
+        requestAnimationFrame(() => { updateCameraGuide(); updatePreview(); });
+        setTimeout(updateCameraGuide, 120);
       } catch (e) { console.warn('[Camera] Play interrupted:', e); }
     }
   } catch (e) {
@@ -112,12 +176,14 @@ async function initCamFeatures(track) {
         zoomLevel.style.color = cur < 1 ? '#ffaa44' : 'var(--accent)';
       }
       zoomSlider.style.setProperty('--zoom-progress', (((cur - dMin) / (dMax - dMin)) * 100).toFixed(1) + '%');
-      if (zoomCtrls) zoomCtrls.style.display = 'flex';
+      zoomAvailable = true;
       const uwLabel = $('uw-label');
       if (uwLabel) uwLabel.style.display = dMin < 1 ? 'inline-block' : 'none';
       if (cfg.zoom && cfg.zoom !== cur) applyZoom(cfg.zoom);
-    } else if (zoomCtrls) {
-      zoomCtrls.style.display = 'none';
+      setZoomPanel(false);
+    } else {
+      zoomAvailable = false;
+      setZoomPanel(false, true);
     }
 
     const torchBtn = $('btn-torch');
@@ -276,7 +342,7 @@ function handleCamError(err) {
 function showCropOverlay(ratio) {
   const overlay = $('crop-overlay');
   if (!overlay) return;
-  if (ratio === 'full') { overlay.style.display = 'none'; return; }
+  if (ratio === 'full') { overlay.style.display = 'none'; updateCameraGuide(); return; }
   const label = $('crop-ratio-label');
   if (label) label.textContent = ratio.replace('/', ':');
   ['crop-mask-top','crop-mask-bottom'].forEach(cls => {
@@ -285,6 +351,7 @@ function showCropOverlay(ratio) {
   });
   overlay.style.display = 'flex';
   overlay.classList.add('show');
+  updateCameraGuide();
 }
 
 /* ════ カメラUI固定・FULL表示制御 ════ */
@@ -299,23 +366,10 @@ function applyCameraViewportLayout() {
   vf.style.overflow = 'hidden';
 }
 
-function lockCameraButtonLayout() {
-  // 画面比率を変えても、カメラ枠とボタン位置は常に固定する
-  const vf = $('cam-vf');
-  if (vf) {
-    vf.style.aspectRatio = 'auto';
-    vf.style.flex = 'none';
-    vf.style.maxHeight = 'none';
-    vf.style.height = '100%';
-  }
-}
-
 function updateCameraModeClass() {
-  const isCam = activeTab === 'camera';
-  const isFull = isCam && cfg.aspectRatio === 'full';
-  document.body.classList.toggle('cam-full-mode', !!isFull);
-  document.body.classList.toggle('cam-fixed-buttons', !!isCam);
-  if (isCam) lockCameraButtonLayout();
+  const full = activeTab === 'camera' && cfg.aspectRatio === 'full';
+  document.body.classList.toggle('cam-full-mode', !!full);
+  document.body.classList.toggle('fullscreen', document.fullscreenElement != null || document.webkitFullscreenElement != null);
 }
 
 function goToScanModeFromCamera() {
@@ -336,8 +390,13 @@ function updateHorizontalUI() {
   // 方向ボタン: 横固定ONのとき有効化、状態を反映
   const dirBtn = $('btn-direction');
   if (dirBtn) {
-    dirBtn.style.opacity      = forceHorizontal ? '1' : '0.35';
+    // 「→」だけだと意味が分かりにくいので、横固定ONの時だけ「向き→/向き←」として表示する
+    dirBtn.style.display      = forceHorizontal ? 'flex' : 'none';
+    dirBtn.style.opacity      = forceHorizontal ? '1' : '0';
     dirBtn.style.pointerEvents= forceHorizontal ? '' : 'none';
+    dirBtn.textContent        = rotateRight ? '向き→' : '向き←';
+    dirBtn.title              = '横向き保存の回転方向を反転';
+    dirBtn.setAttribute('aria-label', '横向き保存の回転方向を反転');
     dirBtn.classList.toggle('direction-right',  forceHorizontal && rotateRight);
     dirBtn.classList.toggle('direction-left',   forceHorizontal && !rotateRight);
   }
@@ -355,7 +414,7 @@ function updateArrow() {
   // 方向ボタンのテキストも更新
   const dirBtn = $('btn-direction');
   if (dirBtn) {
-    dirBtn.textContent = rotateRight ? '→' : '←';
+    dirBtn.textContent = rotateRight ? '向き→' : '向き←';
     dirBtn.classList.toggle('direction-right',  rotateRight);
     dirBtn.classList.toggle('direction-left',   !rotateRight);
   }
@@ -400,15 +459,11 @@ function setAspectRatio(ratio) {
   cfg.aspectRatio = ratio;
   if (typeof saveCfg === 'function') saveCfg();
   document.querySelectorAll('.ratio-btn').forEach(btn => btn.classList.toggle('on', btn.dataset.r === ratio));
-
-  // 重要: ここで cam-vf の aspectRatio/flex/maxHeight を変更しない。
-  // 変更すると FULL/4:3/16:9/21:9 切替時にシャッター位置が上下にズレるため。
-  lockCameraButtonLayout();
+  if (typeof applyCameraViewportLayout === 'function') applyCameraViewportLayout();
+  if (typeof updateCameraModeClass === 'function') updateCameraModeClass();
   showCropOverlay(ratio);
-  updateCameraModeClass();
-
-  // 画角制約を反映するためカメラは再起動。ただしUI位置は固定のまま。
-  if (camActive) startCam(true);
+  updateCameraGuide();
+  if (camActive) startCam(true); // 解像度変更のため強制再起動
   else if (typeof applyCfgToUI === 'function') applyCfgToUI();
 }
 
@@ -440,13 +495,14 @@ document.addEventListener('webkitfullscreenchange', () => {
 /* ════ イベント登録 ════ */
 document.addEventListener('DOMContentLoaded', () => {
   const on = (id, fn) => { const el = $(id); if (el) el.onclick = fn; };
-  on('btn-shutter',    takePhoto);
+  on('btn-shutter',    () => { if (Date.now() < window.__suppressCameraShutterClickUntil) return; takePhoto(); });
   on('btn-torch',      toggleTorch);
   on('cam-retry',      startCam);
   on('btn-horizontal', toggleHorizontal);
   on('btn-direction',  toggleDirection);
   on('btn-goto-scan',      goToScanFromCamera);
   on('btn-goto-scan-main', goToScanFromCamera);
+  on('btn-zoom-toggle',    () => setZoomPanel(!zoomPanelOpen));
 
   const RATIOS = ['full', '4/3', '16/9', '21/9'];
   let ratioIdx = Math.max(0, RATIOS.indexOf(cfg.aspectRatio));
@@ -454,67 +510,62 @@ document.addEventListener('DOMContentLoaded', () => {
     btn.onclick = () => { setAspectRatio(btn.dataset.r); ratioIdx = RATIOS.indexOf(btn.dataset.r); };
   });
 
-  // スワイプでアスペクト比切替
+  // FIX3: 比率スワイプは上側ASPECT行ではなく、下側のシャッターボタン周辺で行う
   // 右スワイプ = 右隣の比率、左スワイプ = 左隣の比率。
-  // ratio-row のみで判定し、ズームスライダー操作とは完全分離する。
-  const ratioRow = $('ratio-row');
-  if (ratioRow) {
-    let startX = 0, startY = 0, tracking = false, suppressClickUntil = 0;
+  // ズームスライダーとは完全に分離する。
+  window.__suppressCameraShutterClickUntil = 0;
+  const btnRow = document.querySelector('#cam-controls .btn-row');
+  if (btnRow) {
+    let startX = 0, startY = 0, moved = false, suppressClickUntil = 0;
+
     const syncRatioIndex = () => {
       const idx = RATIOS.indexOf(cfg.aspectRatio);
       ratioIdx = idx >= 0 ? idx : 0;
     };
-    const moveRatioBySwipe = (dx, dy, ev) => {
-      if (Math.abs(dx) < 55) return false;
-      if (Math.abs(dx) <= Math.abs(dy) * 1.25) return false;
-      if (ev && ev.cancelable) ev.preventDefault();
+    const moveRatio = (dx) => {
       syncRatioIndex();
-      // 画面上のボタン配列と同じ方向: FULL → 4:3 → 16:9 → 21:9
-      const step = dx > 0 ? 1 : -1;
-      ratioIdx = (ratioIdx + step + RATIOS.length) % RATIOS.length;
+      ratioIdx = (ratioIdx + (dx > 0 ? 1 : -1) + RATIOS.length) % RATIOS.length;
       setAspectRatio(RATIOS[ratioIdx]);
-      suppressClickUntil = Date.now() + 400;
-      return true;
+      if (typeof showToast === 'function') showToast('比率: ' + RATIOS[ratioIdx].replace('/', ':'), 'ok', 900);
     };
 
-    document.querySelectorAll('.ratio-btn').forEach(btn => {
-      const original = btn.onclick;
-      btn.onclick = (e) => {
-        if (Date.now() < suppressClickUntil) {
-          e.preventDefault();
-          e.stopPropagation();
-          return;
-        }
-        if (typeof original === 'function') original(e);
-        syncRatioIndex();
-      };
-    });
-
-    ratioRow.addEventListener('touchstart', e => {
+    btnRow.addEventListener('touchstart', e => {
       if (!e.touches || e.touches.length !== 1) return;
       startX = e.touches[0].clientX;
       startY = e.touches[0].clientY;
-      tracking = true;
+      moved = false;
       syncRatioIndex();
     }, { passive: true });
 
-    ratioRow.addEventListener('touchmove', e => {
-      if (!tracking || !e.touches || e.touches.length !== 1) return;
+    btnRow.addEventListener('touchmove', e => {
+      if (!e.touches || e.touches.length !== 1) return;
       const dx = e.touches[0].clientX - startX;
       const dy = e.touches[0].clientY - startY;
-      if (Math.abs(dx) > 20 && Math.abs(dx) > Math.abs(dy) * 1.25 && e.cancelable) {
-        e.preventDefault(); // 横スワイプ時にページ/倍率側へ流れないようにする
-      }
-    }, { passive: false });
+      if (Math.abs(dx) > 20 && Math.abs(dx) > Math.abs(dy) * 1.45) moved = true;
+    }, { passive: true });
 
-    ratioRow.addEventListener('touchend', e => {
-      if (!tracking) return;
-      tracking = false;
+    btnRow.addEventListener('touchend', e => {
       const endX = e.changedTouches?.[0]?.clientX ?? startX;
       const endY = e.changedTouches?.[0]?.clientY ?? startY;
-      moveRatioBySwipe(endX - startX, endY - startY, e);
-    }, { passive: false });
+      const dx = endX - startX;
+      const dy = endY - startY;
+      if (!moved || Math.abs(dx) < 55 || Math.abs(dx) <= Math.abs(dy) * 1.45) return;
+
+      // スワイプ後にシャッター等のclickが誤発火しないよう短時間だけ抑制
+      suppressClickUntil = Date.now() + 450;
+      window.__suppressCameraShutterClickUntil = suppressClickUntil;
+      moveRatio(dx);
+    }, { passive: true });
+
+    btnRow.addEventListener('click', e => {
+      if (Date.now() < suppressClickUntil) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    }, true);
   }
+
+  // 上側ASPECT行はタップ専用。スワイプ判定は入れない。
 
   const zoomSlider = $('zoom-slider');
   if (zoomSlider) {
@@ -535,6 +586,8 @@ document.addEventListener('DOMContentLoaded', () => {
     };
   });
 
+  window.addEventListener('resize', () => { updateCameraGuide(); updatePreview(); });
+
   const folderToggle = $('btn-folder-toggle');
   if (folderToggle) {
     folderToggle.onclick = () => {
@@ -542,4 +595,9 @@ document.addEventListener('DOMContentLoaded', () => {
       if (row) row.style.display = row.style.display === 'none' ? 'flex' : 'none';
     };
   }
+
+  updateHorizontalUI();
+  updateArrow();
+  setZoomPanel(false, !zoomAvailable);
+  setTimeout(updateCameraGuide, 120);
 });

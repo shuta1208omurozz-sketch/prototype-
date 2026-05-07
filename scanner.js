@@ -318,12 +318,8 @@ function renderBcList() {
 
     const deleteBtn = document.createElement('button');
     deleteBtn.className = 'card-delete';
-    deleteBtn.type = 'button';
-    deleteBtn.title = 'このバーコードを削除';
-    deleteBtn.setAttribute('aria-label', 'このバーコードを削除');
-    deleteBtn.textContent = '🗑';
-    // style.css側で非表示/小さすぎる指定があってもGitHub版で必ず見えるように最低限をinline固定
-    deleteBtn.style.cssText = 'display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:30px;padding:0 8px;border-radius:8px;border:1px solid rgba(255,90,120,.75);background:rgba(255,60,90,.14);color:#ff6688;font-size:15px;line-height:1;';
+    deleteBtn.title = '削除';
+    deleteBtn.innerHTML = '&#x1F5D1;';
 
     metaRow.appendChild(metaInfo);
     metaRow.appendChild(checkBtn);
@@ -550,12 +546,6 @@ document.addEventListener('DOMContentLoaded', () => {
   on('btn-bc-csv',   'click', exportCSV);
 
   // ── モーダル内削除ボタン ──
-  const modalDelBtn = $('btn-modal-del');
-  if (modalDelBtn) {
-    modalDelBtn.style.display = '';
-    modalDelBtn.textContent = '🗑 削除';
-    modalDelBtn.style.minWidth = '72px';
-  }
   on('btn-modal-del', 'click', () => {
     if (!currentDetail) return;
     if (!confirm(`「${currentDetail.value}」を削除しますか？`)) return;
