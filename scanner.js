@@ -34,9 +34,6 @@ function stopScan() {
   const v = $('scan-video');
   if (v) { v.pause(); }
   scanStream = null;
-  // 解析用canvasを解放してメモリ/GPU負荷を残さない
-  _roiCanvas = null;
-  _roiCtx = null;
 
   setScanUI(false);
   setStatus('', '待機中');
@@ -97,7 +94,7 @@ async function startScan() {
 
 /* ════ スキャン頻度の厳密な制限（究極の節電） ════ */
 let _lastScanTime = 0;
-const SCAN_INTERVAL = 300; // 300ms (約3.3fps) に制限。EAN-13用途では電池・発熱を優先。
+const SCAN_INTERVAL = 200; // 200ms (5fps) に厳密に固定。
 
 /* 同一バーコードの連続誤登録防止フラグ
  * スキャン成功後 true → 空フレームを1回でも検出したら false に戻す
@@ -130,29 +127,21 @@ async function detect() {
   // ── ここから先は 200ms に一度だけ実行される ──
 
   let detectTarget = v;
-  // ROI: EAN-13は中央帯だけ + 横幅を縮小して解析（CPU/GPU負荷を削減）
+  // ROI: 中央帯のみ処理（EAN-13の場合、解析範囲を絞ることで計算量をさらに削減）
   if (scanMode === 'ean13' && v.videoWidth > 0 && v.videoHeight > 0) {
     if (!_roiCanvas) {
       _roiCanvas = document.createElement('canvas');
       _roiCtx    = _roiCanvas.getContext('2d', { alpha: false, willReadFrequently: true });
     }
     const vw = v.videoWidth, vh = v.videoHeight;
-    const srcH = Math.round(vh * 0.28);
-    const maxW = 960;
-    const outW = Math.min(vw, maxW);
-    const outH = Math.max(120, Math.round(srcH * (outW / vw)));
-    if (_roiCanvas.width !== outW) _roiCanvas.width = outW;
-    if (_roiCanvas.height !== outH) _roiCanvas.height = outH;
-    _roiCtx.drawImage(v, 0, (vh - srcH) / 2, vw, srcH, 0, 0, outW, outH);
+    const h = vh * 0.25;
+    _roiCanvas.width = vw; _roiCanvas.height = h;
+    _roiCtx.drawImage(v, 0, (vh - h) / 2, vw, h, 0, 0, vw, h);
     detectTarget = _roiCanvas;
   }
 
   try {
-    const wantedMode = scanMode === 'ean13' ? 'ean13' : 'all';
-    if (!detector || detectorMode !== wantedMode) {
-      detector = new BarcodeDetector({ formats: wantedMode === 'ean13' ? ['ean_13'] : ALL_FMTS });
-      detectorMode = wantedMode;
-    }
+    if (!detector) detector = new BarcodeDetector({ formats: ALL_FMTS });
     const barcodes = await detector.detect(detectTarget);
 
     if (barcodes.length === 0) {

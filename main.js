@@ -65,8 +65,18 @@ function applyCfgToUI() {
   document.querySelectorAll('.mode-btn').forEach(b  => b.classList.toggle('on', b.dataset.mode === cfg.scanFormat));
   document.querySelectorAll('.ratio-btn').forEach(b => b.classList.toggle('on', b.dataset.r   === cfg.aspectRatio));
 
-  if (typeof applyCameraViewportLayout === 'function') applyCameraViewportLayout();
-  if (typeof updateCameraModeClass === 'function') updateCameraModeClass();
+  const camVf = $('cam-vf');
+  if (camVf) {
+    if (cfg.aspectRatio === 'full') {
+      camVf.style.aspectRatio = 'auto';
+      camVf.style.flex = '1';
+      camVf.style.maxHeight = 'calc(100% - 160px)';
+    } else {
+      camVf.style.aspectRatio = cfg.aspectRatio;
+      camVf.style.flex = 'none';
+      camVf.style.maxHeight = '';
+    }
+  }
   scanMode   = cfg.scanFormat;
   camQuality = cfg.camQuality;
 
@@ -90,7 +100,6 @@ function switchTab(newTab, pushHistory = true) {
 
   const prevTab = activeTab;
   activeTab = newTab;
-  if (typeof updateCameraModeClass === 'function') updateCameraModeClass();
 
   // 戻るボタン対策: タブ遷移を履歴に積む
   if (pushHistory) {
@@ -98,21 +107,19 @@ function switchTab(newTab, pushHistory = true) {
   }
 
   if (newTab === 'scan') {
-    // カメラ画面からの移動時は video だけ止め、共有ストリームは再利用する
-    if (typeof stopCam === 'function') stopCam();
     if (cfg.autoStartScan) startScan();
+    const cv = $('cam-video');
+    if (cv) cv.pause();
 
   } else if (newTab === 'camera') {
     stopScan();
     startCam();
     const sv = $('scan-video');
-    if (sv) { sv.pause(); sv.srcObject = null; }
+    if (sv) sv.pause();
 
   } else {
-    // 履歴・写真・設定では物理カメラも止める（電池・発熱対策）
     stopScan();
     if (typeof stopCam === 'function') stopCam();
-    if (typeof stopGlobalCamera === 'function') stopGlobalCamera();
     if (newTab === 'history') { exitMultiSelModeBc(); renderBcList(); }
     else if (newTab === 'photos') { exitMergeMode(); exitMultiSelModePh(); renderPhotoGrid(); }
   }
