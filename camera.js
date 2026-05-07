@@ -299,10 +299,23 @@ function applyCameraViewportLayout() {
   vf.style.overflow = 'hidden';
 }
 
+function lockCameraButtonLayout() {
+  // 画面比率を変えても、カメラ枠とボタン位置は常に固定する
+  const vf = $('cam-vf');
+  if (vf) {
+    vf.style.aspectRatio = 'auto';
+    vf.style.flex = 'none';
+    vf.style.maxHeight = 'none';
+    vf.style.height = '100%';
+  }
+}
+
 function updateCameraModeClass() {
-  const full = activeTab === 'camera' && cfg.aspectRatio === 'full';
-  document.body.classList.toggle('cam-full-mode', !!full);
-  document.body.classList.toggle('fullscreen', document.fullscreenElement != null || document.webkitFullscreenElement != null);
+  const isCam = activeTab === 'camera';
+  const isFull = isCam && cfg.aspectRatio === 'full';
+  document.body.classList.toggle('cam-full-mode', !!isFull);
+  document.body.classList.toggle('cam-fixed-buttons', !!isCam);
+  if (isCam) lockCameraButtonLayout();
 }
 
 function goToScanModeFromCamera() {
@@ -387,10 +400,15 @@ function setAspectRatio(ratio) {
   cfg.aspectRatio = ratio;
   if (typeof saveCfg === 'function') saveCfg();
   document.querySelectorAll('.ratio-btn').forEach(btn => btn.classList.toggle('on', btn.dataset.r === ratio));
-  if (typeof applyCameraViewportLayout === 'function') applyCameraViewportLayout();
-  if (typeof updateCameraModeClass === 'function') updateCameraModeClass();
+
+  // 重要: ここで cam-vf の aspectRatio/flex/maxHeight を変更しない。
+  // 変更すると FULL/4:3/16:9/21:9 切替時にシャッター位置が上下にズレるため。
+  lockCameraButtonLayout();
   showCropOverlay(ratio);
-  if (camActive) startCam(true); // 解像度変更のため強制再起動
+  updateCameraModeClass();
+
+  // 画角制約を反映するためカメラは再起動。ただしUI位置は固定のまま。
+  if (camActive) startCam(true);
   else if (typeof applyCfgToUI === 'function') applyCfgToUI();
 }
 
@@ -437,17 +455,26 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // スワイプでアスペクト比切替
-  // 改善点:
-  // 1) ズームスライダーとは分離し、倍率操作中に比率が変わらないよう ratio-row だけで判定
-  // 2) 右スワイプ = 右隣の比率、左スワイプ = 左隣の比率に固定
-  // 3) 縦スクロール気味の操作は無視
+  // 右スワイプ = 右隣の比率、左スワイプ = 左隣の比率。
+  // ratio-row のみで判定し、ズームスライダー操作とは完全分離する。
   const ratioRow = $('ratio-row');
   if (ratioRow) {
-    let startX = 0, startY = 0, moved = false, suppressClickUntil = 0;
-
+    let startX = 0, startY = 0, tracking = false, suppressClickUntil = 0;
     const syncRatioIndex = () => {
       const idx = RATIOS.indexOf(cfg.aspectRatio);
       ratioIdx = idx >= 0 ? idx : 0;
+    };
+    const moveRatioBySwipe = (dx, dy, ev) => {
+      if (Math.abs(dx) < 55) return false;
+      if (Math.abs(dx) <= Math.abs(dy) * 1.25) return false;
+      if (ev && ev.cancelable) ev.preventDefault();
+      syncRatioIndex();
+      // 画面上のボタン配列と同じ方向: FULL → 4:3 → 16:9 → 21:9
+      const step = dx > 0 ? 1 : -1;
+      ratioIdx = (ratioIdx + step + RATIOS.length) % RATIOS.length;
+      setAspectRatio(RATIOS[ratioIdx]);
+      suppressClickUntil = Date.now() + 400;
+      return true;
     };
 
     document.querySelectorAll('.ratio-btn').forEach(btn => {
@@ -467,30 +494,26 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!e.touches || e.touches.length !== 1) return;
       startX = e.touches[0].clientX;
       startY = e.touches[0].clientY;
-      moved = false;
+      tracking = true;
       syncRatioIndex();
     }, { passive: true });
 
     ratioRow.addEventListener('touchmove', e => {
-      if (!e.touches || e.touches.length !== 1) return;
+      if (!tracking || !e.touches || e.touches.length !== 1) return;
       const dx = e.touches[0].clientX - startX;
       const dy = e.touches[0].clientY - startY;
-      if (Math.abs(dx) > 18 && Math.abs(dx) > Math.abs(dy) * 1.4) moved = true;
-    }, { passive: true });
+      if (Math.abs(dx) > 20 && Math.abs(dx) > Math.abs(dy) * 1.25 && e.cancelable) {
+        e.preventDefault(); // 横スワイプ時にページ/倍率側へ流れないようにする
+      }
+    }, { passive: false });
 
     ratioRow.addEventListener('touchend', e => {
+      if (!tracking) return;
+      tracking = false;
       const endX = e.changedTouches?.[0]?.clientX ?? startX;
       const endY = e.changedTouches?.[0]?.clientY ?? startY;
-      const dx = endX - startX;   // 右スワイプは正、左スワイプは負
-      const dy = endY - startY;
-      if (!moved || Math.abs(dx) < 60 || Math.abs(dx) <= Math.abs(dy) * 1.4) return;
-
-      syncRatioIndex();
-      // ボタンの並びと同じ方向に動かす: FULL → 4:3 → 16:9 → 21:9
-      ratioIdx = (ratioIdx + (dx > 0 ? 1 : -1) + RATIOS.length) % RATIOS.length;
-      setAspectRatio(RATIOS[ratioIdx]);
-      suppressClickUntil = Date.now() + 350;
-    }, { passive: true });
+      moveRatioBySwipe(endX - startX, endY - startY, e);
+    }, { passive: false });
   }
 
   const zoomSlider = $('zoom-slider');

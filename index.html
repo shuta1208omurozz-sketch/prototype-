@@ -20,92 +20,115 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.5/JsBarcode.all.min.js"></script>
   <link rel="stylesheet" href="style.css">
 
-  <!-- camera fixed/fullscreen overrides: UIは削らず、カメラ画面だけ固定配置 -->
+  <!-- camera fixed/fullscreen overrides: UIは削らず、カメラ画面の操作ボタン位置を常時固定 -->
   <style id="camera-fixed-fullscreen-style">
-    /* カメラモードでは、アスペクト比変更で操作ボタン位置が上下しないよう固定レイアウト化 */
+    /* カメラタブでは、FULL/4:3/16:9/21:9を変えても操作ボタン位置を一切動かさない */
     #pg-camera.cam-pg.on{
-      display:flex;
-      flex-direction:column;
-      height:calc(100dvh - 92px);
-      min-height:0;
-      overflow:hidden;
-      position:relative;
+      display:block !important;
+      position:relative !important;
+      height:calc(100dvh - 92px) !important;
+      min-height:0 !important;
+      overflow:hidden !important;
+      padding:0 !important;
     }
     #pg-camera #cam-vf{
-      flex:1 1 auto !important;
-      min-height:0 !important;
+      position:absolute !important;
+      inset:0 !important;
       width:100% !important;
+      height:100% !important;
       max-height:none !important;
+      min-height:0 !important;
       aspect-ratio:auto !important;
-      position:relative;
+      flex:none !important;
+      overflow:hidden !important;
+      z-index:1;
+      background:#000;
     }
-    #pg-camera #cam-controls,
-    #pg-camera .cam-bottom-row{
-      flex:0 0 auto;
-      position:relative;
-      z-index:40;
+    #pg-camera #cam-video{
+      width:100% !important;
+      height:100% !important;
+      object-fit:cover !important;
     }
+    /* 設定系は上に重ねる。UIは削除せず、位置だけ固定 */
+    #pg-camera #cam-group-bar,
+    #pg-camera .cam-settings-row{
+      position:absolute !important;
+      left:8px !important;
+      right:8px !important;
+      z-index:45 !important;
+      background:rgba(5,10,16,.62) !important;
+      backdrop-filter:blur(6px);
+      border-radius:10px;
+    }
+    #pg-camera #cam-group-bar{ top:8px !important; }
+    #pg-camera .cam-settings-row{ top:44px !important; }
+    /* 操作ボタンは常にFULL時と同じ下位置に固定 */
     #pg-camera #cam-controls{
-      padding-bottom:max(6px, env(safe-area-inset-bottom));
+      position:absolute !important;
+      left:0 !important;
+      right:0 !important;
+      bottom:44px !important;
+      z-index:55 !important;
+      background:linear-gradient(to top, rgba(0,0,0,.72), rgba(0,0,0,0)) !important;
+      padding-top:28px !important;
+      padding-bottom:6px !important;
+      margin:0 !important;
     }
+    #pg-camera .cam-bottom-row{
+      position:absolute !important;
+      left:8px !important;
+      right:8px !important;
+      bottom:max(4px, env(safe-area-inset-bottom)) !important;
+      z-index:56 !important;
+      background:rgba(5,10,16,.55) !important;
+      border-radius:10px;
+      margin:0 !important;
+    }
+    #pg-camera #thumb-strip-wrap,
+    #pg-camera #save-folder-row,
+    #pg-camera #cam-err{
+      position:absolute !important;
+      left:8px !important;
+      right:8px !important;
+      z-index:60 !important;
+    }
+    #pg-camera #thumb-strip-wrap{ bottom:118px !important; }
+    #pg-camera #save-folder-row{ bottom:118px !important; }
+    #pg-camera #cam-err{ top:96px !important; }
+
+    /* 比率スワイプ専用。ズーム操作と干渉させない */
+    #pg-camera #ratio-row{
+      touch-action:pan-y !important;
+      user-select:none !important;
+      -webkit-user-select:none !important;
+    }
+    #pg-camera .zoom-controls,
+    #pg-camera #zoom-slider{
+      touch-action:none !important;
+    }
+
+    #btn-goto-scan-main,
     #btn-cam-scan-mode.cam-scan-jump{
-      font-family:'Share Tech Mono',monospace;
-      font-size:10px;
-      letter-spacing:.5px;
-      color:#00ff88;
-      border-color:#00ff88;
-      background:rgba(0,255,136,.10);
+      font-family:'Share Tech Mono',monospace !important;
+      font-size:10px !important;
+      letter-spacing:.5px !important;
+      color:#00ff88 !important;
+      border-color:#00ff88 !important;
+      background:rgba(0,255,136,.10) !important;
     }
-    /* FULL選択時: ヘッダー/タブは隠すだけ。削除せず、SCANボタンで戻れる */
+
+    /* FULL選択時だけヘッダー/タブを隠して完全なカメラ画面にする。削除はしない */
     body.cam-full-mode .hdr,
     body.cam-full-mode .tabs{
       display:none !important;
     }
     body.cam-full-mode #app{
-      height:100dvh;
-      overflow:hidden;
+      height:100dvh !important;
+      overflow:hidden !important;
     }
     body.cam-full-mode #pg-camera.cam-pg.on,
     body.fullscreen #pg-camera.cam-pg.on{
-      height:100dvh;
-      padding-top:0;
-    }
-    body.cam-full-mode #pg-camera #cam-group-bar,
-    body.cam-full-mode #pg-camera .cam-settings-row{
-      position:absolute;
-      left:8px;
-      right:8px;
-      z-index:45;
-      background:rgba(5,10,16,.62);
-      backdrop-filter:blur(6px);
-      border-radius:10px;
-    }
-    body.cam-full-mode #pg-camera #cam-group-bar{ top:8px; }
-    body.cam-full-mode #pg-camera .cam-settings-row{ top:44px; }
-    body.cam-full-mode #pg-camera #cam-controls{
-      position:absolute;
-      left:0;
-      right:0;
-      bottom:44px;
-      z-index:55;
-      background:linear-gradient(to top, rgba(0,0,0,.72), rgba(0,0,0,0));
-      padding-top:28px;
-    }
-    body.cam-full-mode #pg-camera .cam-bottom-row{
-      position:absolute;
-      left:8px;
-      right:8px;
-      bottom:max(4px, env(safe-area-inset-bottom));
-      z-index:56;
-      background:rgba(5,10,16,.55);
-      border-radius:10px;
-    }
-    body.cam-full-mode #pg-camera #cam-vf{
       height:100dvh !important;
-      flex:1 1 100% !important;
-    }
-    body.cam-full-mode #pg-camera #cam-video{
-      object-fit:cover !important;
     }
   </style>
 </head>
