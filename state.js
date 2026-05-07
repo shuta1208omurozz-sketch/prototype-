@@ -7,7 +7,7 @@ let   MAX_PH       = 200;
 
 /* ════ 設定 ════ */
 let cfg = {
-  autoStartScan:  true,
+  autoStartScan:  false,
   scanFormat:     'ean13',
   camQuality:     'mid',
   maxPhotos:      200,
@@ -39,6 +39,7 @@ let globalCamTrack    = null;   // 共有トラック参照
 let scanStream        = null;   // 後方互換のための参照（globalStream と同一）
 let camStream         = null;   // 後方互換のための参照（globalStream と同一）
 let detector          = null;
+let detectorMode      = ''; // BarcodeDetectorの生成モードキャッシュ
 let raf               = null;
 let lastCode          = null;
 let lastCodeTime      = 0;

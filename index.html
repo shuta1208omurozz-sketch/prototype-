@@ -19,6 +19,95 @@
   <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.5/JsBarcode.all.min.js"></script>
   <link rel="stylesheet" href="style.css">
+
+  <!-- camera fixed/fullscreen overrides: UIは削らず、カメラ画面だけ固定配置 -->
+  <style id="camera-fixed-fullscreen-style">
+    /* カメラモードでは、アスペクト比変更で操作ボタン位置が上下しないよう固定レイアウト化 */
+    #pg-camera.cam-pg.on{
+      display:flex;
+      flex-direction:column;
+      height:calc(100dvh - 92px);
+      min-height:0;
+      overflow:hidden;
+      position:relative;
+    }
+    #pg-camera #cam-vf{
+      flex:1 1 auto !important;
+      min-height:0 !important;
+      width:100% !important;
+      max-height:none !important;
+      aspect-ratio:auto !important;
+      position:relative;
+    }
+    #pg-camera #cam-controls,
+    #pg-camera .cam-bottom-row{
+      flex:0 0 auto;
+      position:relative;
+      z-index:40;
+    }
+    #pg-camera #cam-controls{
+      padding-bottom:max(6px, env(safe-area-inset-bottom));
+    }
+    #btn-cam-scan-mode.cam-scan-jump{
+      font-family:'Share Tech Mono',monospace;
+      font-size:10px;
+      letter-spacing:.5px;
+      color:#00ff88;
+      border-color:#00ff88;
+      background:rgba(0,255,136,.10);
+    }
+    /* FULL選択時: ヘッダー/タブは隠すだけ。削除せず、SCANボタンで戻れる */
+    body.cam-full-mode .hdr,
+    body.cam-full-mode .tabs{
+      display:none !important;
+    }
+    body.cam-full-mode #app{
+      height:100dvh;
+      overflow:hidden;
+    }
+    body.cam-full-mode #pg-camera.cam-pg.on,
+    body.fullscreen #pg-camera.cam-pg.on{
+      height:100dvh;
+      padding-top:0;
+    }
+    body.cam-full-mode #pg-camera #cam-group-bar,
+    body.cam-full-mode #pg-camera .cam-settings-row{
+      position:absolute;
+      left:8px;
+      right:8px;
+      z-index:45;
+      background:rgba(5,10,16,.62);
+      backdrop-filter:blur(6px);
+      border-radius:10px;
+    }
+    body.cam-full-mode #pg-camera #cam-group-bar{ top:8px; }
+    body.cam-full-mode #pg-camera .cam-settings-row{ top:44px; }
+    body.cam-full-mode #pg-camera #cam-controls{
+      position:absolute;
+      left:0;
+      right:0;
+      bottom:44px;
+      z-index:55;
+      background:linear-gradient(to top, rgba(0,0,0,.72), rgba(0,0,0,0));
+      padding-top:28px;
+    }
+    body.cam-full-mode #pg-camera .cam-bottom-row{
+      position:absolute;
+      left:8px;
+      right:8px;
+      bottom:max(4px, env(safe-area-inset-bottom));
+      z-index:56;
+      background:rgba(5,10,16,.55);
+      border-radius:10px;
+    }
+    body.cam-full-mode #pg-camera #cam-vf{
+      height:100dvh !important;
+      flex:1 1 100% !important;
+    }
+    body.cam-full-mode #pg-camera #cam-video{
+      object-fit:cover !important;
+    }
+  </style>
 </head>
 <body class="theme-cyan">
 <div id="app">
@@ -197,6 +286,7 @@
         <button id="btn-folder-toggle" class="btn-sub" aria-label="フォルダ切り替え">📁</button>
         <button id="btn-torch" class="btn-sub" aria-label="ライト切り替え">🔦</button>
         <button id="btn-shutter" class="shutter btn-shutter" aria-label="シャッター"></button>
+        <button id="btn-goto-scan-main" class="btn-sub" title="スキャンモードへ移動" aria-label="スキャンモードへ移動" style="background:rgba(0,255,136,.10);border-color:#00ff88;color:#00ff88;font-family:'Share Tech Mono',monospace;font-size:10px;">SCAN</button>
         <button id="btn-horizontal" class="btn-sub" title="横固定モード" aria-label="横固定モード">⟲</button>
         <button id="btn-direction" class="btn-sub" title="撮影方向を反転" aria-label="撮影方向を反転" style="font-size:13px;font-family:'Share Tech Mono',monospace;letter-spacing:-1px;">→</button>
       </div>
@@ -300,7 +390,7 @@
       </div>
       <div class="settings-row">
         <div><div class="settings-lbl">スキャン自動開始</div><div class="settings-sub">タブを開くと自動でスキャン開始</div></div>
-        <label class="toggle-sw"><input type="checkbox" id="set-auto-scan" checked/><span class="toggle-slider"></span></label>
+        <label class="toggle-sw"><input type="checkbox" id="set-auto-scan"/><span class="toggle-slider"></span></label>
       </div>
       <div class="settings-row">
         <div><div class="settings-lbl">デフォルトフォーマット</div><div class="settings-sub">スキャン対象コードの種類</div></div>
