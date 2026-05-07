@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.5/JsBarcode.all.min.js"></script>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=20260507_fix2">
 
   <!-- camera fixed/fullscreen overrides: UIは削らず、カメラ画面の操作ボタン位置を常時固定 -->
   <style id="camera-fixed-fullscreen-style">
@@ -130,6 +130,92 @@
     body.fullscreen #pg-camera.cam-pg.on{
       height:100dvh !important;
     }
+  
+
+    /* === FIX2: 既存style.cssに負けない最終上書き === */
+    body.cam-fixed-buttons #pg-camera.cam-pg.on,
+    #pg-camera.cam-pg.on{
+      box-sizing:border-box !important;
+      display:block !important;
+      position:relative !important;
+      height:calc(100dvh - 92px) !important;
+      min-height:calc(100dvh - 92px) !important;
+      max-height:calc(100dvh - 92px) !important;
+      overflow:hidden !important;
+      padding:0 !important;
+    }
+    body.cam-full-mode #pg-camera.cam-pg.on{
+      height:100dvh !important;
+      min-height:100dvh !important;
+      max-height:100dvh !important;
+    }
+    body.cam-fixed-buttons #cam-vf,
+    #pg-camera #cam-vf{
+      position:absolute !important;
+      top:0 !important; left:0 !important; right:0 !important; bottom:0 !important;
+      width:100% !important; height:100% !important;
+      min-height:100% !important; max-height:100% !important;
+      aspect-ratio:auto !important;
+      flex:0 0 auto !important;
+      transform:none !important;
+      margin:0 !important;
+    }
+    body.cam-fixed-buttons #cam-controls,
+    #pg-camera #cam-controls{
+      position:absolute !important;
+      left:0 !important; right:0 !important;
+      bottom:48px !important;
+      width:100% !important;
+      z-index:9990 !important;
+      margin:0 !important;
+      padding:28px 8px 6px !important;
+      box-sizing:border-box !important;
+    }
+    body.cam-fixed-buttons #pg-camera .cam-bottom-row,
+    #pg-camera .cam-bottom-row{
+      position:absolute !important;
+      left:8px !important; right:8px !important;
+      bottom:max(6px, env(safe-area-inset-bottom)) !important;
+      z-index:9991 !important;
+      margin:0 !important;
+      box-sizing:border-box !important;
+    }
+    body.cam-fixed-buttons #pg-camera .cam-settings-row,
+    #pg-camera .cam-settings-row{
+      position:absolute !important;
+      top:44px !important; left:8px !important; right:8px !important;
+      z-index:9992 !important;
+      margin:0 !important;
+    }
+    body.cam-fixed-buttons #pg-camera #cam-group-bar,
+    #pg-camera #cam-group-bar{
+      position:absolute !important;
+      top:8px !important; left:8px !important; right:8px !important;
+      z-index:9992 !important;
+      margin:0 !important;
+    }
+    #pg-camera #ratio-row{ touch-action: pan-y !important; }
+    #pg-camera .zoom-controls, #pg-camera #zoom-slider{ touch-action: none !important; }
+    .bc-card .card-delete,
+    button.card-delete{
+      display:inline-flex !important;
+      visibility:visible !important;
+      opacity:1 !important;
+      pointer-events:auto !important;
+      align-items:center !important;
+      justify-content:center !important;
+      min-width:36px !important;
+      height:32px !important;
+      padding:0 8px !important;
+      border:1px solid rgba(255,90,120,.85) !important;
+      border-radius:9px !important;
+      background:rgba(255,60,90,.18) !important;
+      color:#ff6688 !important;
+      font-size:16px !important;
+      line-height:1 !important;
+      z-index:10 !important;
+    }
+
   </style>
 </head>
 <body class="theme-cyan">
@@ -546,13 +632,13 @@
 <div class="toast" id="toast"></div>
 
 <!-- ==================== JSモジュールの読み込み ==================== -->
-<script src="state.js"></script>
-<script src="utils.js"></script>
-<script src="storage.js"></script>
-<script src="scanner.js"></script>
-<script src="camera.js"></script>
-<script src="photos.js"></script>
-<script src="main.js"></script>
+<script src="state.js?v=20260507_fix2"></script>
+<script src="utils.js?v=20260507_fix2"></script>
+<script src="storage.js?v=20260507_fix2"></script>
+<script src="scanner.js?v=20260507_fix2"></script>
+<script src="camera.js?v=20260507_fix2"></script>
+<script src="photos.js?v=20260507_fix2"></script>
+<script src="main.js?v=20260507_fix2"></script>
 
 <!-- Service Worker 登録 -->
 <script>
