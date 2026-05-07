@@ -506,6 +506,9 @@ function parseCsvRow(line) {
 document.addEventListener('DOMContentLoaded', () => {
   const on = (id, ev, fn) => $(id)?.addEventListener(ev, fn);
   on('btn-scan', 'click', () => scanning ? stopScan() : startScan());
+  on('btn-scan-to-camera', 'click', () => {
+    if (typeof switchTab === 'function') switchTab('camera');
+  });
   on('btn-warp-cam', 'click', () => switchTab('camera'));
   on('scan-bc-copy', 'click', () => {
     if (!lastScannedValue) return;

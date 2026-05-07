@@ -283,6 +283,54 @@
       z-index:56;
     }
 
+
+
+    /* FIX5: カメラ範囲ガイドは外枠だけ。中央線・3分割線は出さない */
+    #pg-camera #cam-range-box::before,
+    #pg-camera #cam-range-box::after,
+    #pg-camera .cam-range-third-v,
+    #pg-camera .cam-range-third-h{
+      display:none !important;
+      content:none !important;
+    }
+    #pg-camera #cam-range-box{
+      border:2px solid rgba(0,212,255,.98) !important;
+      box-shadow:0 0 0 1px rgba(255,255,255,.18) inset, 0 0 18px rgba(0,212,255,.22) !important;
+      background:transparent !important;
+    }
+
+    /* FIX5: スキャン開始/停止 7 : カメラ 3 */
+    #pg-scan .scan-action-row{
+      display:flex;
+      gap:8px;
+      align-items:stretch;
+      width:100%;
+      margin-top:8px;
+    }
+    #pg-scan .scan-action-row #btn-scan{
+      flex:7 1 0;
+      margin-top:0 !important;
+      width:auto !important;
+      min-width:0;
+    }
+    #pg-scan .scan-action-row #btn-scan-to-camera{
+      flex:3 1 0;
+      min-width:0;
+      border:1px solid rgba(0,255,136,.78);
+      color:#00ff88;
+      background:rgba(0,255,136,.10);
+      border-radius:10px;
+      font-family:'Share Tech Mono',monospace;
+      font-size:11px;
+      letter-spacing:.8px;
+      font-weight:700;
+      white-space:nowrap;
+    }
+    #pg-scan .scan-action-row #btn-scan-to-camera:active{
+      transform:scale(.98);
+      background:rgba(0,255,136,.20);
+    }
+
   </style>
 </head>
 <body class="theme-cyan">
@@ -343,7 +391,10 @@
         </div>
       </div>
       <div class="sbar"><div class="sdot" id="sdot"></div><span id="stxt">待機中</span></div>
-      <button class="btn-main" id="btn-scan">▶ スキャン開始</button>
+      <div class="scan-action-row">
+        <button class="btn-main" id="btn-scan">▶ スキャン開始</button>
+        <button class="btn-main" id="btn-scan-to-camera" type="button">📷 カメラ</button>
+      </div>
     </div>
     <div class="scan-bc-section" id="scan-bc-section">
       <div class="scan-bc-placeholder" id="scan-bc-placeholder">— バーコード表示エリア —</div>
@@ -425,10 +476,6 @@
       </div>
       <div id="cam-range-guide" aria-hidden="true">
         <div id="cam-range-box">
-          <div class="cam-range-third-v v1"></div>
-          <div class="cam-range-third-v v2"></div>
-          <div class="cam-range-third-h h1"></div>
-          <div class="cam-range-third-h h2"></div>
           <span id="cam-range-label">FULL</span>
         </div>
       </div>
