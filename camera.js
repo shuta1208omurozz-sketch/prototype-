@@ -77,30 +77,66 @@ function stopCam() {
   if (ph) ph.style.display = 'flex';
 }
 
-/* ════ バックグラウンド時の自動停止 ════ */
-document.addEventListener('visibilitychange', () => {
-  if (document.hidden) {
-    // 全ビデオ要素を切断
-    const sv = $('scan-video');
-    if (sv) { sv.pause(); sv.srcObject = null; }
-    const cv = $('cam-video');
-    if (cv) { cv.pause(); cv.srcObject = null; }
-    // スキャンループを停止
-    if (typeof stopScan === 'function') stopScan();
-    // 物理カメラを完全停止（省電力・発熱防止）
-    if (typeof stopGlobalCamera === 'function') stopGlobalCamera();
-    camActive = false;
-    camStream = null;
-    camTrack  = null;
-  } else {
-    // フォアグラウンド復帰：現在のタブを再開
-    if (activeTab === 'camera') {
-      if (typeof startCam === 'function') startCam();
-    } else if (activeTab === 'scan') {
-      if (cfg?.autoStartScan && typeof startScan === 'function') startScan();
+/* ════ バックグラウンド / iPhone復帰時の自動停止・再起動 ════ */
+let _resumeScanWanted = false;
+let _lastResumeAt = 0;
+
+function pauseAllCameraForBackground() {
+  _resumeScanWanted = activeTab === 'scan' && !!scanning;
+
+  const sv = $('scan-video');
+  if (sv) { sv.pause(); sv.srcObject = null; }
+  const cv = $('cam-video');
+  if (cv) { cv.pause(); cv.srcObject = null; }
+
+  if (typeof stopScan === 'function') stopScan();
+  if (typeof stopGlobalCamera === 'function') stopGlobalCamera();
+  camActive = false;
+  camStream = null;
+  camTrack  = null;
+}
+
+function resumeCameraAfterReturn(reason = 'resume') {
+  if (document.hidden) return;
+  // pageshow / focus / visibilitychange が連続で走るので多重起動を抑制
+  const now = Date.now();
+  if (now - _lastResumeAt < 700) return;
+  _lastResumeAt = now;
+
+  setTimeout(() => {
+    if (document.hidden) return;
+    try {
+      if (activeTab === 'camera') {
+        // iPhone PWA/Safariの黒画面対策: 復帰時は古いストリームを捨てて取り直す
+        if (typeof stopGlobalCamera === 'function') stopGlobalCamera();
+        camActive = false;
+        if (typeof startCam === 'function') startCam(true);
+        if (typeof showToast === 'function') showToast('カメラを再起動しました', '', 1200);
+      } else if (activeTab === 'scan') {
+        if (_resumeScanWanted || cfg?.autoStartScan) {
+          if (typeof stopGlobalCamera === 'function') stopGlobalCamera();
+          if (typeof startScan === 'function') startScan();
+          if (typeof showToast === 'function') showToast('スキャンを再起動しました', '', 1200);
+        }
+      }
+    } catch (e) {
+      console.error('[ResumeCamera]', reason, e);
+      if (typeof showToast === 'function') showToast('[E050] 復帰時のカメラ再起動に失敗: ' + (e.message || e.name), 'err', 4000);
     }
-  }
+  }, 180);
+}
+
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) pauseAllCameraForBackground();
+  else resumeCameraAfterReturn('visibilitychange');
 });
+
+// iPhone Safari/PWAは戻った時に visibilitychange だけでは足りないことがある
+window.addEventListener('pageshow', e => {
+  if (e.persisted) resumeCameraAfterReturn('pageshow-bfcache');
+  else resumeCameraAfterReturn('pageshow');
+});
+window.addEventListener('focus', () => resumeCameraAfterReturn('focus'));
 
 /* ════ カメラ起動 ════ */
 async function startCam(forceRestart = false) {
@@ -289,11 +325,12 @@ async function takePhoto() {
   const photo = {
     id: Date.now() + Math.random(), dataUrl: thumbDataUrl, thumbDataUrl,
     timestamp: Date.now(), facingMode, aspectRatio: cfg.aspectRatio,
-    group: grp, scannedCode: lastScannedValue || ''
+    group: grp, scannedCode: lastScannedValue || '', savedToDevice: false
   };
   photos.unshift(photo);
   updateCounts();
   updateThumbStrip();
+  if (typeof updateUnsavedSaveButton === 'function') updateUnsavedSaveButton();
   if (activeTab === 'photos') renderPhotoGrid();
   showFlashEffect();
   if (shutter) shutter.disabled = false;
@@ -503,6 +540,7 @@ document.addEventListener('DOMContentLoaded', () => {
   on('btn-goto-scan',      goToScanFromCamera);
   on('btn-goto-scan-main', goToScanFromCamera);
   on('btn-zoom-toggle',    () => setZoomPanel(!zoomPanelOpen));
+  on('btn-save-unsaved',   () => { if (typeof saveUnsavedPhotosToDevice === 'function') saveUnsavedPhotosToDevice(); });
 
   const RATIOS = ['full', '4/3', '16/9', '21/9'];
   let ratioIdx = Math.max(0, RATIOS.indexOf(cfg.aspectRatio));
@@ -599,5 +637,6 @@ document.addEventListener('DOMContentLoaded', () => {
   updateHorizontalUI();
   updateArrow();
   setZoomPanel(false, !zoomAvailable);
+  if (typeof updateUnsavedSaveButton === 'function') updateUnsavedSaveButton();
   setTimeout(updateCameraGuide, 120);
 });

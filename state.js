@@ -10,7 +10,7 @@ let cfg = {
   autoStartScan:  false,
   scanFormat:     'ean13',
   camQuality:     'mid',
-  maxPhotos:      200,
+  maxPhotos:      1000,
   photoSize:      80,
   bcCompactMode:  false,
   continuousScan: false,

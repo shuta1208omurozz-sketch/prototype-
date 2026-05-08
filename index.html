@@ -249,11 +249,13 @@
     #pg-camera .zoom-toggle-row{
       display:flex;
       justify-content:flex-end;
+      gap:8px;
       margin-top:6px;
       margin-bottom:2px;
       padding-inline:10px;
     }
-    #pg-camera #btn-zoom-toggle{
+    #pg-camera #btn-zoom-toggle,
+    #pg-camera #btn-save-unsaved{
       min-width:84px;
       height:32px;
       border-radius:999px;
@@ -270,6 +272,18 @@
       border-color:rgba(0,212,255,.96);
       box-shadow:0 0 12px rgba(0,212,255,.22);
     }
+    #pg-camera #btn-save-unsaved{
+      color:#00ff88;
+      border-color:rgba(0,255,136,.55);
+      background:rgba(0,255,136,.10);
+    }
+    #pg-camera #btn-save-unsaved:disabled{
+      opacity:.38;
+      color:#8aa0aa;
+      border-color:rgba(120,150,165,.35);
+      background:rgba(3,10,18,.55);
+    }
+
     #pg-camera #zoom-controls{
       display:none;
       margin-top:0;
@@ -522,7 +536,7 @@
         <button id="btn-horizontal" class="btn-sub" title="横固定モード" aria-label="横固定モード">⟲</button>
         <button id="btn-direction" class="btn-sub" title="撮影方向を反転" aria-label="撮影方向を反転" style="font-size:13px;font-family:'Share Tech Mono',monospace;letter-spacing:-1px;">→</button>
       </div>
-      <div class="zoom-toggle-row"><button id="btn-zoom-toggle" aria-label="倍率スライダー表示切替">🔍 倍率</button></div>
+      <div class="zoom-toggle-row"><button id="btn-zoom-toggle" aria-label="倍率スライダー表示切替">🔍 倍率</button><button id="btn-save-unsaved" aria-label="未保存の写真を保存">保存</button></div>
       <!-- ズームスライダー: 倍率1未満の超広角にも対応 -->
       <div class="zoom-controls" id="zoom-controls">
         <span id="uw-label" style="display:none;font-family:'Share Tech Mono',monospace;font-size:9px;color:#ffaa44;letter-spacing:1px;">UW</span>
@@ -658,8 +672,9 @@
         <div class="settings-ctrl">
           <button class="seg-btn" data-mp="50">50</button>
           <button class="seg-btn" data-mp="100">100</button>
-          <button class="seg-btn on" data-mp="200">200</button>
+          <button class="seg-btn" data-mp="200">200</button>
           <button class="seg-btn" data-mp="500">500</button>
+          <button class="seg-btn on" data-mp="1000">1000</button>
         </div>
       </div>
       <div class="settings-row" style="margin-top:10px;">

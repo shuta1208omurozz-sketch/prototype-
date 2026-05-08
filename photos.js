@@ -188,20 +188,112 @@ async function rotateLightboxPhoto() {
 }
 
 /* ════ 保存 ════ */
-async function savePhotoToDevice(photo) {
-  const ts     = fmtTime(photo.timestamp).replace(/[/:\s]/g, '-');
+
+function getUnsavedPhotos() {
+  // 既存の過去写真は undefined のため「保存対象外」にする。
+  // このFIX以降に撮った写真だけ savedToDevice:false が付き、未保存として扱う。
+  return photos.filter(p => p && p.savedToDevice === false && !p.merged);
+}
+
+function updateUnsavedSaveButton() {
+  const btn = $('btn-save-unsaved');
+  if (!btn) return;
+  const n = getUnsavedPhotos().length;
+  btn.disabled = n === 0;
+  btn.textContent = n ? `保存 ${n}` : '保存';
+  btn.title = n ? `未保存の写真 ${n}枚を保存` : '未保存の写真はありません';
+}
+
+async function markPhotosSavedToDevice(list) {
+  if (!list || !list.length) return;
+  await Promise.all(list.map(p => {
+    p.savedToDevice = true;
+    return (typeof dbPut === 'function') ? dbPut(p) : Promise.resolve();
+  }));
+  if (typeof updateUnsavedSaveButton === 'function') updateUnsavedSaveButton();
+  if (typeof renderPhotoGrid === 'function' && activeTab === 'photos') renderPhotoGrid();
+  if (typeof updateThumbStrip === 'function') updateThumbStrip();
+}
+
+async function downloadOnePhotoDirect(photo) {
+  if (!photo) return false;
+  const ts     = fmtTime(photo.timestamp).replace(/[/\:\s]/g, '-');
   const prefix = photo.scannedCode ? photo.scannedCode.slice(-5) : 'photo';
   const name   = `${prefix}_${ts}.jpg`;
-  if (navigator.share && navigator.canShare) {
-    try {
-      const blob = await dataUrlToBlob(photo.dataUrl);
-      if (blob) {
-        const file = new File([blob], name, { type: 'image/jpeg' });
-        if (navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: '写真を保存' }); return; }
-      }
-    } catch (e) { if (e.name === 'AbortError') return; }
+
+  try {
+    // dataURLをそのまま使うより、Blob URLにした方がiPhone/Safariで軽くなりやすい
+    const blob = await dataUrlToBlob(photo.dataUrl);
+    if (blob) {
+      const url = URL.createObjectURL(blob);
+      fallbackDownload(url, name);
+      // click直後に revoke するとSafariで失敗する場合があるので遅延解放
+      setTimeout(() => URL.revokeObjectURL(url), 30000);
+      return true;
+    }
+
+    // Blob化できない場合の予備
+    fallbackDownload(photo.dataUrl, name);
+    return true;
+  } catch (e) {
+    console.error('[DirectDownloadOne]', e);
+    return false;
   }
-  fallbackDownload(photo.dataUrl, name);
+}
+
+async function saveUnsavedPhotosToDevice() {
+  const list = getUnsavedPhotos();
+  if (!list.length) {
+    showToast('未保存の写真はありません', '');
+    updateUnsavedSaveButton();
+    return;
+  }
+
+  // FIX8: ZIP/共有シートは使わず、未保存写真をそのまま連続ダウンロードする。
+  // 上限は設けない。失敗した写真は保存済みにしない。
+  const btn = $('btn-save-unsaved');
+  if (btn) btn.disabled = true;
+
+  let ok = 0, fail = 0;
+  showToast(`未保存 ${list.length}枚をダウンロード開始...`, '', 2500);
+
+  try {
+    for (let i = 0; i < list.length; i++) {
+      const p = list[i];
+      if (btn) btn.textContent = `保存 ${i + 1}/${list.length}`;
+
+      const done = await downloadOnePhotoDirect(p);
+      if (done) {
+        p.savedToDevice = true;
+        if (typeof dbPut === 'function') await dbPut(p);
+        ok++;
+      } else {
+        fail++;
+      }
+
+      // iPhone/Safariの連続DLが詰まりにくいよう少しだけ間隔を空ける。上限は設けない。
+      await new Promise(r => setTimeout(r, 450));
+    }
+
+    if (typeof updateUnsavedSaveButton === 'function') updateUnsavedSaveButton();
+    if (typeof renderPhotoGrid === 'function' && activeTab === 'photos') renderPhotoGrid();
+    if (typeof updateThumbStrip === 'function') updateThumbStrip();
+
+    if (fail) showToast(`[E042] ${ok}枚保存 / ${fail}枚失敗。未保存分は残しました`, 'warn', 5000);
+    else showToast(`✓ ${ok}枚を保存済みにしました`, 'ok');
+  } catch (e) {
+    console.error('[SaveUnsavedDirect]', e);
+    showToast('[E040] 未保存写真の保存に失敗: ' + (e.message || e.name), 'err', 5000);
+  } finally {
+    if (btn) btn.disabled = false;
+    updateUnsavedSaveButton();
+  }
+}
+
+async function savePhotoToDevice(photo) {
+  const done = await downloadOnePhotoDirect(photo);
+  if (done) await markPhotosSavedToDevice([photo]);
+  else showToast('[E043] 写真のダウンロードに失敗しました', 'err', 4000);
 }
 
 /* ════ 結合モード ════ */
@@ -314,4 +406,5 @@ document.addEventListener('DOMContentLoaded', () => {
   on('lb-del',    () => { if (currentLightbox) deletePhoto(currentLightbox.id); });
 
   on('btn-ph-select-mode', () => multiSelModePh ? exitMultiSelModePh() : enterMultiSelModePh());
+  updateUnsavedSaveButton();
 });
