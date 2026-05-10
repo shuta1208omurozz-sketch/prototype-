@@ -446,6 +446,26 @@
       background:rgba(0,255,136,.08);
     }
 
+
+
+    /* FIX11: FULLプレビューは横幅優先。保存データはtakePhoto側でFULLのまま保持 */
+    body.cam-full-mode #pg-camera #cam-video,
+    #pg-camera.full-preview #cam-video{
+      object-fit:cover !important;
+      width:100% !important;
+      height:100% !important;
+      background:#000 !important;
+    }
+    body.cam-full-mode #pg-camera #cam-range-guide{
+      inset:0 !important;
+    }
+    body.cam-full-mode #pg-camera #cam-range-box{
+      width:calc(100% - 20px) !important;
+      height:calc(100% - 20px) !important;
+      max-width:none !important;
+      max-height:none !important;
+    }
+
   </style>
 </head>
 <body class="theme-cyan">
