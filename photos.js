@@ -1,5 +1,41 @@
 'use strict';
 
+let lastSaveResult = null;
+
+function getPhotoSaveState(photo) {
+  if (!photo || typeof photo.savedToDevice === 'undefined') return null;
+  return photo.savedToDevice ? 'saved' : 'unsaved';
+}
+
+function createSaveBadge(photo) {
+  const state = getPhotoSaveState(photo);
+  if (!state) return null;
+  const badge = document.createElement('div');
+  badge.className = 'photo-save-badge ' + state;
+  badge.textContent = state === 'saved' ? '保存済' : '未保存';
+  return badge;
+}
+
+function setSaveResultLog(ok = 0, fail = 0, total = 0, message = '') {
+  lastSaveResult = { ok, fail, total, message, timestamp: Date.now() };
+  updateSaveResultLogUI();
+}
+
+function updateSaveResultLogUI() {
+  const text = lastSaveResult
+    ? (lastSaveResult.message || `保存結果: ${lastSaveResult.ok}/${lastSaveResult.total} 成功${lastSaveResult.fail ? ' / 失敗 ' + lastSaveResult.fail : ''}`)
+    : '保存結果: なし';
+  const cls = lastSaveResult?.fail ? (lastSaveResult.ok ? 'warn' : 'err') : (lastSaveResult ? 'ok' : '');
+  ['save-log-text', 'save-result-mini'].forEach(id => {
+    const el = $(id);
+    if (!el) return;
+    el.textContent = text;
+    el.classList.remove('ok','warn','err');
+    if (cls) el.classList.add(cls);
+  });
+}
+
+
 /* ════ フィルタ・ソート ════ */
 function getFilteredPh() {
   let f = photos.slice();
@@ -44,6 +80,8 @@ function renderPhotoGrid() {
     const img = document.createElement('img');
     img.src = p.thumbDataUrl || p.dataUrl; img.loading = 'lazy';
     imgWrap.appendChild(img);
+    const saveBadge = createSaveBadge(p);
+    if (saveBadge) imgWrap.appendChild(saveBadge);
 
     const selOv = document.createElement('div'); selOv.className = 'photo-select-overlay';
     const chk   = document.createElement('div'); chk.className   = 'photo-select-check'; chk.textContent = '✓';
@@ -69,7 +107,10 @@ function updateThumbStrip() {
   photos.slice(0, 10).forEach(p => {
     const d   = document.createElement('div'); d.className = 'mini-thumb';
     const img = document.createElement('img'); img.src = p.thumbDataUrl || p.dataUrl;
-    d.appendChild(img); d.onclick = () => openLightbox(p);
+    d.appendChild(img);
+    const saveBadgeMini = createSaveBadge(p);
+    if (saveBadgeMini) d.appendChild(saveBadgeMini);
+    d.onclick = () => openLightbox(p);
     strip.appendChild(d);
   });
   if (photos.length > 10) {
@@ -196,12 +237,17 @@ function getUnsavedPhotos() {
 }
 
 function updateUnsavedSaveButton() {
-  const btn = $('btn-save-unsaved');
-  if (!btn) return;
   const n = getUnsavedPhotos().length;
-  btn.disabled = n === 0;
-  btn.textContent = n ? `保存 ${n}` : '保存';
-  btn.title = n ? `未保存の写真 ${n}枚を保存` : '未保存の写真はありません';
+  const btn = $('btn-save-unsaved');
+  if (btn) {
+    btn.disabled = n === 0;
+    btn.textContent = n ? `保存 ${n}` : '保存';
+    btn.title = n ? `未保存の写真 ${n}枚を保存` : '未保存の写真はありません';
+  }
+  ['unsaved-indicator', 'unsaved-count-inline', 'photo-unsaved-count'].forEach(id => {
+    const el = $(id);
+    if (el) el.textContent = `未保存 ${n}`;
+  });
 }
 
 async function markPhotosSavedToDevice(list) {
@@ -256,6 +302,7 @@ async function saveUnsavedPhotosToDevice() {
 
   let ok = 0, fail = 0;
   showToast(`未保存 ${list.length}枚をダウンロード開始...`, '', 2500);
+  setSaveResultLog(0, 0, list.length, `保存中: 0/${list.length}`);
 
   try {
     for (let i = 0; i < list.length; i++) {
@@ -270,6 +317,7 @@ async function saveUnsavedPhotosToDevice() {
       } else {
         fail++;
       }
+      setSaveResultLog(ok, fail, list.length, `保存中: ${ok + fail}/${list.length}`);
 
       // iPhone/Safariの連続DLが詰まりにくいよう少しだけ間隔を空ける。上限は設けない。
       await new Promise(r => setTimeout(r, 450));
@@ -279,10 +327,16 @@ async function saveUnsavedPhotosToDevice() {
     if (typeof renderPhotoGrid === 'function' && activeTab === 'photos') renderPhotoGrid();
     if (typeof updateThumbStrip === 'function') updateThumbStrip();
 
-    if (fail) showToast(`[E042] ${ok}枚保存 / ${fail}枚失敗。未保存分は残しました`, 'warn', 5000);
-    else showToast(`✓ ${ok}枚を保存済みにしました`, 'ok');
+    if (fail) {
+      setSaveResultLog(ok, fail, list.length, `[E042] ${ok}枚保存 / ${fail}枚失敗`);
+      showToast(`[E042] ${ok}枚保存 / ${fail}枚失敗。未保存分は残しました`, 'warn', 5000);
+    } else {
+      setSaveResultLog(ok, fail, list.length, `保存完了: ${ok}枚`);
+      showToast(`✓ ${ok}枚を保存済みにしました`, 'ok');
+    }
   } catch (e) {
     console.error('[SaveUnsavedDirect]', e);
+    setSaveResultLog(ok, fail + Math.max(0, list.length - ok - fail), list.length, '[E040] 保存処理エラー');
     showToast('[E040] 未保存写真の保存に失敗: ' + (e.message || e.name), 'err', 5000);
   } finally {
     if (btn) btn.disabled = false;
@@ -292,8 +346,8 @@ async function saveUnsavedPhotosToDevice() {
 
 async function savePhotoToDevice(photo) {
   const done = await downloadOnePhotoDirect(photo);
-  if (done) await markPhotosSavedToDevice([photo]);
-  else showToast('[E043] 写真のダウンロードに失敗しました', 'err', 4000);
+  if (done) { await markPhotosSavedToDevice([photo]); setSaveResultLog(1, 0, 1, '保存完了: 1枚'); }
+  else { setSaveResultLog(0, 1, 1, '[E043] 1枚保存失敗'); showToast('[E043] 写真のダウンロードに失敗しました', 'err', 4000); }
 }
 
 /* ════ 結合モード ════ */
@@ -398,6 +452,8 @@ async function mergeImages(sel, layout) {
 /* ════ 初期化 ════ */
 document.addEventListener('DOMContentLoaded', () => {
   initLightboxTouch();
+  updateUnsavedSaveButton();
+  updateSaveResultLogUI();
 
   const on = (id, fn) => $(id)?.addEventListener('click', fn);
   on('lb-close',  closeLightbox);

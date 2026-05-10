@@ -64,6 +64,19 @@ function setZoomPanel(open, forceHide = false) {
   btn.textContent = zoomPanelOpen ? '× 倍率を閉じる' : '🔍 倍率';
 }
 
+
+function applyCameraVideoFit() {
+  const video = $('cam-video');
+  const page = $('pg-camera');
+  if (!video) return;
+  const isFullPreview = activeTab === 'camera' && cfg && cfg.aspectRatio === 'full' && !forceHorizontal;
+  video.style.objectFit = isFullPreview ? 'contain' : 'cover';
+  video.style.width = '100%';
+  video.style.height = '100%';
+  video.style.backgroundColor = '#000';
+  if (page) page.classList.toggle('full-preview', isFullPreview);
+}
+
 /* ════ カメラ停止 ════ */
 function stopCam() {
   camActive = false;
@@ -165,7 +178,8 @@ async function startCam(forceRestart = false) {
         video.srcObject = stream;
         video.playsInline = true;
         video.muted       = true;
-        Object.assign(video.style, { objectFit:'cover', width:'100%', height:'100%', backgroundColor:'#000' });
+        Object.assign(video.style, { width:'100%', height:'100%', backgroundColor:'#000' });
+        applyCameraVideoFit();
       }
 
       if (video.readyState < 1) {
@@ -177,6 +191,7 @@ async function startCam(forceRestart = false) {
         if (ph) ph.style.display = 'none';
         if (typeof applyCameraViewportLayout === 'function') applyCameraViewportLayout();
         if (typeof updateCameraModeClass === 'function') updateCameraModeClass();
+        applyCameraVideoFit();
         camTrack  = stream.getVideoTracks()[0];
         camActive = true;
         initCamFeatures(camTrack);
@@ -462,6 +477,7 @@ function updatePreview(video) {
   if (!video) return;
   if (!forceHorizontal) {
     video.style.transform = '';
+    applyCameraVideoFit();
     return;
   }
   // コンテナサイズに合わせてスケール計算（overflow:hidden対応）
@@ -479,6 +495,7 @@ function updatePreview(video) {
 
 function toggleHorizontal() {
   forceHorizontal = !forceHorizontal;
+  applyCameraVideoFit();
   updateHorizontalUI();
   updateArrow();
   updatePreview();
@@ -498,6 +515,7 @@ function setAspectRatio(ratio) {
   document.querySelectorAll('.ratio-btn').forEach(btn => btn.classList.toggle('on', btn.dataset.r === ratio));
   if (typeof applyCameraViewportLayout === 'function') applyCameraViewportLayout();
   if (typeof updateCameraModeClass === 'function') updateCameraModeClass();
+  applyCameraVideoFit();
   showCropOverlay(ratio);
   updateCameraGuide();
   if (camActive) startCam(true); // 解像度変更のため強制再起動

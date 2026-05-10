@@ -1,5 +1,30 @@
 'use strict';
 
+function updateAppVersionUI() {
+  const el = $('app-version-text');
+  if (el) el.textContent = 'VERSION ' + (typeof APP_VERSION !== 'undefined' ? APP_VERSION : 'UNKNOWN');
+}
+
+async function forceAppUpdate() {
+  try {
+    showToast('更新準備中...', '', 1500);
+    if ('serviceWorker' in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(r => r.update().catch(() => null)));
+    }
+    if ('caches' in window) {
+      const keys = await caches.keys();
+      await Promise.all(keys.map(k => caches.delete(k)));
+    }
+  } catch (e) {
+    console.warn('[ForceUpdate]', e);
+  } finally {
+    const base = location.href.split('?')[0].split('#')[0];
+    location.href = base + '?v=' + encodeURIComponent(typeof APP_VERSION !== 'undefined' ? APP_VERSION : Date.now()) + '#settings';
+  }
+}
+
+
 /* ════ グループUI ════ */
 function updateGroupUI() {
   const gOn  = cfg.useGroup;
@@ -137,6 +162,7 @@ document.querySelectorAll('.tab').forEach(btn => {
 /* ════ イベント登録 ════ */
 function bindEvents() {
   const on = (id, ev, fn) => $(id)?.addEventListener(ev, fn);
+  on('btn-force-update', 'click', forceAppUpdate);
 
 
 
@@ -395,6 +421,9 @@ async function init() {
   bcHistory = bcHistory.map(x => ({ checked: false, ...x }));
   try { photos = (await dbAll()).reverse(); } catch(_) { photos = []; }
   applyCfgToUI();
+  updateAppVersionUI();
+  if (typeof updateUnsavedSaveButton === 'function') updateUnsavedSaveButton();
+  if (typeof updateSaveResultLogUI === 'function') updateSaveResultLogUI();
   setThumbVisible(thumbStripVisible);
   updateCounts();
   restoreFolderHandle();
