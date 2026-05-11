@@ -2,7 +2,7 @@
 
 
 function normalizeAspectRatioSetting() {
-  // FIX19: 旧4:3設定は「デフォルト」へ移行。4:3固定ではなく広めの標準カメラ風にする。
+  // FIX21: 旧4:3設定は「デフォルト」へ移行。4:3固定ではなく広めの標準カメラ風にする。
   if (!cfg.aspectRatio || cfg.aspectRatio === '4/3') cfg.aspectRatio = 'default';
 }
 
@@ -387,7 +387,7 @@ async function startGlobalCamera(forceRestart = false) {
 
     const qBase = CAM_QUALITY[cfg.camQuality] || CAM_QUALITY.mid;
 
-    // FIX18: 標準カメラより狭い場合に備え、選択済みdeviceIdがあればその背面カメラを使う。
+    // FIX21: 標準カメラより狭い場合に備え、選択済みdeviceIdがあればその背面カメラを使う。
     // aspectRatioで縛らず、端末が出せる広い映像を取得する。
     let videoConstraints = {
       facingMode,

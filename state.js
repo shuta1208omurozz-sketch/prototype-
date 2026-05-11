@@ -1,6 +1,6 @@
 'use strict';
 
-const APP_VERSION = 'FIX19';
+const APP_VERSION = 'FIX21';
 
 /* ════ キー定数 ════ */
 const SETTINGS_KEY = 'sc-settings-v1';
@@ -81,7 +81,7 @@ const CAM_QUALITY = {
   max:  { width: { ideal: 3840 }, height: { ideal: 2160 } }
 };
 
-const ASPECT_RATIOS = { 'default': 1.18, '16/9': 16/9, '21/9': 21/9 };
+const ASPECT_RATIOS = { 'default': 0, '16/9': 16/9, '21/9': 21/9 };
 
 const JS_FMT = {
   ean_13: 'EAN13', ean_8: 'EAN8',   code_128: 'CODE128',

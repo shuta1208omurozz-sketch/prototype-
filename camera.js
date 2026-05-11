@@ -178,18 +178,12 @@ async function autoApplyWideIfAvailable(track) {
 
 
 function getCameraTargetRatio(mode, fallbackW, fallbackH) {
-  if (mode === 'default' || mode === '4/3' || !mode) {
-    // FIX19: 旧4:3は廃止。デフォルトは4:3より縦に広い標準カメラ風。
-    return 1.18;
-  }
-  if (mode === 'full') {
-    const vf = $('cam-vf');
-    const cw = vf?.clientWidth || vf?.offsetWidth || 0;
-    const ch = vf?.clientHeight || vf?.offsetHeight || 0;
-    return (cw > 0 && ch > 0) ? (cw / ch) : (fallbackW && fallbackH ? fallbackW / fallbackH : 1.0);
-  }
+  // FIX21: FULL/デフォルトは「比率で切る」のではなく、取得できたカメラ映像の比率を基準にする。
+  // これにより商品撮影時に勝手に拡大されるのを避ける。
+  const nativeRatio = (fallbackW && fallbackH) ? (fallbackW / fallbackH) : 3 / 4;
+  if (mode === 'full' || mode === 'default' || mode === '4/3' || !mode) return nativeRatio;
   const [a, b] = String(mode).split('/').map(Number);
-  return (a && b) ? (a / b) : 1.18;
+  return (a && b) ? (a / b) : nativeRatio;
 }
 
 function getRatioLabel(mode) {
@@ -206,9 +200,9 @@ function applyCameraVideoFit() {
 
   if (page) page.classList.toggle('full-preview', isFullPreview);
 
-  // FIX18: FULLを基準にした普通のカメラ方式。
-  // 画面いっぱいに表示し、保存側はgetCaptureCrop()で同じ範囲だけ切り出す。
-  video.style.objectFit = 'cover';
+  // FIX21: FULLだけは追加拡大・追加クロップをしない。
+  // デフォルト/16:9/21:9は枠に合わせて表示し、保存も同じ範囲にする。
+  video.style.objectFit = (cfg.aspectRatio === 'full' || cfg.aspectRatio === 'default' || cfg.aspectRatio === '4/3') ? 'contain' : 'cover';
   video.style.objectPosition = 'center center';
   video.style.position = 'absolute';
   video.style.inset = '0';
@@ -223,29 +217,29 @@ function applyCameraVideoFit() {
 }
 
 function getCaptureCrop(vw, vh) {
-  // FIX18: プレビューと保存を完全一致させる。
-  // CSSの object-fit: cover と同じ考え方で、表示コンテナの比率に合わせて中央クロップする。
-  const vf = $('cam-vf');
-  let targetRatio;
+  // FIX21: FULL/デフォルトは追加クロップなし。
+  // プレビューも contain 表示なので、保存画像も同じ「取得映像そのもの」にする。
+  // これで標準カメラより極端に拡大される問題を避ける。
+  if (cfg.aspectRatio === 'full' || cfg.aspectRatio === 'default' || cfg.aspectRatio === '4/3' || !cfg.aspectRatio) {
+    return { sx: 0, sy: 0, sw: vw, sh: vh, targetRatio: vw / vh, isFull: cfg.aspectRatio === 'full' };
+  }
 
-  targetRatio = getCameraTargetRatio(cfg.aspectRatio, vw, vh);
-
+  // 16:9/21:9などはプレビューと保存を一致させるため、選択比率で中央クロップする。
+  const targetRatio = getCameraTargetRatio(cfg.aspectRatio, vw, vh);
   const videoRatio = vw / vh;
   let sw, sh, sx, sy;
   if (videoRatio > targetRatio) {
-    // 映像が横に広い → 左右を切る
     sh = vh;
     sw = vh * targetRatio;
     sx = (vw - sw) / 2;
     sy = 0;
   } else {
-    // 映像が縦に広い → 上下を切る
     sw = vw;
     sh = vw / targetRatio;
     sx = 0;
     sy = (vh - sh) / 2;
   }
-  return { sx, sy, sw, sh, targetRatio, isFull: cfg.aspectRatio === 'full' };
+  return { sx, sy, sw, sh, targetRatio, isFull: false };
 }
 
 /* ════ カメラ停止 ════ */
@@ -570,7 +564,7 @@ function handleCamError(err) {
 function showCropOverlay(ratio) {
   const overlay = $('crop-overlay');
   if (!overlay) return;
-  if (ratio === 'full') { overlay.style.display = 'none'; updateCameraGuide(); return; }
+  if (ratio === 'full' || ratio === 'default' || ratio === '4/3') { overlay.style.display = 'none'; updateCameraGuide(); return; }
   const label = $('crop-ratio-label');
   if (label) label.textContent = getRatioLabel(ratio);
   ['crop-mask-top','crop-mask-bottom'].forEach(cls => {
@@ -585,6 +579,7 @@ function showCropOverlay(ratio) {
 /* ════ カメラUI固定・FULL表示制御 ════ */
 function applyCameraViewportLayout() {
   const vf = $('cam-vf');
+  const video = $('cam-video');
   if (!vf) return;
 
   vf.style.width = '100%';
@@ -592,14 +587,23 @@ function applyCameraViewportLayout() {
   vf.style.position = 'relative';
 
   if (cfg.aspectRatio === 'full') {
-    // FIX19: FULLは縦方向を増やす表示。横幅維持にはこだわらず、見える範囲を広げる。
+    // FULLは縦長商品・服など用。画面内でできるだけ大きく、ただし映像自体は拡大クロップしない。
     vf.style.aspectRatio = 'auto';
     vf.style.flex = '1 1 auto';
     vf.style.height = 'auto';
     vf.style.maxHeight = 'none';
     vf.style.minHeight = '0';
+  } else if (cfg.aspectRatio === 'default' || cfg.aspectRatio === '4/3' || !cfg.aspectRatio) {
+    // デフォルトは4:3固定ではなく、取得映像の比率をそのまま使う。
+    // videoWidth/videoHeightが取れない初期だけ3:4相当で仮配置。
+    const vw = video?.videoWidth || 3;
+    const vh = video?.videoHeight || 4;
+    vf.style.aspectRatio = String(vw / vh);
+    vf.style.flex = '0 0 auto';
+    vf.style.height = 'auto';
+    vf.style.maxHeight = 'calc(100dvh - 250px)';
+    vf.style.minHeight = '0';
   } else {
-    // デフォルトは4:3固定ではなく、少し縦に広い標準カメラ風の基準枠。
     const ar = getCameraTargetRatio(cfg.aspectRatio);
     vf.style.aspectRatio = String(ar);
     vf.style.flex = '0 0 auto';
@@ -760,7 +764,7 @@ document.addEventListener('DOMContentLoaded', () => {
   on('btn-wide-camera',    activateWideCamera);
   on('btn-save-unsaved',   () => { if (typeof saveUnsavedPhotosToDevice === 'function') saveUnsavedPhotosToDevice(); });
 
-  const RATIOS = ['default', 'full', '16/9', '21/9'];
+  const RATIOS = ['full', 'default', '16/9', '21/9'];
   if (cfg.aspectRatio === '4/3') cfg.aspectRatio = 'default';
   let ratioIdx = Math.max(0, RATIOS.indexOf(cfg.aspectRatio));
   document.querySelectorAll('.ratio-btn').forEach(btn => {

@@ -6,7 +6,7 @@
   <title>Scanner + Camera</title>
 
   <!-- PWA -->
-  <link rel="manifest" href="manifest.json?v=fix19"/>
+  <link rel="manifest" href="manifest.json?v=fix21"/>
   <meta name="mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -655,6 +655,39 @@
       width:calc(100% - 20px) !important;
       height:calc(100% - 20px) !important;
     }
+
+
+    /* FIX21 FINAL: 拡大しないカメラ表示。FULL/デフォルトは取得映像を切らずに表示・保存する */
+    #pg-camera.full-preview #cam-video,
+    body.cam-full-mode #pg-camera #cam-video,
+    #pg-camera.default-preview #cam-video{
+      object-fit:contain !important;
+      object-position:center center !important;
+      position:absolute !important;
+      inset:0 !important;
+      width:100% !important;
+      height:100% !important;
+      transform:none !important;
+      background:#000 !important;
+    }
+    #pg-camera.default-preview #cam-vf{
+      background:#000 !important;
+      overflow:hidden !important;
+    }
+    #pg-camera.full-preview #cam-vf,
+    body.cam-full-mode #pg-camera #cam-vf{
+      background:#000 !important;
+      overflow:hidden !important;
+    }
+    #pg-camera.full-preview #cam-range-box,
+    body.cam-full-mode #pg-camera #cam-range-box,
+    #pg-camera.default-preview #cam-range-box{
+      width:calc(100% - 20px) !important;
+      height:calc(100% - 20px) !important;
+      max-width:none !important;
+      max-height:none !important;
+    }
+
 </style>
 </head>
 <body class="theme-cyan">
@@ -832,8 +865,8 @@
       <!-- アスペクト比選択セクション [INTEGRATED] -->
       <div class="ratio-row" id="ratio-row">
         <span class="ratio-lbl">ASPECT:</span>
-        <button class="ratio-btn on" data-r="default">デフォルト</button>
         <button class="ratio-btn" data-r="full">FULL</button>
+        <button class="ratio-btn on" data-r="default">デフォルト</button>
         <button class="ratio-btn" data-r="16/9">16:9</button>
         <button class="ratio-btn" data-r="21/9">21:9</button>
       </div>
@@ -1013,7 +1046,7 @@
     <div class="settings-divider"></div>
     <div class="settings-ver">SCANNER + CAMERA · v4.1</div>
     <div class="app-update-row">
-      <span class="app-version-pill" id="app-version-text">VERSION FIX19</span>
+      <span class="app-version-pill" id="app-version-text">VERSION FIX21</span>
       <span class="save-log-pill" id="save-log-text">保存結果: なし</span>
       <button class="settings-btn update" id="btn-force-update" type="button">更新</button>
     </div>
@@ -1089,13 +1122,13 @@
 <div class="toast" id="toast"></div>
 
 <!-- ==================== JSモジュールの読み込み ==================== -->
-<script src="state.js?v=fix19"></script>
-<script src="utils.js?v=fix19"></script>
-<script src="storage.js?v=fix19"></script>
-<script src="scanner.js?v=fix19"></script>
-<script src="camera.js?v=fix19"></script>
-<script src="photos.js?v=fix19"></script>
-<script src="main.js?v=fix19"></script>
+<script src="state.js?v=fix21"></script>
+<script src="utils.js?v=fix21"></script>
+<script src="storage.js?v=fix21"></script>
+<script src="scanner.js?v=fix21"></script>
+<script src="camera.js?v=fix21"></script>
+<script src="photos.js?v=fix21"></script>
+<script src="main.js?v=fix21"></script>
 
 <!-- Service Worker 登録 -->
 <script>
