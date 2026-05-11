@@ -1,6 +1,6 @@
 'use strict';
 
-const APP_VERSION = 'FIX21';
+const APP_VERSION = 'FIX23';
 
 /* ════ キー定数 ════ */
 const SETTINGS_KEY = 'sc-settings-v1';
@@ -23,7 +23,8 @@ let cfg = {
   outdoorMode:    false,
   cameraDeviceId: '',
   cameraDeviceLabel: '',
-  preferUltraWide: true
+  preferUltraWide: true,
+  _wideMinZoom: 1
 };
 
 /* ════ データ ════ */

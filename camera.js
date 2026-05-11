@@ -89,11 +89,59 @@ function scoreWideCamera(device) {
   return score;
 }
 
-async function chooseBestWideCameraId() {
+
+async function discoverWidestBackCamera(qBase) {
+  // FIX23: 表示比率ではなく、Webに公開されている背面カメラの中から
+  // できるだけ広い候補を探す。ラベルだけでなく zoom.min も見て判定する。
   const cams = await getVideoInputs();
-  if (!cams.length) return '';
-  const sorted = cams.slice().sort((a, b) => scoreWideCamera(b) - scoreWideCamera(a));
-  const best = sorted[0];
+  if (!cams.length || !navigator.mediaDevices?.getUserMedia) return null;
+
+  let candidates = cams.filter(d => !/front|user|face|前面|イン/i.test(d.label || ''));
+  if (!candidates.length) candidates = cams;
+
+  // 無駄に何度もカメラを開かないよう最大6候補まで。広角っぽい名前を優先。
+  candidates = candidates
+    .slice()
+    .sort((a, b) => scoreWideCamera(b) - scoreWideCamera(a))
+    .slice(0, 6);
+
+  let best = null;
+  for (const d of candidates) {
+    let stream = null;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { deviceId: { exact: d.deviceId }, width: qBase.width, height: qBase.height },
+        audio: false
+      });
+      const track = stream.getVideoTracks()[0];
+      const caps = track?.getCapabilities?.() || {};
+      const settings = track?.getSettings?.() || {};
+      const label = d.label || track?.label || '';
+      const minZoom = (caps.zoom && typeof caps.zoom.min === 'number') ? caps.zoom.min : 1;
+
+      let score = scoreWideCamera({ label });
+      // zoom.min < 1 はChromeが超広角相当を出せる強い証拠
+      if (minZoom < 1) score += 220 + Math.round((1 - minZoom) * 100);
+      // 望遠っぽい名前は避ける
+      if (/tele|望遠|macro|マクロ/i.test(label)) score -= 120;
+      // 解像度が取れている候補を少し優遇。ただしFOVとは別なので加点は小さくする。
+      if ((settings.width || 0) >= 1280) score += 5;
+      if ((settings.height || 0) >= 720) score += 5;
+
+      const item = { deviceId: d.deviceId, label, minZoom, score };
+      if (!best || item.score > best.score) best = item;
+    } catch (e) {
+      // 端末によっては exact deviceId が使えない候補があるので無視
+      console.warn('[WideDiscover] skip camera:', d.label || d.deviceId, e.name || e.message);
+    } finally {
+      if (stream) stream.getTracks().forEach(t => t.stop());
+    }
+  }
+  return best;
+}
+
+async function chooseBestWideCameraId(qBase) {
+  const best = await discoverWidestBackCamera(qBase || (CAM_QUALITY?.mid || { width:{ideal:1280}, height:{ideal:720} }));
   return best?.deviceId || '';
 }
 
@@ -153,6 +201,16 @@ async function activateWideCamera() {
   }
 
   // 次にChromeが公開している別背面カメラへ切替を試す。
+  try {
+    const qBase = (typeof CAM_QUALITY !== 'undefined' && CAM_QUALITY[cfg.camQuality]) ? CAM_QUALITY[cfg.camQuality] : { width:{ideal:1280}, height:{ideal:720} };
+    const best = await discoverWidestBackCamera(qBase);
+    if (best && best.deviceId && best.deviceId !== (camTrack?.getSettings?.().deviceId || cfg.cameraDeviceId)) {
+      await switchToCameraDevice(best.deviceId, best.label || '広角候補');
+      if (typeof showToast === 'function') showToast('広角候補へ切替: ' + ((best.label || '背面カメラ').slice(0, 24)), 'ok', 3000);
+      return;
+    }
+  } catch (e) { console.warn('[Wide] discover switch:', e); }
+
   const ok = await switchToNextBackCamera(true);
   if (!ok && typeof showToast === 'function') {
     showToast('[WIDE03] この端末/ブラウザでは広角カメラを取得できません', 'warn', 3500);
@@ -161,14 +219,23 @@ async function activateWideCamera() {
 
 async function autoApplyWideIfAvailable(track) {
   if (!cfg.preferUltraWide || !track) return;
-  // ユーザーが明示的にズーム値を保存している場合は尊重する。ただし未設定なら最小倍率へ寄せる。
-  if (cfg.zoom) return;
+  // FIX23: 商品撮影では広い範囲を最優先。保存済みzoom値より、端末が出せる最小倍率を優先する。
   try {
     const caps = track.getCapabilities?.();
     if (caps?.zoom && typeof caps.zoom.min === 'number' && caps.zoom.min < 1) {
-      await applyZoom(caps.zoom.min);
+      const z = caps.zoom.min;
+      await track.applyConstraints({ advanced: [{ zoom: z }] });
+      cfg.zoom = z;
+      if (typeof saveCfg === 'function') saveCfg();
       const btn = $('btn-wide-camera');
       if (btn) btn.classList.add('on');
+      const zoomSlider = $('zoom-slider');
+      const zoomLevel = $('zoom-level');
+      if (zoomSlider) zoomSlider.value = z;
+      if (zoomLevel) {
+        zoomLevel.textContent = `${z.toFixed(2)}x`;
+        zoomLevel.style.color = '#ffaa44';
+      }
     }
   } catch (e) {
     console.warn('[Wide] auto apply:', e);

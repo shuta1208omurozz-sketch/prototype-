@@ -6,7 +6,7 @@
   <title>Scanner + Camera</title>
 
   <!-- PWA -->
-  <link rel="manifest" href="manifest.json?v=fix21"/>
+  <link rel="manifest" href="manifest.json?v=fix23"/>
   <meta name="mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -657,7 +657,7 @@
     }
 
 
-    /* FIX21 FINAL: 拡大しないカメラ表示。FULL/デフォルトは取得映像を切らずに表示・保存する */
+    /* FIX23 FINAL: 拡大しないカメラ表示。FULL/デフォルトは取得映像を切らずに表示・保存する */
     #pg-camera.full-preview #cam-video,
     body.cam-full-mode #pg-camera #cam-video,
     #pg-camera.default-preview #cam-video{
@@ -1046,7 +1046,7 @@
     <div class="settings-divider"></div>
     <div class="settings-ver">SCANNER + CAMERA · v4.1</div>
     <div class="app-update-row">
-      <span class="app-version-pill" id="app-version-text">VERSION FIX21</span>
+      <span class="app-version-pill" id="app-version-text">VERSION FIX23</span>
       <span class="save-log-pill" id="save-log-text">保存結果: なし</span>
       <button class="settings-btn update" id="btn-force-update" type="button">更新</button>
     </div>
@@ -1122,13 +1122,13 @@
 <div class="toast" id="toast"></div>
 
 <!-- ==================== JSモジュールの読み込み ==================== -->
-<script src="state.js?v=fix21"></script>
-<script src="utils.js?v=fix21"></script>
-<script src="storage.js?v=fix21"></script>
-<script src="scanner.js?v=fix21"></script>
-<script src="camera.js?v=fix21"></script>
-<script src="photos.js?v=fix21"></script>
-<script src="main.js?v=fix21"></script>
+<script src="state.js?v=fix23"></script>
+<script src="utils.js?v=fix23"></script>
+<script src="storage.js?v=fix23"></script>
+<script src="scanner.js?v=fix23"></script>
+<script src="camera.js?v=fix23"></script>
+<script src="photos.js?v=fix23"></script>
+<script src="main.js?v=fix23"></script>
 
 <!-- Service Worker 登録 -->
 <script>

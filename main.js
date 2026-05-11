@@ -387,7 +387,23 @@ async function startGlobalCamera(forceRestart = false) {
 
     const qBase = CAM_QUALITY[cfg.camQuality] || CAM_QUALITY.mid;
 
-    // FIX21: 標準カメラより狭い場合に備え、選択済みdeviceIdがあればその背面カメラを使う。
+    // FIX23: デフォルトが狭い問題はCSSではなく、掴んでいる背面カメラ/zoomが原因になりやすい。
+    // 起動時に広角候補を探し、可能ならそのdeviceIdを使う。
+    if (cfg.preferUltraWide && !cfg.cameraDeviceId && typeof discoverWidestBackCamera === 'function') {
+      try {
+        const best = await discoverWidestBackCamera(qBase);
+        if (best?.deviceId) {
+          cfg.cameraDeviceId = best.deviceId;
+          cfg.cameraDeviceLabel = best.label || '';
+          cfg._wideMinZoom = best.minZoom || 1;
+          if (typeof saveCfg === 'function') saveCfg();
+          console.log('[Camera] wide candidate selected:', best);
+        }
+      } catch (e) {
+        console.warn('[Camera] wide discovery failed:', e);
+      }
+    }
+
     // aspectRatioで縛らず、端末が出せる広い映像を取得する。
     let videoConstraints = {
       facingMode,
@@ -424,9 +440,17 @@ async function startGlobalCamera(forceRestart = false) {
     }
     globalCamTrack = globalStream.getVideoTracks()[0];
     try {
-      const s = globalCamTrack.getSettings?.() || {};
-      if (s.deviceId) cfg.cameraDeviceId = s.deviceId;
-    } catch (_) {}
+      const st = globalCamTrack.getSettings?.() || {};
+      const caps = globalCamTrack.getCapabilities?.() || {};
+      if (st.deviceId) cfg.cameraDeviceId = st.deviceId;
+      // FIX23: 0.5x/0.6x等に対応している場合は、商品撮影優先で自動的に最小倍率へ寄せる。
+      if (cfg.preferUltraWide && caps.zoom && typeof caps.zoom.min === 'number' && caps.zoom.min < 1) {
+        const z = caps.zoom.min;
+        await globalCamTrack.applyConstraints({ advanced: [{ zoom: z }] });
+        cfg.zoom = z;
+      }
+      if (typeof saveCfg === 'function') saveCfg();
+    } catch (e) { console.warn('[Camera] wide min zoom apply failed:', e); }
     return globalStream;
   } finally {
     _isStartingGlobal = false;
