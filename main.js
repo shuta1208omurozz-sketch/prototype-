@@ -380,15 +380,12 @@ async function startGlobalCamera(forceRestart = false) {
 
     const qBase = CAM_QUALITY[cfg.camQuality] || CAM_QUALITY.mid;
 
-    // FIX16: 「full」はセンサー全体ではなく、4:3と同じ横幅を維持して高さだけ増やすモード。
-    // getUserMediaの制約も4:3基準に固定し、FULL切替でレンズ/クロップ/FOVが変わらないようにする。
-    const ratioForStream = (cfg.aspectRatio === 'full') ? '4/3' : (cfg.aspectRatio || '4/3');
-    const [arW, arH] = ratioForStream.split('/').map(Number);
+    // FIX17: 普通のスマホカメラ寄りにするため、ストリーム取得は比率で縛らない。
+    // FULLを基準に広い映像を取得し、4:3/16:9/21:9はプレビューと同じ範囲を後段でクロップする。
     const videoConstraints = {
       facingMode,
       width: qBase.width,
-      height: qBase.height,
-      aspectRatio: { ideal: arW / arH }
+      height: qBase.height
     };
 
     globalStream = await navigator.mediaDevices.getUserMedia({

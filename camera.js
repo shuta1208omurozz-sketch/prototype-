@@ -69,12 +69,12 @@ function applyCameraVideoFit() {
   const video = $('cam-video');
   const page = $('pg-camera');
   if (!video) return;
-  const isTallPreview = activeTab === 'camera' && cfg && cfg.aspectRatio === 'full' && !forceHorizontal;
+  const isFullPreview = activeTab === 'camera' && cfg && cfg.aspectRatio === 'full' && !forceHorizontal;
 
-  if (page) page.classList.toggle('full-preview', isTallPreview);
+  if (page) page.classList.toggle('full-preview', isFullPreview);
 
-  // FIX16: fullは4:3と同じ横方向スケールのまま、高さだけ増やす。
-  // プレビューも保存も同じ「中央クロップ計算」に合わせるため、表示は常にcover固定。
+  // FIX17: FULLを基準にした普通のカメラ方式。
+  // 画面いっぱいに表示し、保存側はgetCaptureCrop()で同じ範囲だけ切り出す。
   video.style.objectFit = 'cover';
   video.style.objectPosition = 'center center';
   video.style.position = 'absolute';
@@ -90,36 +90,37 @@ function applyCameraVideoFit() {
 }
 
 function getCaptureCrop(vw, vh) {
-  // 4:3: 横幅全体を使う標準クロップ。
-  // full: 4:3と同じ横幅全体を使い、縦だけ増やす。横方向は絶対に再計算しない。
-  const isTall = cfg.aspectRatio === 'full';
-  const targetRatio = isTall ? 1 : (() => {
+  // FIX17: プレビューと保存を完全一致させる。
+  // CSSの object-fit: cover と同じ考え方で、表示コンテナの比率に合わせて中央クロップする。
+  const vf = $('cam-vf');
+  let targetRatio;
+
+  if (cfg.aspectRatio === 'full') {
+    const cw = vf?.clientWidth || vf?.offsetWidth || 0;
+    const ch = vf?.clientHeight || vf?.offsetHeight || 0;
+    // FULLは画面上のプレビュー枠そのものの比率を使う = 普通のカメラ風。
+    targetRatio = (cw > 0 && ch > 0) ? (cw / ch) : (vw / vh);
+  } else {
     const [a, b] = (cfg.aspectRatio || '4/3').split('/').map(Number);
-    return (a && b) ? a / b : 4 / 3;
-  })();
+    targetRatio = (a && b) ? (a / b) : (4 / 3);
+  }
 
   const videoRatio = vw / vh;
   let sw, sh, sx, sy;
-
-  if (isTall) {
-    // ここが今回の要点: 4:3と同じく横幅は全て使う。
-    // 縦だけ 1:1 まで増やす。映像が足りない場合だけvhまで。
-    sw = vw;
-    sh = Math.min(vh, vw / targetRatio);
-    sx = 0;
-    sy = Math.max(0, (vh - sh) / 2);
-  } else if (videoRatio > targetRatio) {
+  if (videoRatio > targetRatio) {
+    // 映像が横に広い → 左右を切る
     sh = vh;
     sw = vh * targetRatio;
     sx = (vw - sw) / 2;
     sy = 0;
   } else {
+    // 映像が縦に広い → 上下を切る
     sw = vw;
     sh = vw / targetRatio;
     sx = 0;
     sy = (vh - sh) / 2;
   }
-  return { sx, sy, sw, sh, targetRatio, isTall };
+  return { sx, sy, sw, sh, targetRatio, isFull: cfg.aspectRatio === 'full' };
 }
 
 /* ════ カメラ停止 ════ */
@@ -448,14 +449,14 @@ function applyCameraViewportLayout() {
   vf.style.position = 'relative';
 
   if (cfg.aspectRatio === 'full') {
-    // FIX16: FULLボタンは「縦拡張」モードとして扱う。
-    // 4:3と横幅感を揃え、高さだけ4:3より増やす。
-    vf.style.aspectRatio = '1 / 1';
-    vf.style.flex = '0 0 auto';
+    // FIX17: FULLは通常カメラ風。残りの表示領域を使って大きく表示する。
+    vf.style.aspectRatio = 'auto';
+    vf.style.flex = '1 1 auto';
     vf.style.height = 'auto';
-    vf.style.maxHeight = 'calc(100dvh - 290px)';
+    vf.style.maxHeight = 'none';
     vf.style.minHeight = '0';
   } else {
+    // 4:3 / 16:9 / 21:9 はFULL映像から指定比率で切り出す枠。
     vf.style.aspectRatio = cfg.aspectRatio || '4 / 3';
     vf.style.flex = '0 0 auto';
     vf.style.height = 'auto';
@@ -566,9 +567,9 @@ function setAspectRatio(ratio) {
   applyCameraVideoFit();
   showCropOverlay(ratio);
   updateCameraGuide();
-  const sameFourThreeStream = (prevRatio === '4/3' && ratio === 'full') || (prevRatio === 'full' && ratio === '4/3');
-  if (camActive && !sameFourThreeStream) startCam(true); // 画質/比率変更時のみ再起動
-  else if (camActive) { applyCameraVideoFit(); updateCameraGuide(); updatePreview(); }
+  // FIX17: ストリームは比率で縛らないため、比率切替ではカメラ再起動しない。
+  // プレビュー枠と保存クロップだけ変更するので、切替が速くなりレンズ/FOVも変わりにくい。
+  if (camActive) { applyCameraVideoFit(); updateCameraGuide(); updatePreview(); }
   else if (typeof applyCfgToUI === 'function') applyCfgToUI();
 }
 

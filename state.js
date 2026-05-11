@@ -1,6 +1,6 @@
 'use strict';
 
-const APP_VERSION = 'FIX16';
+const APP_VERSION = 'FIX17';
 
 /* ════ キー定数 ════ */
 const SETTINGS_KEY = 'sc-settings-v1';
