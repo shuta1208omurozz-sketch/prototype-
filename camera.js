@@ -25,7 +25,7 @@ function updateCameraGuide() {
   if (cfg.aspectRatio && cfg.aspectRatio !== 'full') {
     let target;
     if (cfg.aspectRatio === 'default' || cfg.aspectRatio === '4/3') {
-      // FIX26: デフォルトは商品撮影の最大範囲寄り。枠で範囲を狭めない。
+      // FIX28: デフォルトは商品撮影の最大範囲寄り。枠で範囲を狭めない。
       target = availW / availH;
       text = 'DEFAULT';
     } else {
@@ -71,6 +71,39 @@ function setZoomPanel(open, forceHide = false) {
   btn.textContent = zoomPanelOpen ? '× 倍率を閉じる' : '🔍 倍率';
 }
 
+function updateWideStatus(reason = '') {
+  const el = $('wide-status');
+  if (!el) return;
+  try {
+    const track = camTrack || globalCamTrack;
+    const st = track?.getSettings?.() || {};
+    const caps = track?.getCapabilities?.() || {};
+    const z = (typeof st.zoom === 'number') ? st.zoom : (typeof cfg.zoom === 'number' ? cfg.zoom : null);
+    const minZ = (caps.zoom && typeof caps.zoom.min === 'number') ? caps.zoom.min : (typeof cfg._wideMinZoom === 'number' ? cfg._wideMinZoom : null);
+    const label = String(cfg.cameraDeviceLabel || track?.label || '').toLowerCase();
+    const wideByZoom = typeof z === 'number' && z < 0.99;
+    const wideByLabel = /ultra|0\.5|0,5|wide|広角|超広角/.test(label);
+    const widePossible = typeof minZ === 'number' && minZ < 0.99;
+    el.classList.toggle('on', wideByZoom || wideByLabel);
+    el.classList.remove('err');
+    if (wideByZoom) el.textContent = 'WIDE ' + z.toFixed(2) + 'x';
+    else if (wideByLabel) el.textContent = 'WIDE';
+    else if (typeof z === 'number') el.textContent = (widePossible ? 'WIDE可 ' : '標準 ') + z.toFixed(2) + 'x';
+    else el.textContent = '標準';
+    el.title = (cfg.cameraDeviceLabel || track?.label || 'カメラ') + (reason ? ' / ' + reason : '');
+  } catch (e) {
+    el.textContent = 'WIDE ?';
+    el.classList.add('err');
+  }
+}
+
+function markWideStatusError(msg = 'WIDE不可') {
+  const el = $('wide-status');
+  if (!el) return;
+  el.textContent = msg;
+  el.classList.remove('on');
+  el.classList.add('err');
+}
 
 function getVideoInputs() {
   if (!navigator.mediaDevices?.enumerateDevices) return Promise.resolve([]);
@@ -216,6 +249,7 @@ async function activateWideCamera() {
     }
   } catch (e) {
     console.warn('[Wide] force reacquire failed:', e);
+    markWideStatusError('WIDE失敗');
     if (typeof showToast === 'function') showToast('[WIDE04] 広角再取得に失敗: ' + (e.name || e.message || 'unknown'), 'warn', 4000);
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = '広角再取得'; }
@@ -241,6 +275,7 @@ async function autoApplyWideIfAvailable(track, force = false) {
         zoomLevel.textContent = `${z.toFixed(2)}x`;
         zoomLevel.style.color = '#ffaa44';
       }
+      updateWideStatus('auto-wide');
     }
   } catch (e) {
     console.warn('[Wide] auto apply:', e);
@@ -331,7 +366,7 @@ function resumeCameraAfterReturn(reason = 'resume') {
   if (document.hidden) return;
   // pageshow / focus / visibilitychange が連続で走るので多重起動を抑制
   const now = Date.now();
-  if (now - _lastResumeAt < 700) return;
+  if (now - _lastResumeAt < 1100) return;
   _lastResumeAt = now;
 
   setTimeout(() => {
@@ -354,13 +389,14 @@ function resumeCameraAfterReturn(reason = 'resume') {
       console.error('[ResumeCamera]', reason, e);
       if (typeof showToast === 'function') showToast('[E050] 復帰時のカメラ再起動に失敗: ' + (e.message || e.name), 'err', 4000);
     }
-  }, 180);
+  }, 250);
 }
 
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) pauseAllCameraForBackground();
   else resumeCameraAfterReturn('visibilitychange');
 });
+window.addEventListener('pagehide', () => pauseAllCameraForBackground());
 
 // iPhone Safari/PWAは戻った時に visibilitychange だけでは足りないことがある
 window.addEventListener('pageshow', e => {
@@ -411,6 +447,9 @@ async function startCam(forceRestart = false) {
         if (typeof updateCameraModeClass === 'function') updateCameraModeClass();
         applyCameraVideoFit();
         camTrack  = stream.getVideoTracks()[0];
+        if (camTrack) camTrack.onended = () => {
+          if (!document.hidden && activeTab === 'camera') resumeCameraAfterReturn('track-ended');
+        };
         camActive = true;
         initCamFeatures(camTrack);
         showCropOverlay(cfg.aspectRatio);
@@ -456,6 +495,7 @@ async function initCamFeatures(track) {
     }
 
     await autoApplyWideIfAvailable(track);
+    updateWideStatus('init');
     const wideBtn = $('btn-wide-camera');
     if (wideBtn) {
       wideBtn.style.display = 'inline-flex';
@@ -491,6 +531,7 @@ async function applyZoom(val) {
     if (lbl) { lbl.textContent = `${val.toFixed(2)}x`; lbl.style.color = val < 1 ? '#ffaa44' : 'var(--accent)'; }
     const wideBtn = $('btn-wide-camera');
     if (wideBtn) wideBtn.classList.toggle('on', val < 1);
+    updateWideStatus('zoom');
   } catch (e) { console.error('[Camera] Zoom:', e); }
 }
 
@@ -634,7 +675,7 @@ function applyCameraViewportLayout() {
   // FIX25: すべての比率で範囲優先。比率で映像を切らない。
   // FULLは縦方向の表示スペースを多く取り、デフォルト/他比率も取得映像の比率を基本にする。
   if (cfg.aspectRatio === 'full') {
-    // FIX26: FULLは縦写真用だが、専用フル画面UIにはしない。通常UIのまま少し縦を使う。
+    // FIX28: FULLは縦写真用だが、専用フル画面UIにはしない。通常UIのまま少し縦を使う。
     vf.style.aspectRatio = 'auto';
     vf.style.flex = '1 1 auto';
     vf.style.height = 'auto';
@@ -659,7 +700,7 @@ function updateCameraModeClass() {
     page.classList.toggle('default-preview', cfg.aspectRatio === 'default' || cfg.aspectRatio === '4/3');
     page.classList.toggle('full-preview', !!full);
   }
-  // FIX26: FULLでもヘッダー/タブ/操作UIは通常のまま。cam-full-modeによる専用UIは使わない。
+  // FIX28: FULLでもヘッダー/タブ/操作UIは通常のまま。cam-full-modeによる専用UIは使わない。
   document.body.classList.remove('cam-full-mode');
   document.body.classList.toggle('fullscreen', document.fullscreenElement != null || document.webkitFullscreenElement != null);
 }

@@ -657,7 +657,7 @@
     }
 
 
-    /* FIX26 FINAL: 拡大しないカメラ表示。FULL/デフォルトは取得映像を切らずに表示・保存する */
+    /* FIX28 FINAL: 拡大しないカメラ表示。FULL/デフォルトは取得映像を切らずに表示・保存する */
     #pg-camera.full-preview #cam-video,
     body.cam-full-mode #pg-camera #cam-video,
     #pg-camera.default-preview #cam-video{
@@ -690,10 +690,10 @@
 
 
 
-    /* FIX26: 商品撮影優先。グループ選択はカメラ画面から常時消す */
+    /* FIX28: 商品撮影優先。グループ選択はカメラ画面から常時消す */
     #pg-camera #cam-group-bar{ display:none !important; }
 
-    /* FIX26: カメラ内ボタンを同じ高さで扱いやすく */
+    /* FIX28: カメラ内ボタンを同じ高さで扱いやすく */
     #pg-camera #btn-native-camera,
     #pg-camera #btn-wide-camera,
     #pg-camera #btn-save-unsaved,
@@ -720,7 +720,7 @@
       font-size:10px;
     }
 
-    /* FIX26: 最近の写真は操作ボタンに埋もれない位置・高さへ */
+    /* FIX28: 最近の写真は操作ボタンに埋もれない位置・高さへ */
     #pg-camera #thumb-strip-wrap{
       z-index:80 !important;
       margin:8px 8px 6px !important;
@@ -743,7 +743,7 @@
       background:rgba(3,10,18,.86) !important;
     }
 
-    /* FIX26: デフォルト/FULL/比率変更で勝手に範囲を狭めない。映像全体を優先 */
+    /* FIX28: デフォルト/FULL/比率変更で勝手に範囲を狭めない。映像全体を優先 */
     #pg-camera #cam-video{
       object-fit:contain !important;
       object-position:center center !important;
@@ -752,7 +752,7 @@
 
 
 
-    /* FIX26 final override: FULLでもUIは通常のまま。デフォルトは最大範囲優先 */
+    /* FIX28 final override: FULLでもUIは通常のまま。デフォルトは最大範囲優先 */
     body.cam-full-mode .hdr,
     body.cam-full-mode .tabs{ display:flex !important; }
     body.cam-full-mode #app{ height:auto !important; overflow:visible !important; }
@@ -774,6 +774,44 @@
     #pg-camera.default-preview #cam-range-box{
       width:calc(100% - 20px) !important;
       height:calc(100% - 20px) !important;
+    }
+
+  
+    /* FIX28: 広角/倍率状態表示 */
+    #pg-camera .wide-status-pill{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      min-width:64px;
+      height:32px;
+      padding:0 8px;
+      border-radius:999px;
+      font-family:'Share Tech Mono',monospace;
+      font-size:10px;
+      letter-spacing:.4px;
+      color:#9fdfff;
+      border:1px solid rgba(0,212,255,.38);
+      background:rgba(3,10,18,.78);
+      white-space:nowrap;
+    }
+    #pg-camera .wide-status-pill.on{
+      color:#00161f;
+      background:rgba(255,170,68,.92);
+      border-color:rgba(255,170,68,.95);
+    }
+    #pg-camera .wide-status-pill.err{
+      color:#fff;
+      background:rgba(255,80,110,.72);
+      border-color:rgba(255,80,110,.95);
+    }
+    /* FIX28: iPhoneは最近写真を軽量・操作しやすく */
+    body.ios-like #pg-camera #thumb-strip .mini-thumb{
+      flex-basis:54px !important;
+      width:54px !important;
+      height:54px !important;
+    }
+    body.ios-like #pg-camera #thumb-strip-wrap{
+      max-height:96px !important;
     }
 
   </style>
@@ -968,7 +1006,7 @@
         <button id="btn-horizontal" class="btn-sub" title="横固定モード" aria-label="横固定モード">⟲</button>
         <button id="btn-direction" class="btn-sub" title="撮影方向を反転" aria-label="撮影方向を反転" style="font-size:13px;font-family:'Share Tech Mono',monospace;letter-spacing:-1px;">→</button>
       </div>
-      <div class="zoom-toggle-row"><button id="btn-zoom-toggle" aria-label="倍率スライダー表示切替">🔍 倍率</button><button id="btn-wide-camera" aria-label="広角カメラを再取得">広角再取得</button><button id="btn-native-camera" aria-label="純正カメラで撮影して取り込み">純正</button><button id="btn-save-unsaved" aria-label="未保存の写真を保存">保存</button><input id="native-camera-input" type="file" accept="image/*" capture="environment" style="display:none"></div>
+      <div class="zoom-toggle-row"><button id="btn-zoom-toggle" aria-label="倍率スライダー表示切替">🔍 倍率</button><button id="btn-wide-camera" aria-label="広角カメラを再取得">広角再取得</button><span id="wide-status" class="wide-status-pill">WIDE --</span><button id="btn-native-camera" aria-label="純正カメラで撮影して取り込み">純正</button><button id="btn-save-unsaved" aria-label="未保存の写真を保存">保存</button><input id="native-camera-input" type="file" accept="image/*" capture="environment" style="display:none"></div>
       <div class="save-status-row"><span id="unsaved-count-inline">未保存 0</span><span id="save-result-mini"></span></div>
       <!-- ズームスライダー: 倍率1未満の超広角にも対応 -->
       <div class="zoom-controls" id="zoom-controls">
@@ -1134,7 +1172,7 @@
     <div class="settings-divider"></div>
     <div class="settings-ver">SCANNER + CAMERA · v4.1</div>
     <div class="app-update-row">
-      <span class="app-version-pill" id="app-version-text">VERSION FIX26</span>
+      <span class="app-version-pill" id="app-version-text">VERSION FIX28</span>
       <span class="save-log-pill" id="save-log-text">保存結果: なし</span>
       <button class="settings-btn update" id="btn-force-update" type="button">更新</button>
     </div>

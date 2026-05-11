@@ -78,7 +78,7 @@ function renderPhotoGrid() {
       imgWrap.appendChild(gb);
     }
     const img = document.createElement('img');
-    img.src = p.thumbDataUrl || p.dataUrl; img.loading = 'lazy';
+    img.src = p.thumbDataUrl || p.dataUrl; img.loading = 'lazy'; img.decoding = 'async'; img.fetchPriority = 'low';
     imgWrap.appendChild(img);
     const saveBadge = createSaveBadge(p);
     if (saveBadge) imgWrap.appendChild(saveBadge);
@@ -104,18 +104,24 @@ function updateThumbStrip() {
   wrap.style.display = '';
   const strip = $('thumb-strip');
   strip.innerHTML = '';
-  photos.slice(0, 10).forEach(p => {
+  const isIOS = (typeof IS_IOS_LIKE !== 'undefined' && IS_IOS_LIKE);
+  const maxThumbs = isIOS ? 6 : 10;
+  photos.slice(0, maxThumbs).forEach(p => {
     const d   = document.createElement('div'); d.className = 'mini-thumb';
-    const img = document.createElement('img'); img.src = p.thumbDataUrl || p.dataUrl;
+    const img = document.createElement('img');
+    img.loading = 'lazy';
+    img.decoding = 'async';
+    img.fetchPriority = 'low';
+    img.src = p.thumbDataUrl || p.dataUrl;
     d.appendChild(img);
     const saveBadgeMini = createSaveBadge(p);
     if (saveBadgeMini) d.appendChild(saveBadgeMini);
     d.onclick = () => openLightbox(p);
     strip.appendChild(d);
   });
-  if (photos.length > 10) {
+  if (photos.length > maxThumbs) {
     const m = document.createElement('button');
-    m.className = 'more-btn'; m.textContent = '+' + (photos.length - 10);
+    m.className = 'more-btn'; m.textContent = '+' + (photos.length - maxThumbs);
     m.onclick = () => document.querySelector('[data-tab="photos"]').click();
     strip.appendChild(m);
   }

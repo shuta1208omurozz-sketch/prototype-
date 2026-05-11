@@ -6,6 +6,10 @@ function normalizeAspectRatioSetting() {
   if (!cfg.aspectRatio || cfg.aspectRatio === '4/3') cfg.aspectRatio = 'default';
 }
 
+function updateDeviceClassUI() {
+  document.body.classList.toggle('ios-like', !!(typeof IS_IOS_LIKE !== 'undefined' && IS_IOS_LIKE));
+}
+
 function updateAppVersionUI() {
   const el = $('app-version-text');
   if (el) el.textContent = 'VERSION ' + (typeof APP_VERSION !== 'undefined' ? APP_VERSION : 'UNKNOWN');
@@ -476,6 +480,7 @@ function stopGlobalCamera() {
 /* ════ 初期化 ════ */
 async function init() {
   loadCfg();
+  updateDeviceClassUI();
   if (typeof normalizeAspectRatioSetting === 'function') normalizeAspectRatioSetting();
   MAX_PH = cfg.maxPhotos || 200;
   try { bcHistory = JSON.parse(localStorage.getItem(BC_KEY) || '[]'); } catch(_) { bcHistory = []; }
