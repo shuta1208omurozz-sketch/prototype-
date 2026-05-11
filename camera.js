@@ -70,13 +70,35 @@ function applyCameraVideoFit() {
   const page = $('pg-camera');
   if (!video) return;
   const isFullPreview = activeTab === 'camera' && cfg && cfg.aspectRatio === 'full' && !forceHorizontal;
-  // FIX13: FULLは普通のカメラ寄り。縮小せず、上下を軽く切って横幅を広く見せる
-  video.style.objectFit = 'cover';
-  video.style.objectPosition = 'center center';
-  video.style.width = '100%';
-  video.style.height = '100%';
-  video.style.backgroundColor = '#000';
+
   if (page) page.classList.toggle('full-preview', isFullPreview);
+
+  if (isFullPreview) {
+    // FIX14: FULLは4:3の横幅感を維持する「縦拡張」表示。
+    // videoをコンテナ幅に合わせ、上下だけをoverflowで切る/増やす。
+    video.style.objectFit = 'fill';
+    video.style.objectPosition = 'center center';
+    video.style.position = 'absolute';
+    video.style.left = '0';
+    video.style.top = '50%';
+    video.style.width = '100%';
+    video.style.height = 'auto';
+    video.style.minHeight = '0';
+    video.style.maxWidth = 'none';
+    video.style.transform = 'translateY(-50%)';
+  } else {
+    video.style.objectFit = 'cover';
+    video.style.objectPosition = 'center center';
+    video.style.position = '';
+    video.style.left = '';
+    video.style.top = '';
+    video.style.width = '100%';
+    video.style.height = '100%';
+    video.style.minHeight = '';
+    video.style.maxWidth = '';
+    if (!forceHorizontal) video.style.transform = '';
+  }
+  video.style.backgroundColor = '#000';
 }
 
 /* ════ カメラ停止 ════ */
@@ -289,23 +311,17 @@ async function takePhoto() {
 
   let sw, sh, sx, sy;
   if (isFull) {
-    // FIX13: FULLも「プレビューで見えている範囲」と同じ範囲を保存する。
-    // object-fit: cover の表示範囲に合わせて、センサー映像を中央クロップする。
+    // FIX14: FULLは4:3の横幅感を維持する「縦拡張」保存。
+    // プレビューでは video をコンテナ幅に合わせているため、保存も必ずセンサー横幅を全て使う。
+    // その上で、画面に見えている高さ分だけ中央から切り出す。
     const vf = $('cam-vf');
     const viewW = vf?.clientWidth || video.clientWidth || vw;
     const viewH = vf?.clientHeight || video.clientHeight || vh;
-    const previewRatio = viewW > 0 && viewH > 0 ? (viewW / viewH) : videoRatio;
-    if (videoRatio > previewRatio) {
-      sh = vh;
-      sw = vh * previewRatio;
-      sx = (vw - sw) / 2;
-      sy = 0;
-    } else {
-      sw = vw;
-      sh = vw / previewRatio;
-      sx = 0;
-      sy = (vh - sh) / 2;
-    }
+    const visibleH = (viewW > 0 && viewH > 0) ? (vw * (viewH / viewW)) : vh;
+    sw = vw;
+    sh = Math.min(vh, Math.max(1, visibleH));
+    sx = 0;
+    sy = Math.max(0, (vh - sh) / 2);
   } else if (videoRatio > tgtRatio) {
     sh = vh; sw = vh * tgtRatio; sx = (vw - sw) / 2; sy = 0;
   } else {
