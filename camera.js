@@ -70,7 +70,7 @@ function applyCameraVideoFit() {
   const page = $('pg-camera');
   if (!video) return;
   const isFullPreview = activeTab === 'camera' && cfg && cfg.aspectRatio === 'full' && !forceHorizontal;
-  // FIX12: FULLは普通のカメラ寄り。縮小せず、上下を軽く切って横幅を広く見せる
+  // FIX13: FULLは普通のカメラ寄り。縮小せず、上下を軽く切って横幅を広く見せる
   video.style.objectFit = 'cover';
   video.style.objectPosition = 'center center';
   video.style.width = '100%';
@@ -289,8 +289,23 @@ async function takePhoto() {
 
   let sw, sh, sx, sy;
   if (isFull) {
-    // FULL: センサー全面、クロップなし
-    sw = vw; sh = vh; sx = 0; sy = 0;
+    // FIX13: FULLも「プレビューで見えている範囲」と同じ範囲を保存する。
+    // object-fit: cover の表示範囲に合わせて、センサー映像を中央クロップする。
+    const vf = $('cam-vf');
+    const viewW = vf?.clientWidth || video.clientWidth || vw;
+    const viewH = vf?.clientHeight || video.clientHeight || vh;
+    const previewRatio = viewW > 0 && viewH > 0 ? (viewW / viewH) : videoRatio;
+    if (videoRatio > previewRatio) {
+      sh = vh;
+      sw = vh * previewRatio;
+      sx = (vw - sw) / 2;
+      sy = 0;
+    } else {
+      sw = vw;
+      sh = vw / previewRatio;
+      sx = 0;
+      sy = (vh - sh) / 2;
+    }
   } else if (videoRatio > tgtRatio) {
     sh = vh; sw = vh * tgtRatio; sx = (vw - sw) / 2; sy = 0;
   } else {
@@ -334,7 +349,7 @@ async function takePhoto() {
 
   // サムネイル生成
   const thumbC = document.createElement('canvas');
-  thumbC.width = 300; thumbC.height = isFull ? Math.round(300 * vh / vw) : Math.round(300 / tgtRatio);
+  thumbC.width = 300; thumbC.height = Math.round(300 * (sh / sw));
   thumbC.getContext('2d').drawImage(canvas, 0, 0, thumbC.width, thumbC.height);
   const thumbDataUrl = thumbC.toDataURL('image/jpeg', 0.6);
 
@@ -588,6 +603,8 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     btnRow.addEventListener('touchstart', e => {
+      if (window.__lockRatioSwipeUntil && Date.now() < window.__lockRatioSwipeUntil) return;
+      if (e.target?.closest?.('#thumb-strip-wrap, #thumb-strip, .mini-thumb, .zoom-controls, .zoom-toggle-row, #btn-save-unsaved')) return;
       if (!e.touches || e.touches.length !== 1) return;
       startX = e.touches[0].clientX;
       startY = e.touches[0].clientY;
@@ -596,6 +613,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }, { passive: true });
 
     btnRow.addEventListener('touchmove', e => {
+      if (window.__lockRatioSwipeUntil && Date.now() < window.__lockRatioSwipeUntil) return;
       if (!e.touches || e.touches.length !== 1) return;
       const dx = e.touches[0].clientX - startX;
       const dy = e.touches[0].clientY - startY;
@@ -603,6 +621,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }, { passive: true });
 
     btnRow.addEventListener('touchend', e => {
+      if (window.__lockRatioSwipeUntil && Date.now() < window.__lockRatioSwipeUntil) return;
       const endX = e.changedTouches?.[0]?.clientX ?? startX;
       const endY = e.changedTouches?.[0]?.clientY ?? startY;
       const dx = endX - startX;

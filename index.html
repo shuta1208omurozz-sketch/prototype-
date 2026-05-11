@@ -6,7 +6,7 @@
   <title>Scanner + Camera</title>
 
   <!-- PWA -->
-  <link rel="manifest" href="manifest.json?v=fix12"/>
+  <link rel="manifest" href="manifest.json?v=fix13"/>
   <meta name="mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -467,7 +467,7 @@
     }
 
 
-    /* FIX12 final: FULLは大きさ維持。上下だけ軽くクロップして横幅を広く見せる */
+    /* FIX13 final: FULLは大きさ維持。上下だけ軽くクロップして横幅を広く見せる */
     body.cam-full-mode #pg-camera #cam-video,
     #pg-camera.full-preview #cam-video{
       object-fit:cover !important;
@@ -486,6 +486,44 @@
       height:calc(100% - 16px) !important;
       max-width:none !important;
       max-height:none !important;
+    }
+
+
+    /* FIX13: FULLはプレビュー範囲=保存範囲。最近写真は操作ボタンから離して横スクロール優先 */
+    body.cam-full-mode #pg-camera #cam-video,
+    #pg-camera.full-preview #cam-video{
+      object-fit:cover !important;
+      object-position:center center !important;
+      width:100% !important;
+      height:100% !important;
+      background:#000 !important;
+    }
+    body.cam-full-mode #pg-camera #thumb-strip-wrap{
+      position:absolute !important;
+      left:8px !important;
+      right:8px !important;
+      bottom:230px !important;
+      margin:0 !important;
+      z-index:80 !important;
+      pointer-events:auto !important;
+      max-height:92px !important;
+      touch-action:pan-x !important;
+    }
+    body.cam-full-mode #pg-camera #thumb-strip{
+      touch-action:pan-x !important;
+      overscroll-behavior-x:contain;
+      -webkit-overflow-scrolling:touch;
+      padding-bottom:8px !important;
+    }
+    body.cam-full-mode #pg-camera #cam-controls{
+      z-index:60 !important;
+    }
+    body.cam-full-mode #pg-camera .cam-bottom-row{
+      z-index:61 !important;
+    }
+    #pg-camera #cam-controls .btn-row.ratio-swipe-locked::after{
+      content:'写真スクロール中' !important;
+      color:rgba(0,255,136,.65) !important;
     }
 
   </style>
@@ -846,7 +884,7 @@
     <div class="settings-divider"></div>
     <div class="settings-ver">SCANNER + CAMERA · v4.1</div>
     <div class="app-update-row">
-      <span class="app-version-pill" id="app-version-text">VERSION FIX12</span>
+      <span class="app-version-pill" id="app-version-text">VERSION FIX13</span>
       <span class="save-log-pill" id="save-log-text">保存結果: なし</span>
       <button class="settings-btn update" id="btn-force-update" type="button">更新</button>
     </div>
@@ -922,13 +960,13 @@
 <div class="toast" id="toast"></div>
 
 <!-- ==================== JSモジュールの読み込み ==================== -->
-<script src="state.js?v=fix12"></script>
-<script src="utils.js?v=fix12"></script>
-<script src="storage.js?v=fix12"></script>
-<script src="scanner.js?v=fix12"></script>
-<script src="camera.js?v=fix12"></script>
-<script src="photos.js?v=fix12"></script>
-<script src="main.js?v=fix12"></script>
+<script src="state.js?v=fix13"></script>
+<script src="utils.js?v=fix13"></script>
+<script src="storage.js?v=fix13"></script>
+<script src="scanner.js?v=fix13"></script>
+<script src="camera.js?v=fix13"></script>
+<script src="photos.js?v=fix13"></script>
+<script src="main.js?v=fix13"></script>
 
 <!-- Service Worker 登録 -->
 <script>
