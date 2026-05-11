@@ -36,7 +36,8 @@ function updateGroupUI() {
   const gOn  = cfg.useGroup;
   const show = (id, v) => { const el = $(id); if (el) el.style.display = v ? (el.tagName === 'SELECT' || el.tagName === 'DIV' ? 'flex' : '') : 'none'; };
   show('scan-group-bar',     gOn);
-  show('cam-group-bar',      gOn);
+  // FIX25: カメラ画面ではグループUIを常に非表示（設定/履歴側のON/OFFは維持）
+  show('cam-group-bar',      false);
   show('hist-bc-group-sel',  gOn);
   show('hist-ph-group-sel',  gOn);
   $('group-mgr-area').style.display = gOn ? 'block' : 'none';
@@ -387,7 +388,7 @@ async function startGlobalCamera(forceRestart = false) {
 
     const qBase = CAM_QUALITY[cfg.camQuality] || CAM_QUALITY.mid;
 
-    // FIX23: デフォルトが狭い問題はCSSではなく、掴んでいる背面カメラ/zoomが原因になりやすい。
+    // FIX25: デフォルトが狭い問題はCSSではなく、掴んでいる背面カメラ/zoomが原因になりやすい。
     // 起動時に広角候補を探し、可能ならそのdeviceIdを使う。
     if (cfg.preferUltraWide && !cfg.cameraDeviceId && typeof discoverWidestBackCamera === 'function') {
       try {
@@ -443,7 +444,7 @@ async function startGlobalCamera(forceRestart = false) {
       const st = globalCamTrack.getSettings?.() || {};
       const caps = globalCamTrack.getCapabilities?.() || {};
       if (st.deviceId) cfg.cameraDeviceId = st.deviceId;
-      // FIX23: 0.5x/0.6x等に対応している場合は、商品撮影優先で自動的に最小倍率へ寄せる。
+      // FIX25: 0.5x/0.6x等に対応している場合は、商品撮影優先で自動的に最小倍率へ寄せる。
       if (cfg.preferUltraWide && caps.zoom && typeof caps.zoom.min === 'number' && caps.zoom.min < 1) {
         const z = caps.zoom.min;
         await globalCamTrack.applyConstraints({ advanced: [{ zoom: z }] });

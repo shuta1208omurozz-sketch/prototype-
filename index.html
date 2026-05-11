@@ -6,7 +6,7 @@
   <title>Scanner + Camera</title>
 
   <!-- PWA -->
-  <link rel="manifest" href="manifest.json?v=fix23"/>
+  <link rel="manifest" href="manifest.json?v=fix25"/>
   <meta name="mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -657,7 +657,7 @@
     }
 
 
-    /* FIX23 FINAL: 拡大しないカメラ表示。FULL/デフォルトは取得映像を切らずに表示・保存する */
+    /* FIX25 FINAL: 拡大しないカメラ表示。FULL/デフォルトは取得映像を切らずに表示・保存する */
     #pg-camera.full-preview #cam-video,
     body.cam-full-mode #pg-camera #cam-video,
     #pg-camera.default-preview #cam-video{
@@ -688,7 +688,69 @@
       max-height:none !important;
     }
 
-</style>
+
+
+    /* FIX25: 商品撮影優先。グループ選択はカメラ画面から常時消す */
+    #pg-camera #cam-group-bar{ display:none !important; }
+
+    /* FIX25: カメラ内ボタンを同じ高さで扱いやすく */
+    #pg-camera #btn-native-camera,
+    #pg-camera #btn-wide-camera,
+    #pg-camera #btn-save-unsaved,
+    #pg-camera #btn-zoom-toggle{
+      min-width:76px;
+      height:34px;
+      padding:0 10px;
+      border-radius:999px;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      white-space:nowrap;
+    }
+    #pg-camera #btn-wide-camera.on{
+      background:rgba(255,170,68,.20) !important;
+      border-color:#ffaa44 !important;
+      color:#ffaa44 !important;
+    }
+    #pg-camera #btn-native-camera{
+      color:#d9f7ff;
+      border:1px solid rgba(0,212,255,.52);
+      background:rgba(0,212,255,.10);
+      font-family:'Share Tech Mono',monospace;
+      font-size:10px;
+    }
+
+    /* FIX25: 最近の写真は操作ボタンに埋もれない位置・高さへ */
+    #pg-camera #thumb-strip-wrap{
+      z-index:80 !important;
+      margin:8px 8px 6px !important;
+      max-height:98px !important;
+      overflow:hidden !important;
+    }
+    #pg-camera #thumb-strip{
+      min-height:64px !important;
+      overflow-x:auto !important;
+      overflow-y:hidden !important;
+      touch-action:pan-x !important;
+    }
+    body.cam-full-mode #pg-camera #thumb-strip-wrap{
+      position:absolute !important;
+      left:8px !important;
+      right:8px !important;
+      bottom:182px !important;
+      max-height:104px !important;
+      margin:0 !important;
+      background:rgba(3,10,18,.86) !important;
+    }
+
+    /* FIX25: デフォルト/FULL/比率変更で勝手に範囲を狭めない。映像全体を優先 */
+    #pg-camera #cam-video{
+      object-fit:contain !important;
+      object-position:center center !important;
+      background:#000 !important;
+    }
+
+  </style>
 </head>
 <body class="theme-cyan">
 <div id="app">
@@ -880,7 +942,7 @@
         <button id="btn-horizontal" class="btn-sub" title="横固定モード" aria-label="横固定モード">⟲</button>
         <button id="btn-direction" class="btn-sub" title="撮影方向を反転" aria-label="撮影方向を反転" style="font-size:13px;font-family:'Share Tech Mono',monospace;letter-spacing:-1px;">→</button>
       </div>
-      <div class="zoom-toggle-row"><button id="btn-zoom-toggle" aria-label="倍率スライダー表示切替">🔍 倍率</button><button id="btn-wide-camera" aria-label="広角カメラへ切替">広角</button><button id="btn-save-unsaved" aria-label="未保存の写真を保存">保存</button></div>
+      <div class="zoom-toggle-row"><button id="btn-zoom-toggle" aria-label="倍率スライダー表示切替">🔍 倍率</button><button id="btn-wide-camera" aria-label="広角カメラを再取得">広角再取得</button><button id="btn-native-camera" aria-label="純正カメラで撮影して取り込み">純正</button><button id="btn-save-unsaved" aria-label="未保存の写真を保存">保存</button><input id="native-camera-input" type="file" accept="image/*" capture="environment" style="display:none"></div>
       <div class="save-status-row"><span id="unsaved-count-inline">未保存 0</span><span id="save-result-mini"></span></div>
       <!-- ズームスライダー: 倍率1未満の超広角にも対応 -->
       <div class="zoom-controls" id="zoom-controls">
@@ -1046,7 +1108,7 @@
     <div class="settings-divider"></div>
     <div class="settings-ver">SCANNER + CAMERA · v4.1</div>
     <div class="app-update-row">
-      <span class="app-version-pill" id="app-version-text">VERSION FIX23</span>
+      <span class="app-version-pill" id="app-version-text">VERSION FIX25</span>
       <span class="save-log-pill" id="save-log-text">保存結果: なし</span>
       <button class="settings-btn update" id="btn-force-update" type="button">更新</button>
     </div>
@@ -1122,13 +1184,13 @@
 <div class="toast" id="toast"></div>
 
 <!-- ==================== JSモジュールの読み込み ==================== -->
-<script src="state.js?v=fix23"></script>
-<script src="utils.js?v=fix23"></script>
-<script src="storage.js?v=fix23"></script>
-<script src="scanner.js?v=fix23"></script>
-<script src="camera.js?v=fix23"></script>
-<script src="photos.js?v=fix23"></script>
-<script src="main.js?v=fix23"></script>
+<script src="state.js?v=fix25"></script>
+<script src="utils.js?v=fix25"></script>
+<script src="storage.js?v=fix25"></script>
+<script src="scanner.js?v=fix25"></script>
+<script src="camera.js?v=fix25"></script>
+<script src="photos.js?v=fix25"></script>
+<script src="main.js?v=fix25"></script>
 
 <!-- Service Worker 登録 -->
 <script>

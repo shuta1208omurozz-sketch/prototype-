@@ -82,16 +82,18 @@ function getVideoInputs() {
 function scoreWideCamera(device) {
   const label = (device.label || '').toLowerCase();
   let score = 0;
-  // 端末・ブラウザにより名称はバラバラ。見つかる範囲で広角/背面らしさを優先する。
-  if (/ultra|0\.5|0,5|wide|広角|超広角/.test(label)) score += 100;
-  if (/back|rear|environment|背面|後面|アウト/.test(label)) score += 40;
-  if (/front|user|face|前面|イン/.test(label)) score -= 80;
+  // FIX25: 商品撮影優先。望遠/マクロ/前面を避け、広角/超広角/背面を最優先。
+  if (/front|user|face|前面|イン/.test(label)) score -= 1000;
+  if (/tele|望遠|macro|マクロ|depth|深度/.test(label)) score -= 500;
+  if (/ultra|0\.5|0,5|super|wide|広角|超広角/.test(label)) score += 500;
+  if (/back|rear|environment|背面|後面|アウト|camera 0|カメラ 0/.test(label)) score += 120;
+  // ラベルが空の端末もあるため、空ラベルは中立。deviceId順の後段チェックで試す。
   return score;
 }
 
 
 async function discoverWidestBackCamera(qBase) {
-  // FIX23: 表示比率ではなく、Webに公開されている背面カメラの中から
+  // FIX25: 表示比率ではなく、Webに公開されている背面カメラの中から
   // できるだけ広い候補を探す。ラベルだけでなく zoom.min も見て判定する。
   const cams = await getVideoInputs();
   if (!cams.length || !navigator.mediaDevices?.getUserMedia) return null;
@@ -103,7 +105,7 @@ async function discoverWidestBackCamera(qBase) {
   candidates = candidates
     .slice()
     .sort((a, b) => scoreWideCamera(b) - scoreWideCamera(a))
-    .slice(0, 6);
+    .slice(0, 12);
 
   let best = null;
   for (const d of candidates) {
@@ -183,43 +185,46 @@ async function switchToNextBackCamera(preferWide = false) {
 }
 
 async function activateWideCamera() {
-  // まず現在のトラックが0.5x等に対応していれば、レンズ切替なしで最小倍率にする。
+  // FIX25: ボタンを押したら必ず「再探索→再起動」を試す。現在トラックのzoomだけで終了しない。
+  const btn = $('btn-wide-camera');
+  if (btn) { btn.disabled = true; btn.textContent = '探索中'; }
   try {
-    const caps = camTrack?.getCapabilities?.();
-    if (caps?.zoom && typeof caps.zoom.min === 'number' && caps.zoom.min < 1) {
-      const z = caps.zoom.min;
-      await applyZoom(z);
-      cfg.zoom = z;
-      if (typeof saveCfg === 'function') saveCfg();
-      const btn = $('btn-wide-camera');
-      if (btn) btn.classList.add('on');
-      if (typeof showToast === 'function') showToast('広角: ' + z.toFixed(2) + 'x', 'ok', 2000);
-      return;
-    }
-  } catch (e) {
-    console.warn('[Wide] zoom min failed:', e);
-  }
+    cfg.preferUltraWide = true;
+    // 既存deviceIdが通常レンズを固定している可能性があるため、一度解除して再探索する。
+    cfg.cameraDeviceId = '';
+    cfg.cameraDeviceLabel = '';
+    if (typeof saveCfg === 'function') saveCfg();
 
-  // 次にChromeが公開している別背面カメラへ切替を試す。
-  try {
     const qBase = (typeof CAM_QUALITY !== 'undefined' && CAM_QUALITY[cfg.camQuality]) ? CAM_QUALITY[cfg.camQuality] : { width:{ideal:1280}, height:{ideal:720} };
     const best = await discoverWidestBackCamera(qBase);
-    if (best && best.deviceId && best.deviceId !== (camTrack?.getSettings?.().deviceId || cfg.cameraDeviceId)) {
-      await switchToCameraDevice(best.deviceId, best.label || '広角候補');
-      if (typeof showToast === 'function') showToast('広角候補へ切替: ' + ((best.label || '背面カメラ').slice(0, 24)), 'ok', 3000);
-      return;
+    if (best?.deviceId) {
+      cfg.cameraDeviceId = best.deviceId;
+      cfg.cameraDeviceLabel = best.label || '広角候補';
+      cfg._wideMinZoom = best.minZoom || 1;
+      if (typeof saveCfg === 'function') saveCfg();
     }
-  } catch (e) { console.warn('[Wide] discover switch:', e); }
 
-  const ok = await switchToNextBackCamera(true);
-  if (!ok && typeof showToast === 'function') {
-    showToast('[WIDE03] この端末/ブラウザでは広角カメラを取得できません', 'warn', 3500);
+    if (typeof stopGlobalCamera === 'function') stopGlobalCamera();
+    await startCam(true);
+
+    // 再起動後にも必ず最小zoomを適用する。
+    if (camTrack) await autoApplyWideIfAvailable(camTrack, true);
+    const z = camTrack?.getSettings?.().zoom;
+    const label = cfg.cameraDeviceLabel || camTrack?.label || '背面カメラ';
+    if (typeof showToast === 'function') {
+      showToast('広角再取得: ' + (typeof z === 'number' ? z.toFixed(2) + 'x · ' : '') + String(label).slice(0, 22), 'ok', 3500);
+    }
+  } catch (e) {
+    console.warn('[Wide] force reacquire failed:', e);
+    if (typeof showToast === 'function') showToast('[WIDE04] 広角再取得に失敗: ' + (e.name || e.message || 'unknown'), 'warn', 4000);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '広角再取得'; }
   }
 }
 
-async function autoApplyWideIfAvailable(track) {
-  if (!cfg.preferUltraWide || !track) return;
-  // FIX23: 商品撮影では広い範囲を最優先。保存済みzoom値より、端末が出せる最小倍率を優先する。
+async function autoApplyWideIfAvailable(track, force = false) {
+  if ((!cfg.preferUltraWide && !force) || !track) return;
+  // FIX25: 商品撮影では広い範囲を最優先。保存済みzoom値より、端末が出せる最小倍率を優先する。
   try {
     const caps = track.getCapabilities?.();
     if (caps?.zoom && typeof caps.zoom.min === 'number' && caps.zoom.min < 1) {
@@ -269,7 +274,7 @@ function applyCameraVideoFit() {
 
   // FIX21: FULLだけは追加拡大・追加クロップをしない。
   // デフォルト/16:9/21:9は枠に合わせて表示し、保存も同じ範囲にする。
-  video.style.objectFit = (cfg.aspectRatio === 'full' || cfg.aspectRatio === 'default' || cfg.aspectRatio === '4/3') ? 'contain' : 'cover';
+  video.style.objectFit = 'contain';
   video.style.objectPosition = 'center center';
   video.style.position = 'absolute';
   video.style.inset = '0';
@@ -284,29 +289,10 @@ function applyCameraVideoFit() {
 }
 
 function getCaptureCrop(vw, vh) {
-  // FIX21: FULL/デフォルトは追加クロップなし。
-  // プレビューも contain 表示なので、保存画像も同じ「取得映像そのもの」にする。
-  // これで標準カメラより極端に拡大される問題を避ける。
-  if (cfg.aspectRatio === 'full' || cfg.aspectRatio === 'default' || cfg.aspectRatio === '4/3' || !cfg.aspectRatio) {
-    return { sx: 0, sy: 0, sw: vw, sh: vh, targetRatio: vw / vh, isFull: cfg.aspectRatio === 'full' };
-  }
-
-  // 16:9/21:9などはプレビューと保存を一致させるため、選択比率で中央クロップする。
-  const targetRatio = getCameraTargetRatio(cfg.aspectRatio, vw, vh);
-  const videoRatio = vw / vh;
-  let sw, sh, sx, sy;
-  if (videoRatio > targetRatio) {
-    sh = vh;
-    sw = vh * targetRatio;
-    sx = (vw - sw) / 2;
-    sy = 0;
-  } else {
-    sw = vw;
-    sh = vw / targetRatio;
-    sx = 0;
-    sy = (vh - sh) / 2;
-  }
-  return { sx, sy, sw, sh, targetRatio, isFull: false };
+  // FIX25: 商品撮影では「比率変更で範囲が狭まる」ことを避ける。
+  // デフォルト/FULL/16:9/21:9すべて、保存は取得映像全体を基本にする。
+  // 比率ボタンは表示ガイド/見え方の補助に留め、撮影範囲は狭めない。
+  return { sx: 0, sy: 0, sw: vw, sh: vh, targetRatio: vw / vh, isFull: cfg.aspectRatio === 'full' };
 }
 
 /* ════ カメラ停止 ════ */
@@ -462,7 +448,7 @@ async function initCamFeatures(track) {
       zoomAvailable = true;
       const uwLabel = $('uw-label');
       if (uwLabel) uwLabel.style.display = dMin < 1 ? 'inline-block' : 'none';
-      if (cfg.zoom && cfg.zoom !== cur) applyZoom(cfg.zoom);
+      if (!cfg.preferUltraWide && cfg.zoom && cfg.zoom !== cur) applyZoom(cfg.zoom);
       setZoomPanel(false);
     } else {
       zoomAvailable = false;
@@ -629,17 +615,9 @@ function handleCamError(err) {
 
 /* ════ クロップ・アスペクト比 ════ */
 function showCropOverlay(ratio) {
+  // FIX25: 比率変更で範囲を狭めない方針のため、クロップ枠は出さない。
   const overlay = $('crop-overlay');
-  if (!overlay) return;
-  if (ratio === 'full' || ratio === 'default' || ratio === '4/3') { overlay.style.display = 'none'; updateCameraGuide(); return; }
-  const label = $('crop-ratio-label');
-  if (label) label.textContent = getRatioLabel(ratio);
-  ['crop-mask-top','crop-mask-bottom'].forEach(cls => {
-    const el = document.querySelector('.' + cls);
-    if (el) el.style.height = '0px';
-  });
-  overlay.style.display = 'flex';
-  overlay.classList.add('show');
+  if (overlay) overlay.style.display = 'none';
   updateCameraGuide();
 }
 
@@ -653,26 +631,18 @@ function applyCameraViewportLayout() {
   vf.style.overflow = 'hidden';
   vf.style.position = 'relative';
 
+  // FIX25: すべての比率で範囲優先。比率で映像を切らない。
+  // FULLは縦方向の表示スペースを多く取り、デフォルト/他比率も取得映像の比率を基本にする。
   if (cfg.aspectRatio === 'full') {
-    // FULLは縦長商品・服など用。画面内でできるだけ大きく、ただし映像自体は拡大クロップしない。
     vf.style.aspectRatio = 'auto';
     vf.style.flex = '1 1 auto';
     vf.style.height = 'auto';
     vf.style.maxHeight = 'none';
     vf.style.minHeight = '0';
-  } else if (cfg.aspectRatio === 'default' || cfg.aspectRatio === '4/3' || !cfg.aspectRatio) {
-    // デフォルトは4:3固定ではなく、取得映像の比率をそのまま使う。
-    // videoWidth/videoHeightが取れない初期だけ3:4相当で仮配置。
+  } else {
     const vw = video?.videoWidth || 3;
     const vh = video?.videoHeight || 4;
     vf.style.aspectRatio = String(vw / vh);
-    vf.style.flex = '0 0 auto';
-    vf.style.height = 'auto';
-    vf.style.maxHeight = 'calc(100dvh - 250px)';
-    vf.style.minHeight = '0';
-  } else {
-    const ar = getCameraTargetRatio(cfg.aspectRatio);
-    vf.style.aspectRatio = String(ar);
     vf.style.flex = '0 0 auto';
     vf.style.height = 'auto';
     vf.style.maxHeight = 'calc(100dvh - 250px)';
@@ -807,6 +777,69 @@ function goToScanFromCamera() {
   }, 120);
 }
 
+
+
+/* ════ 純正カメラで撮影 → アプリへ取り込み ════ */
+async function importNativeCameraFile(file) {
+  if (!file) return;
+  try {
+    if (typeof showToast === 'function') showToast('写真を取り込み中...', '', 1800);
+    const dataUrl = await new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(r.result);
+      r.onerror = reject;
+      r.readAsDataURL(file);
+    });
+
+    let thumbDataUrl = dataUrl;
+    try {
+      const img = new Image();
+      img.src = dataUrl;
+      await new Promise((res, rej) => { img.onload = res; img.onerror = rej; });
+      const max = 360;
+      const scale = Math.min(1, max / Math.max(img.width, img.height));
+      const c = document.createElement('canvas');
+      c.width = Math.max(1, Math.round(img.width * scale));
+      c.height = Math.max(1, Math.round(img.height * scale));
+      c.getContext('2d', { alpha:false }).drawImage(img, 0, 0, c.width, c.height);
+      thumbDataUrl = c.toDataURL('image/jpeg', 0.72);
+    } catch (_) {}
+
+    const photo = {
+      id: Date.now() + Math.random(),
+      dataUrl,
+      thumbDataUrl,
+      timestamp: Date.now(),
+      facingMode: 'native',
+      aspectRatio: 'native',
+      group: cfg.useGroup ? cfg.currentGroup : '未分類',
+      scannedCode: lastScannedValue || '',
+      savedToDevice: false,
+      source: 'native-camera'
+    };
+    photos.unshift(photo);
+    if (typeof dbPut === 'function') { await dbPut(photo); await dbPrune(cfg.maxPhotos); }
+    updateCounts();
+    updateThumbStrip();
+    if (typeof updateUnsavedSaveButton === 'function') updateUnsavedSaveButton();
+    if (activeTab === 'photos' && typeof renderPhotoGrid === 'function') renderPhotoGrid();
+    if (typeof showToast === 'function') showToast('純正カメラ写真を取り込みました', 'ok', 2500);
+  } catch (e) {
+    console.error('[NativeCameraImport]', e);
+    if (typeof showToast === 'function') showToast('[NATIVE01] 取り込み失敗: ' + (e.message || e.name), 'err', 4000);
+  }
+}
+
+function openNativeCameraCapture() {
+  const input = $('native-camera-input');
+  if (!input) {
+    if (typeof showToast === 'function') showToast('[NATIVE00] 入力欄が見つかりません', 'err', 3000);
+    return;
+  }
+  input.value = '';
+  input.click();
+}
+
 /* ════ フルスクリーン切り替え検知 ════ */
 document.addEventListener('fullscreenchange', () => {
   document.body.classList.toggle('fullscreen', document.fullscreenElement != null);
@@ -829,6 +862,9 @@ document.addEventListener('DOMContentLoaded', () => {
   on('btn-goto-scan-main', goToScanFromCamera);
   on('btn-zoom-toggle',    () => setZoomPanel(!zoomPanelOpen));
   on('btn-wide-camera',    activateWideCamera);
+  on('btn-native-camera',  openNativeCameraCapture);
+  const nativeInput = $('native-camera-input');
+  if (nativeInput) nativeInput.addEventListener('change', e => importNativeCameraFile(e.target.files?.[0]));
   on('btn-save-unsaved',   () => { if (typeof saveUnsavedPhotosToDevice === 'function') saveUnsavedPhotosToDevice(); });
 
   const RATIOS = ['full', 'default', '16/9', '21/9'];
