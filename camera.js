@@ -23,8 +23,16 @@ function updateCameraGuide() {
   let text = 'FULL';
 
   if (cfg.aspectRatio && cfg.aspectRatio !== 'full') {
-    const parts = cfg.aspectRatio.split('/').map(Number);
-    const target = (parts[0] && parts[1]) ? (parts[0] / parts[1]) : (availW / availH);
+    let target;
+    if (cfg.aspectRatio === 'default' || cfg.aspectRatio === '4/3') {
+      // FIX19: デフォルトは4:3固定ではなく、少し縦を広げた標準カメラ風の範囲。
+      target = 1.18;
+      text = 'DEFAULT';
+    } else {
+      const parts = cfg.aspectRatio.split('/').map(Number);
+      target = (parts[0] && parts[1]) ? (parts[0] / parts[1]) : 1.18;
+      text = cfg.aspectRatio.replace('/', ':');
+    }
     if (availW / availH > target) {
       boxH = availH;
       boxW = boxH * target;
@@ -32,7 +40,6 @@ function updateCameraGuide() {
       boxW = availW;
       boxH = boxW / target;
     }
-    text = cfg.aspectRatio.replace('/', ':');
   }
 
   box.style.width = Math.round(boxW) + 'px';
@@ -65,6 +72,132 @@ function setZoomPanel(open, forceHide = false) {
 }
 
 
+function getVideoInputs() {
+  if (!navigator.mediaDevices?.enumerateDevices) return Promise.resolve([]);
+  return navigator.mediaDevices.enumerateDevices()
+    .then(list => list.filter(d => d.kind === 'videoinput'))
+    .catch(() => []);
+}
+
+function scoreWideCamera(device) {
+  const label = (device.label || '').toLowerCase();
+  let score = 0;
+  // 端末・ブラウザにより名称はバラバラ。見つかる範囲で広角/背面らしさを優先する。
+  if (/ultra|0\.5|0,5|wide|広角|超広角/.test(label)) score += 100;
+  if (/back|rear|environment|背面|後面|アウト/.test(label)) score += 40;
+  if (/front|user|face|前面|イン/.test(label)) score -= 80;
+  return score;
+}
+
+async function chooseBestWideCameraId() {
+  const cams = await getVideoInputs();
+  if (!cams.length) return '';
+  const sorted = cams.slice().sort((a, b) => scoreWideCamera(b) - scoreWideCamera(a));
+  const best = sorted[0];
+  return best?.deviceId || '';
+}
+
+async function switchToCameraDevice(deviceId, label = '') {
+  if (!deviceId) return false;
+  cfg.cameraDeviceId = deviceId;
+  cfg.cameraDeviceLabel = label || '';
+  if (typeof saveCfg === 'function') saveCfg();
+  if (typeof stopGlobalCamera === 'function') stopGlobalCamera();
+  await startCam(true);
+  return true;
+}
+
+async function switchToNextBackCamera(preferWide = false) {
+  const cams = await getVideoInputs();
+  if (!cams.length) {
+    if (typeof showToast === 'function') showToast('[WIDE01] カメラ一覧を取得できません', 'warn', 2500);
+    return false;
+  }
+  let candidates = cams.filter(d => !/front|user|face|前面|イン/i.test(d.label || ''));
+  if (!candidates.length) candidates = cams;
+
+  if (preferWide) candidates = candidates.slice().sort((a, b) => scoreWideCamera(b) - scoreWideCamera(a));
+
+  const cur = cfg.cameraDeviceId || camTrack?.getSettings?.().deviceId || '';
+  let idx = candidates.findIndex(d => d.deviceId === cur);
+  let next;
+  if (preferWide) next = candidates[0];
+  else next = candidates[(idx + 1 + candidates.length) % candidates.length];
+
+  if (!next || next.deviceId === cur && candidates.length < 2 && !preferWide) {
+    if (typeof showToast === 'function') showToast('[WIDE02] 切替可能な背面カメラがありません', 'warn', 2500);
+    return false;
+  }
+
+  await switchToCameraDevice(next.deviceId, next.label || '');
+  if (typeof showToast === 'function') showToast('カメラ切替: ' + ((next.label || '背面カメラ').slice(0, 24)), 'ok', 2500);
+  return true;
+}
+
+async function activateWideCamera() {
+  // まず現在のトラックが0.5x等に対応していれば、レンズ切替なしで最小倍率にする。
+  try {
+    const caps = camTrack?.getCapabilities?.();
+    if (caps?.zoom && typeof caps.zoom.min === 'number' && caps.zoom.min < 1) {
+      const z = caps.zoom.min;
+      await applyZoom(z);
+      cfg.zoom = z;
+      if (typeof saveCfg === 'function') saveCfg();
+      const btn = $('btn-wide-camera');
+      if (btn) btn.classList.add('on');
+      if (typeof showToast === 'function') showToast('広角: ' + z.toFixed(2) + 'x', 'ok', 2000);
+      return;
+    }
+  } catch (e) {
+    console.warn('[Wide] zoom min failed:', e);
+  }
+
+  // 次にChromeが公開している別背面カメラへ切替を試す。
+  const ok = await switchToNextBackCamera(true);
+  if (!ok && typeof showToast === 'function') {
+    showToast('[WIDE03] この端末/ブラウザでは広角カメラを取得できません', 'warn', 3500);
+  }
+}
+
+async function autoApplyWideIfAvailable(track) {
+  if (!cfg.preferUltraWide || !track) return;
+  // ユーザーが明示的にズーム値を保存している場合は尊重する。ただし未設定なら最小倍率へ寄せる。
+  if (cfg.zoom) return;
+  try {
+    const caps = track.getCapabilities?.();
+    if (caps?.zoom && typeof caps.zoom.min === 'number' && caps.zoom.min < 1) {
+      await applyZoom(caps.zoom.min);
+      const btn = $('btn-wide-camera');
+      if (btn) btn.classList.add('on');
+    }
+  } catch (e) {
+    console.warn('[Wide] auto apply:', e);
+  }
+}
+
+
+
+function getCameraTargetRatio(mode, fallbackW, fallbackH) {
+  if (mode === 'default' || mode === '4/3' || !mode) {
+    // FIX19: 旧4:3は廃止。デフォルトは4:3より縦に広い標準カメラ風。
+    return 1.18;
+  }
+  if (mode === 'full') {
+    const vf = $('cam-vf');
+    const cw = vf?.clientWidth || vf?.offsetWidth || 0;
+    const ch = vf?.clientHeight || vf?.offsetHeight || 0;
+    return (cw > 0 && ch > 0) ? (cw / ch) : (fallbackW && fallbackH ? fallbackW / fallbackH : 1.0);
+  }
+  const [a, b] = String(mode).split('/').map(Number);
+  return (a && b) ? (a / b) : 1.18;
+}
+
+function getRatioLabel(mode) {
+  if (mode === 'default' || mode === '4/3' || !mode) return 'デフォルト';
+  if (mode === 'full') return 'FULL';
+  return String(mode).replace('/', ':');
+}
+
 function applyCameraVideoFit() {
   const video = $('cam-video');
   const page = $('pg-camera');
@@ -73,7 +206,7 @@ function applyCameraVideoFit() {
 
   if (page) page.classList.toggle('full-preview', isFullPreview);
 
-  // FIX17: FULLを基準にした普通のカメラ方式。
+  // FIX18: FULLを基準にした普通のカメラ方式。
   // 画面いっぱいに表示し、保存側はgetCaptureCrop()で同じ範囲だけ切り出す。
   video.style.objectFit = 'cover';
   video.style.objectPosition = 'center center';
@@ -90,20 +223,12 @@ function applyCameraVideoFit() {
 }
 
 function getCaptureCrop(vw, vh) {
-  // FIX17: プレビューと保存を完全一致させる。
+  // FIX18: プレビューと保存を完全一致させる。
   // CSSの object-fit: cover と同じ考え方で、表示コンテナの比率に合わせて中央クロップする。
   const vf = $('cam-vf');
   let targetRatio;
 
-  if (cfg.aspectRatio === 'full') {
-    const cw = vf?.clientWidth || vf?.offsetWidth || 0;
-    const ch = vf?.clientHeight || vf?.offsetHeight || 0;
-    // FULLは画面上のプレビュー枠そのものの比率を使う = 普通のカメラ風。
-    targetRatio = (cw > 0 && ch > 0) ? (cw / ch) : (vw / vh);
-  } else {
-    const [a, b] = (cfg.aspectRatio || '4/3').split('/').map(Number);
-    targetRatio = (a && b) ? (a / b) : (4 / 3);
-  }
+  targetRatio = getCameraTargetRatio(cfg.aspectRatio, vw, vh);
 
   const videoRatio = vw / vh;
   let sw, sh, sx, sy;
@@ -283,6 +408,16 @@ async function initCamFeatures(track) {
       setZoomPanel(false, true);
     }
 
+    await autoApplyWideIfAvailable(track);
+    const wideBtn = $('btn-wide-camera');
+    if (wideBtn) {
+      wideBtn.style.display = 'inline-flex';
+      const curZoom = track.getSettings?.().zoom;
+      wideBtn.classList.toggle('on', typeof curZoom === 'number' && curZoom < 1);
+      const label = cfg.cameraDeviceLabel || '';
+      wideBtn.title = label ? ('広角/カメラ切替: ' + label) : '広角/背面カメラ切替';
+    }
+
     const torchBtn = $('btn-torch');
     if (torchBtn) {
       torchBtn.style.display = 'flex';
@@ -300,7 +435,15 @@ async function applyZoom(val) {
   try {
     await camTrack.applyConstraints({ advanced: [{ zoom: val }] });
     const lbl = $('zoom-level');
+    const slider = $('zoom-slider');
+    if (slider) {
+      slider.value = val;
+      const min = parseFloat(slider.min) || 1, max = parseFloat(slider.max) || 5;
+      slider.style.setProperty('--zoom-progress', (((val - min) / (max - min)) * 100).toFixed(1) + '%');
+    }
     if (lbl) { lbl.textContent = `${val.toFixed(2)}x`; lbl.style.color = val < 1 ? '#ffaa44' : 'var(--accent)'; }
+    const wideBtn = $('btn-wide-camera');
+    if (wideBtn) wideBtn.classList.toggle('on', val < 1);
   } catch (e) { console.error('[Camera] Zoom:', e); }
 }
 
@@ -429,7 +572,7 @@ function showCropOverlay(ratio) {
   if (!overlay) return;
   if (ratio === 'full') { overlay.style.display = 'none'; updateCameraGuide(); return; }
   const label = $('crop-ratio-label');
-  if (label) label.textContent = ratio.replace('/', ':');
+  if (label) label.textContent = getRatioLabel(ratio);
   ['crop-mask-top','crop-mask-bottom'].forEach(cls => {
     const el = document.querySelector('.' + cls);
     if (el) el.style.height = '0px';
@@ -449,15 +592,16 @@ function applyCameraViewportLayout() {
   vf.style.position = 'relative';
 
   if (cfg.aspectRatio === 'full') {
-    // FIX17: FULLは通常カメラ風。残りの表示領域を使って大きく表示する。
+    // FIX19: FULLは縦方向を増やす表示。横幅維持にはこだわらず、見える範囲を広げる。
     vf.style.aspectRatio = 'auto';
     vf.style.flex = '1 1 auto';
     vf.style.height = 'auto';
     vf.style.maxHeight = 'none';
     vf.style.minHeight = '0';
   } else {
-    // 4:3 / 16:9 / 21:9 はFULL映像から指定比率で切り出す枠。
-    vf.style.aspectRatio = cfg.aspectRatio || '4 / 3';
+    // デフォルトは4:3固定ではなく、少し縦に広い標準カメラ風の基準枠。
+    const ar = getCameraTargetRatio(cfg.aspectRatio);
+    vf.style.aspectRatio = String(ar);
     vf.style.flex = '0 0 auto';
     vf.style.height = 'auto';
     vf.style.maxHeight = 'calc(100dvh - 250px)';
@@ -468,6 +612,8 @@ function applyCameraViewportLayout() {
 
 function updateCameraModeClass() {
   const full = activeTab === 'camera' && cfg.aspectRatio === 'full';
+  const page = $('pg-camera');
+  if (page) page.classList.toggle('default-preview', cfg.aspectRatio === 'default' || cfg.aspectRatio === '4/3');
   document.body.classList.toggle('cam-full-mode', !!full);
   document.body.classList.toggle('fullscreen', document.fullscreenElement != null || document.webkitFullscreenElement != null);
 }
@@ -557,6 +703,8 @@ function toggleDirection() {
 }
 
 function setAspectRatio(ratio) {
+  if (ratio === '4/3') ratio = 'default';
+  if (cfg.aspectRatio === '4/3') cfg.aspectRatio = 'default';
   if (cfg.aspectRatio === ratio) return;
   const prevRatio = cfg.aspectRatio;
   cfg.aspectRatio = ratio;
@@ -567,7 +715,7 @@ function setAspectRatio(ratio) {
   applyCameraVideoFit();
   showCropOverlay(ratio);
   updateCameraGuide();
-  // FIX17: ストリームは比率で縛らないため、比率切替ではカメラ再起動しない。
+  // FIX18: ストリームは比率で縛らないため、比率切替ではカメラ再起動しない。
   // プレビュー枠と保存クロップだけ変更するので、切替が速くなりレンズ/FOVも変わりにくい。
   if (camActive) { applyCameraVideoFit(); updateCameraGuide(); updatePreview(); }
   else if (typeof applyCfgToUI === 'function') applyCfgToUI();
@@ -609,9 +757,11 @@ document.addEventListener('DOMContentLoaded', () => {
   on('btn-goto-scan',      goToScanFromCamera);
   on('btn-goto-scan-main', goToScanFromCamera);
   on('btn-zoom-toggle',    () => setZoomPanel(!zoomPanelOpen));
+  on('btn-wide-camera',    activateWideCamera);
   on('btn-save-unsaved',   () => { if (typeof saveUnsavedPhotosToDevice === 'function') saveUnsavedPhotosToDevice(); });
 
-  const RATIOS = ['full', '4/3', '16/9', '21/9'];
+  const RATIOS = ['default', 'full', '16/9', '21/9'];
+  if (cfg.aspectRatio === '4/3') cfg.aspectRatio = 'default';
   let ratioIdx = Math.max(0, RATIOS.indexOf(cfg.aspectRatio));
   document.querySelectorAll('.ratio-btn').forEach(btn => {
     btn.onclick = () => { setAspectRatio(btn.dataset.r); ratioIdx = RATIOS.indexOf(btn.dataset.r); };
@@ -626,14 +776,14 @@ document.addEventListener('DOMContentLoaded', () => {
     let startX = 0, startY = 0, moved = false, suppressClickUntil = 0;
 
     const syncRatioIndex = () => {
-      const idx = RATIOS.indexOf(cfg.aspectRatio);
+      const idx = RATIOS.indexOf(cfg.aspectRatio === '4/3' ? 'default' : cfg.aspectRatio);
       ratioIdx = idx >= 0 ? idx : 0;
     };
     const moveRatio = (dx) => {
       syncRatioIndex();
       ratioIdx = (ratioIdx + (dx > 0 ? 1 : -1) + RATIOS.length) % RATIOS.length;
       setAspectRatio(RATIOS[ratioIdx]);
-      if (typeof showToast === 'function') showToast('比率: ' + RATIOS[ratioIdx].replace('/', ':'), 'ok', 900);
+      if (typeof showToast === 'function') showToast('比率: ' + getRatioLabel(RATIOS[ratioIdx]), 'ok', 900);
     };
 
     btnRow.addEventListener('touchstart', e => {

@@ -1,5 +1,11 @@
 'use strict';
 
+
+function normalizeAspectRatioSetting() {
+  // FIX19: 旧4:3設定は「デフォルト」へ移行。4:3固定ではなく広めの標準カメラ風にする。
+  if (!cfg.aspectRatio || cfg.aspectRatio === '4/3') cfg.aspectRatio = 'default';
+}
+
 function updateAppVersionUI() {
   const el = $('app-version-text');
   if (el) el.textContent = 'VERSION ' + (typeof APP_VERSION !== 'undefined' ? APP_VERSION : 'UNKNOWN');
@@ -75,6 +81,7 @@ function renderSettingsGroupList() {
 
 /* ════ UI反映 ════ */
 function applyCfgToUI() {
+  if (typeof normalizeAspectRatioSetting === 'function') normalizeAspectRatioSetting();
   const setChk = (id, v) => { const el = $(id); if (el) el.checked = v; };
   setChk('set-auto-scan',    cfg.autoStartScan);
   setChk('set-cont-scan',    cfg.continuousScan);
@@ -380,19 +387,46 @@ async function startGlobalCamera(forceRestart = false) {
 
     const qBase = CAM_QUALITY[cfg.camQuality] || CAM_QUALITY.mid;
 
-    // FIX17: 普通のスマホカメラ寄りにするため、ストリーム取得は比率で縛らない。
-    // FULLを基準に広い映像を取得し、4:3/16:9/21:9はプレビューと同じ範囲を後段でクロップする。
-    const videoConstraints = {
+    // FIX18: 標準カメラより狭い場合に備え、選択済みdeviceIdがあればその背面カメラを使う。
+    // aspectRatioで縛らず、端末が出せる広い映像を取得する。
+    let videoConstraints = {
       facingMode,
       width: qBase.width,
       height: qBase.height
     };
+    if (cfg.cameraDeviceId) {
+      videoConstraints = {
+        deviceId: { exact: cfg.cameraDeviceId },
+        width: qBase.width,
+        height: qBase.height
+      };
+    }
 
-    globalStream = await navigator.mediaDevices.getUserMedia({
-      video: videoConstraints,
-      audio: false
-    });
+    try {
+      globalStream = await navigator.mediaDevices.getUserMedia({
+        video: videoConstraints,
+        audio: false
+      });
+    } catch (e) {
+      // 保存済みdeviceIdが無効になった場合は通常の背面カメラへフォールバック
+      if (cfg.cameraDeviceId) {
+        console.warn('[Camera] selected device failed, fallback environment:', e);
+        cfg.cameraDeviceId = '';
+        cfg.cameraDeviceLabel = '';
+        if (typeof saveCfg === 'function') saveCfg();
+        globalStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode, width: qBase.width, height: qBase.height },
+          audio: false
+        });
+      } else {
+        throw e;
+      }
+    }
     globalCamTrack = globalStream.getVideoTracks()[0];
+    try {
+      const s = globalCamTrack.getSettings?.() || {};
+      if (s.deviceId) cfg.cameraDeviceId = s.deviceId;
+    } catch (_) {}
     return globalStream;
   } finally {
     _isStartingGlobal = false;
@@ -415,6 +449,7 @@ function stopGlobalCamera() {
 /* ════ 初期化 ════ */
 async function init() {
   loadCfg();
+  if (typeof normalizeAspectRatioSetting === 'function') normalizeAspectRatioSetting();
   MAX_PH = cfg.maxPhotos || 200;
   try { bcHistory = JSON.parse(localStorage.getItem(BC_KEY) || '[]'); } catch(_) { bcHistory = []; }
   bcHistory = bcHistory.map(x => ({ checked: false, ...x }));

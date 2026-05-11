@@ -1,6 +1,6 @@
 'use strict';
 
-const APP_VERSION = 'FIX17';
+const APP_VERSION = 'FIX19';
 
 /* ════ キー定数 ════ */
 const SETTINGS_KEY = 'sc-settings-v1';
@@ -19,8 +19,11 @@ let cfg = {
   useGroup:       false,
   groups:         ['未分類', '食品', '機械', '文具'],
   currentGroup:   '未分類',
-  aspectRatio:    'full',
-  outdoorMode:    false
+  aspectRatio:    'default',
+  outdoorMode:    false,
+  cameraDeviceId: '',
+  cameraDeviceLabel: '',
+  preferUltraWide: true
 };
 
 /* ════ データ ════ */
@@ -78,7 +81,7 @@ const CAM_QUALITY = {
   max:  { width: { ideal: 3840 }, height: { ideal: 2160 } }
 };
 
-const ASPECT_RATIOS = { '4/3': 4/3, '16/9': 16/9, '21/9': 21/9 };
+const ASPECT_RATIOS = { 'default': 1.18, '16/9': 16/9, '21/9': 21/9 };
 
 const JS_FMT = {
   ean_13: 'EAN13', ean_8: 'EAN8',   code_128: 'CODE128',

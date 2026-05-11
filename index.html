@@ -6,7 +6,7 @@
   <title>Scanner + Camera</title>
 
   <!-- PWA -->
-  <link rel="manifest" href="manifest.json?v=fix17"/>
+  <link rel="manifest" href="manifest.json?v=fix19"/>
   <meta name="mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -832,8 +832,8 @@
       <!-- アスペクト比選択セクション [INTEGRATED] -->
       <div class="ratio-row" id="ratio-row">
         <span class="ratio-lbl">ASPECT:</span>
-        <button class="ratio-btn on" data-r="full">FULL</button>
-        <button class="ratio-btn" data-r="4/3">4:3</button>
+        <button class="ratio-btn on" data-r="default">デフォルト</button>
+        <button class="ratio-btn" data-r="full">FULL</button>
         <button class="ratio-btn" data-r="16/9">16:9</button>
         <button class="ratio-btn" data-r="21/9">21:9</button>
       </div>
@@ -847,7 +847,7 @@
         <button id="btn-horizontal" class="btn-sub" title="横固定モード" aria-label="横固定モード">⟲</button>
         <button id="btn-direction" class="btn-sub" title="撮影方向を反転" aria-label="撮影方向を反転" style="font-size:13px;font-family:'Share Tech Mono',monospace;letter-spacing:-1px;">→</button>
       </div>
-      <div class="zoom-toggle-row"><button id="btn-zoom-toggle" aria-label="倍率スライダー表示切替">🔍 倍率</button><button id="btn-save-unsaved" aria-label="未保存の写真を保存">保存</button></div>
+      <div class="zoom-toggle-row"><button id="btn-zoom-toggle" aria-label="倍率スライダー表示切替">🔍 倍率</button><button id="btn-wide-camera" aria-label="広角カメラへ切替">広角</button><button id="btn-save-unsaved" aria-label="未保存の写真を保存">保存</button></div>
       <div class="save-status-row"><span id="unsaved-count-inline">未保存 0</span><span id="save-result-mini"></span></div>
       <!-- ズームスライダー: 倍率1未満の超広角にも対応 -->
       <div class="zoom-controls" id="zoom-controls">
@@ -1013,7 +1013,7 @@
     <div class="settings-divider"></div>
     <div class="settings-ver">SCANNER + CAMERA · v4.1</div>
     <div class="app-update-row">
-      <span class="app-version-pill" id="app-version-text">VERSION FIX17</span>
+      <span class="app-version-pill" id="app-version-text">VERSION FIX19</span>
       <span class="save-log-pill" id="save-log-text">保存結果: なし</span>
       <button class="settings-btn update" id="btn-force-update" type="button">更新</button>
     </div>
@@ -1089,13 +1089,13 @@
 <div class="toast" id="toast"></div>
 
 <!-- ==================== JSモジュールの読み込み ==================== -->
-<script src="state.js?v=fix17"></script>
-<script src="utils.js?v=fix17"></script>
-<script src="storage.js?v=fix17"></script>
-<script src="scanner.js?v=fix17"></script>
-<script src="camera.js?v=fix17"></script>
-<script src="photos.js?v=fix17"></script>
-<script src="main.js?v=fix17"></script>
+<script src="state.js?v=fix19"></script>
+<script src="utils.js?v=fix19"></script>
+<script src="storage.js?v=fix19"></script>
+<script src="scanner.js?v=fix19"></script>
+<script src="camera.js?v=fix19"></script>
+<script src="photos.js?v=fix19"></script>
+<script src="main.js?v=fix19"></script>
 
 <!-- Service Worker 登録 -->
 <script>
