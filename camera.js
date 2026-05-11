@@ -70,7 +70,9 @@ function applyCameraVideoFit() {
   const page = $('pg-camera');
   if (!video) return;
   const isFullPreview = activeTab === 'camera' && cfg && cfg.aspectRatio === 'full' && !forceHorizontal;
-  video.style.objectFit = isFullPreview ? 'contain' : 'cover';
+  // FIX12: FULLは普通のカメラ寄り。縮小せず、上下を軽く切って横幅を広く見せる
+  video.style.objectFit = 'cover';
+  video.style.objectPosition = 'center center';
   video.style.width = '100%';
   video.style.height = '100%';
   video.style.backgroundColor = '#000';
