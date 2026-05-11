@@ -6,7 +6,7 @@
   <title>Scanner + Camera</title>
 
   <!-- PWA -->
-  <link rel="manifest" href="manifest.json?v=fix14"/>
+  <link rel="manifest" href="manifest.json?v=fix16"/>
   <meta name="mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -528,7 +528,7 @@
 
 
 
-    /* FIX14: FULL = 4:3基準の縦拡張。横幅は4:3と同じ感覚で維持し、上下だけ増やす */
+    /* FIX16: FULL = 4:3基準の縦拡張。横幅は4:3と同じ感覚で維持し、上下だけ増やす */
     body.cam-full-mode #pg-camera #cam-vf,
     #pg-camera.full-preview #cam-vf{
       overflow:hidden !important;
@@ -556,7 +556,106 @@
       max-height:none !important;
     }
 
-  </style>
+
+
+    /* FIX16: FULLではなく「縦拡張」モード。4:3と同じ横幅感で高さだけ増やす */
+    body.cam-full-mode .hdr,
+    body.cam-full-mode .tabs{
+      display:flex !important;
+    }
+    body.cam-full-mode #app{
+      height:auto !important;
+      overflow:hidden !important;
+    }
+    body.cam-full-mode #pg-camera.cam-pg.on,
+    #pg-camera.full-preview{
+      height:calc(100dvh - 92px) !important;
+      padding-top:0 !important;
+    }
+    body.cam-full-mode #pg-camera #cam-group-bar,
+    body.cam-full-mode #pg-camera .cam-settings-row{
+      position:relative !important;
+      left:auto !important;
+      right:auto !important;
+      top:auto !important;
+      background:transparent !important;
+      backdrop-filter:none !important;
+    }
+    body.cam-full-mode #pg-camera #cam-controls,
+    body.cam-full-mode #pg-camera .cam-bottom-row{
+      position:relative !important;
+      left:auto !important;
+      right:auto !important;
+      bottom:auto !important;
+      z-index:60 !important;
+    }
+    body.cam-full-mode #pg-camera #cam-vf,
+    #pg-camera.full-preview #cam-vf{
+      width:100% !important;
+      aspect-ratio:1 / 1 !important;
+      flex:0 0 auto !important;
+      height:auto !important;
+      max-height:calc(100dvh - 290px) !important;
+      min-height:0 !important;
+      overflow:hidden !important;
+      background:#000 !important;
+      position:relative !important;
+    }
+    body.cam-full-mode #pg-camera #cam-video,
+    #pg-camera.full-preview #cam-video{
+      object-fit:cover !important;
+      object-position:center center !important;
+      position:absolute !important;
+      inset:0 !important;
+      width:100% !important;
+      height:100% !important;
+      transform:none !important;
+      background:#000 !important;
+    }
+    body.cam-full-mode #pg-camera #cam-range-box,
+    #pg-camera.full-preview #cam-range-box{
+      width:calc(100% - 16px) !important;
+      height:calc(100% - 16px) !important;
+      max-width:none !important;
+      max-height:none !important;
+    }
+    body.cam-full-mode #pg-camera #thumb-strip-wrap{
+      position:relative !important;
+      left:auto !important;
+      right:auto !important;
+      bottom:auto !important;
+      margin:6px 8px 4px !important;
+      z-index:54 !important;
+      max-height:92px !important;
+      pointer-events:auto !important;
+      touch-action:pan-x !important;
+    }
+
+  
+    /* FIX16 FINAL: 横幅固定の高さ追加モード。FULL表記でも横方向は4:3基準。 */
+    #pg-camera.full-preview #cam-vf,
+    body.cam-full-mode #pg-camera #cam-vf{
+      aspect-ratio:1 / 1 !important;
+      width:100% !important;
+      flex:0 0 auto !important;
+      overflow:hidden !important;
+      max-height:calc(100dvh - 290px) !important;
+    }
+    #pg-camera.full-preview #cam-video,
+    body.cam-full-mode #pg-camera #cam-video{
+      width:100% !important;
+      height:100% !important;
+      object-fit:cover !important;
+      object-position:center center !important;
+      position:absolute !important;
+      inset:0 !important;
+    }
+    #pg-camera.full-preview #cam-range-box,
+    body.cam-full-mode #pg-camera #cam-range-box{
+      width:calc(100% - 20px) !important;
+      height:calc(100% - 20px) !important;
+    }
+</style>
 </head>
 <body class="theme-cyan">
 <div id="app">
@@ -914,7 +1013,7 @@
     <div class="settings-divider"></div>
     <div class="settings-ver">SCANNER + CAMERA · v4.1</div>
     <div class="app-update-row">
-      <span class="app-version-pill" id="app-version-text">VERSION FIX14</span>
+      <span class="app-version-pill" id="app-version-text">VERSION FIX16</span>
       <span class="save-log-pill" id="save-log-text">保存結果: なし</span>
       <button class="settings-btn update" id="btn-force-update" type="button">更新</button>
     </div>
@@ -990,13 +1089,13 @@
 <div class="toast" id="toast"></div>
 
 <!-- ==================== JSモジュールの読み込み ==================== -->
-<script src="state.js?v=fix14"></script>
-<script src="utils.js?v=fix14"></script>
-<script src="storage.js?v=fix14"></script>
-<script src="scanner.js?v=fix14"></script>
-<script src="camera.js?v=fix14"></script>
-<script src="photos.js?v=fix14"></script>
-<script src="main.js?v=fix14"></script>
+<script src="state.js?v=fix16"></script>
+<script src="utils.js?v=fix16"></script>
+<script src="storage.js?v=fix16"></script>
+<script src="scanner.js?v=fix16"></script>
+<script src="camera.js?v=fix16"></script>
+<script src="photos.js?v=fix16"></script>
+<script src="main.js?v=fix16"></script>
 
 <!-- Service Worker 登録 -->
 <script>

@@ -69,36 +69,57 @@ function applyCameraVideoFit() {
   const video = $('cam-video');
   const page = $('pg-camera');
   if (!video) return;
-  const isFullPreview = activeTab === 'camera' && cfg && cfg.aspectRatio === 'full' && !forceHorizontal;
+  const isTallPreview = activeTab === 'camera' && cfg && cfg.aspectRatio === 'full' && !forceHorizontal;
 
-  if (page) page.classList.toggle('full-preview', isFullPreview);
+  if (page) page.classList.toggle('full-preview', isTallPreview);
 
-  if (isFullPreview) {
-    // FIX14: FULLは4:3の横幅感を維持する「縦拡張」表示。
-    // videoをコンテナ幅に合わせ、上下だけをoverflowで切る/増やす。
-    video.style.objectFit = 'fill';
-    video.style.objectPosition = 'center center';
-    video.style.position = 'absolute';
-    video.style.left = '0';
-    video.style.top = '50%';
-    video.style.width = '100%';
-    video.style.height = 'auto';
-    video.style.minHeight = '0';
-    video.style.maxWidth = 'none';
-    video.style.transform = 'translateY(-50%)';
-  } else {
-    video.style.objectFit = 'cover';
-    video.style.objectPosition = 'center center';
-    video.style.position = '';
-    video.style.left = '';
-    video.style.top = '';
-    video.style.width = '100%';
-    video.style.height = '100%';
-    video.style.minHeight = '';
-    video.style.maxWidth = '';
-    if (!forceHorizontal) video.style.transform = '';
-  }
+  // FIX16: fullは4:3と同じ横方向スケールのまま、高さだけ増やす。
+  // プレビューも保存も同じ「中央クロップ計算」に合わせるため、表示は常にcover固定。
+  video.style.objectFit = 'cover';
+  video.style.objectPosition = 'center center';
+  video.style.position = 'absolute';
+  video.style.inset = '0';
+  video.style.left = '';
+  video.style.top = '';
+  video.style.width = '100%';
+  video.style.height = '100%';
+  video.style.minHeight = '';
+  video.style.maxWidth = '';
+  if (!forceHorizontal) video.style.transform = '';
   video.style.backgroundColor = '#000';
+}
+
+function getCaptureCrop(vw, vh) {
+  // 4:3: 横幅全体を使う標準クロップ。
+  // full: 4:3と同じ横幅全体を使い、縦だけ増やす。横方向は絶対に再計算しない。
+  const isTall = cfg.aspectRatio === 'full';
+  const targetRatio = isTall ? 1 : (() => {
+    const [a, b] = (cfg.aspectRatio || '4/3').split('/').map(Number);
+    return (a && b) ? a / b : 4 / 3;
+  })();
+
+  const videoRatio = vw / vh;
+  let sw, sh, sx, sy;
+
+  if (isTall) {
+    // ここが今回の要点: 4:3と同じく横幅は全て使う。
+    // 縦だけ 1:1 まで増やす。映像が足りない場合だけvhまで。
+    sw = vw;
+    sh = Math.min(vh, vw / targetRatio);
+    sx = 0;
+    sy = Math.max(0, (vh - sh) / 2);
+  } else if (videoRatio > targetRatio) {
+    sh = vh;
+    sw = vh * targetRatio;
+    sx = (vw - sw) / 2;
+    sy = 0;
+  } else {
+    sw = vw;
+    sh = vw / targetRatio;
+    sx = 0;
+    sy = (vh - sh) / 2;
+  }
+  return { sx, sy, sw, sh, targetRatio, isTall };
 }
 
 /* ════ カメラ停止 ════ */
@@ -304,29 +325,7 @@ async function takePhoto() {
   const canvas = document.createElement('canvas');
   const ctx    = canvas.getContext('2d', { alpha: false, desynchronized: true });
   const vw = video.videoWidth, vh = video.videoHeight;
-  const isFull = (cfg.aspectRatio === 'full');
-  const [rW, rH] = isFull ? [vw, vh] : (cfg.aspectRatio || '16/9').split('/');
-  const tgtRatio   = parseFloat(rW) / parseFloat(rH);
-  const videoRatio = vw / vh;
-
-  let sw, sh, sx, sy;
-  if (isFull) {
-    // FIX14: FULLは4:3の横幅感を維持する「縦拡張」保存。
-    // プレビューでは video をコンテナ幅に合わせているため、保存も必ずセンサー横幅を全て使う。
-    // その上で、画面に見えている高さ分だけ中央から切り出す。
-    const vf = $('cam-vf');
-    const viewW = vf?.clientWidth || video.clientWidth || vw;
-    const viewH = vf?.clientHeight || video.clientHeight || vh;
-    const visibleH = (viewW > 0 && viewH > 0) ? (vw * (viewH / viewW)) : vh;
-    sw = vw;
-    sh = Math.min(vh, Math.max(1, visibleH));
-    sx = 0;
-    sy = Math.max(0, (vh - sh) / 2);
-  } else if (videoRatio > tgtRatio) {
-    sh = vh; sw = vh * tgtRatio; sx = (vw - sw) / 2; sy = 0;
-  } else {
-    sw = vw; sh = vw / tgtRatio; sx = 0; sy = (vh - sh) / 2;
-  }
+  const { sx, sy, sw, sh } = getCaptureCrop(vw, vh);
 
   const maxW   = { low:1024, mid:1920, high:2560, max:4096 }[cfg.camQuality] || 1920;
 
@@ -443,12 +442,27 @@ function showCropOverlay(ratio) {
 function applyCameraViewportLayout() {
   const vf = $('cam-vf');
   if (!vf) return;
-  // 撮影比率は takePhoto 側でクロップする。プレビュー枠の高さは固定して、ボタン位置を動かさない。
-  vf.style.aspectRatio = 'auto';
-  vf.style.flex = '1 1 auto';
-  vf.style.maxHeight = 'none';
-  vf.style.minHeight = '0';
+
+  vf.style.width = '100%';
   vf.style.overflow = 'hidden';
+  vf.style.position = 'relative';
+
+  if (cfg.aspectRatio === 'full') {
+    // FIX16: FULLボタンは「縦拡張」モードとして扱う。
+    // 4:3と横幅感を揃え、高さだけ4:3より増やす。
+    vf.style.aspectRatio = '1 / 1';
+    vf.style.flex = '0 0 auto';
+    vf.style.height = 'auto';
+    vf.style.maxHeight = 'calc(100dvh - 290px)';
+    vf.style.minHeight = '0';
+  } else {
+    vf.style.aspectRatio = cfg.aspectRatio || '4 / 3';
+    vf.style.flex = '0 0 auto';
+    vf.style.height = 'auto';
+    vf.style.maxHeight = 'calc(100dvh - 250px)';
+    vf.style.minHeight = '0';
+  }
+  requestAnimationFrame(() => { updateCameraGuide(); applyCameraVideoFit(); });
 }
 
 function updateCameraModeClass() {
@@ -543,6 +557,7 @@ function toggleDirection() {
 
 function setAspectRatio(ratio) {
   if (cfg.aspectRatio === ratio) return;
+  const prevRatio = cfg.aspectRatio;
   cfg.aspectRatio = ratio;
   if (typeof saveCfg === 'function') saveCfg();
   document.querySelectorAll('.ratio-btn').forEach(btn => btn.classList.toggle('on', btn.dataset.r === ratio));
@@ -551,7 +566,9 @@ function setAspectRatio(ratio) {
   applyCameraVideoFit();
   showCropOverlay(ratio);
   updateCameraGuide();
-  if (camActive) startCam(true); // 解像度変更のため強制再起動
+  const sameFourThreeStream = (prevRatio === '4/3' && ratio === 'full') || (prevRatio === 'full' && ratio === '4/3');
+  if (camActive && !sameFourThreeStream) startCam(true); // 画質/比率変更時のみ再起動
+  else if (camActive) { applyCameraVideoFit(); updateCameraGuide(); updatePreview(); }
   else if (typeof applyCfgToUI === 'function') applyCfgToUI();
 }
 

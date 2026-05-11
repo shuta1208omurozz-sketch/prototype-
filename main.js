@@ -379,15 +379,17 @@ async function startGlobalCamera(forceRestart = false) {
     }
 
     const qBase = CAM_QUALITY[cfg.camQuality] || CAM_QUALITY.mid;
-    const isFull = cfg.aspectRatio === 'full';
 
-    // FULL モード: aspectRatio 制約を渡さずセンサー本来の画角を使う
-    const videoConstraints = isFull
-      ? { facingMode, width: qBase.width, height: qBase.height }
-      : (() => {
-          const [arW, arH] = (cfg.aspectRatio || '16/9').split('/').map(Number);
-          return { facingMode, width: qBase.width, height: qBase.height, aspectRatio: { ideal: arW / arH } };
-        })();
+    // FIX16: 「full」はセンサー全体ではなく、4:3と同じ横幅を維持して高さだけ増やすモード。
+    // getUserMediaの制約も4:3基準に固定し、FULL切替でレンズ/クロップ/FOVが変わらないようにする。
+    const ratioForStream = (cfg.aspectRatio === 'full') ? '4/3' : (cfg.aspectRatio || '4/3');
+    const [arW, arH] = ratioForStream.split('/').map(Number);
+    const videoConstraints = {
+      facingMode,
+      width: qBase.width,
+      height: qBase.height,
+      aspectRatio: { ideal: arW / arH }
+    };
 
     globalStream = await navigator.mediaDevices.getUserMedia({
       video: videoConstraints,
