@@ -409,13 +409,15 @@ async function startGlobalCamera(forceRestart = false) {
     let videoConstraints = {
       facingMode,
       width: qBase.width,
-      height: qBase.height
+      height: qBase.height,
+      resizeMode: 'none'
     };
     if (cfg.cameraDeviceId) {
       videoConstraints = {
         deviceId: { exact: cfg.cameraDeviceId },
         width: qBase.width,
-        height: qBase.height
+        height: qBase.height,
+        resizeMode: 'none'
       };
     }
 
@@ -432,7 +434,7 @@ async function startGlobalCamera(forceRestart = false) {
         cfg.cameraDeviceLabel = '';
         if (typeof saveCfg === 'function') saveCfg();
         globalStream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode, width: qBase.width, height: qBase.height },
+          video: { facingMode, width: qBase.width, height: qBase.height, resizeMode: 'none' },
           audio: false
         });
       } else {

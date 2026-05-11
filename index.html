@@ -6,7 +6,7 @@
   <title>Scanner + Camera</title>
 
   <!-- PWA -->
-  <link rel="manifest" href="manifest.json?v=fix25"/>
+  <link rel="manifest" href="manifest.json?v=fix26"/>
   <meta name="mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -657,7 +657,7 @@
     }
 
 
-    /* FIX25 FINAL: 拡大しないカメラ表示。FULL/デフォルトは取得映像を切らずに表示・保存する */
+    /* FIX26 FINAL: 拡大しないカメラ表示。FULL/デフォルトは取得映像を切らずに表示・保存する */
     #pg-camera.full-preview #cam-video,
     body.cam-full-mode #pg-camera #cam-video,
     #pg-camera.default-preview #cam-video{
@@ -690,10 +690,10 @@
 
 
 
-    /* FIX25: 商品撮影優先。グループ選択はカメラ画面から常時消す */
+    /* FIX26: 商品撮影優先。グループ選択はカメラ画面から常時消す */
     #pg-camera #cam-group-bar{ display:none !important; }
 
-    /* FIX25: カメラ内ボタンを同じ高さで扱いやすく */
+    /* FIX26: カメラ内ボタンを同じ高さで扱いやすく */
     #pg-camera #btn-native-camera,
     #pg-camera #btn-wide-camera,
     #pg-camera #btn-save-unsaved,
@@ -720,7 +720,7 @@
       font-size:10px;
     }
 
-    /* FIX25: 最近の写真は操作ボタンに埋もれない位置・高さへ */
+    /* FIX26: 最近の写真は操作ボタンに埋もれない位置・高さへ */
     #pg-camera #thumb-strip-wrap{
       z-index:80 !important;
       margin:8px 8px 6px !important;
@@ -743,11 +743,37 @@
       background:rgba(3,10,18,.86) !important;
     }
 
-    /* FIX25: デフォルト/FULL/比率変更で勝手に範囲を狭めない。映像全体を優先 */
+    /* FIX26: デフォルト/FULL/比率変更で勝手に範囲を狭めない。映像全体を優先 */
     #pg-camera #cam-video{
       object-fit:contain !important;
       object-position:center center !important;
       background:#000 !important;
+    }
+
+
+
+    /* FIX26 final override: FULLでもUIは通常のまま。デフォルトは最大範囲優先 */
+    body.cam-full-mode .hdr,
+    body.cam-full-mode .tabs{ display:flex !important; }
+    body.cam-full-mode #app{ height:auto !important; overflow:visible !important; }
+    body.cam-full-mode #pg-camera.cam-pg.on,
+    #pg-camera.full-preview{ height:calc(100dvh - 92px) !important; padding-top:0 !important; }
+    body.cam-full-mode #pg-camera #cam-controls,
+    body.cam-full-mode #pg-camera .cam-bottom-row,
+    body.cam-full-mode #pg-camera .cam-settings-row,
+    body.cam-full-mode #pg-camera #thumb-strip-wrap{
+      position:relative !important;
+      left:auto !important; right:auto !important; top:auto !important; bottom:auto !important;
+    }
+    #pg-camera.default-preview #cam-video,
+    #pg-camera.full-preview #cam-video{
+      object-fit:contain !important;
+      object-position:center center !important;
+      transform:none;
+    }
+    #pg-camera.default-preview #cam-range-box{
+      width:calc(100% - 20px) !important;
+      height:calc(100% - 20px) !important;
     }
 
   </style>
@@ -1108,7 +1134,7 @@
     <div class="settings-divider"></div>
     <div class="settings-ver">SCANNER + CAMERA · v4.1</div>
     <div class="app-update-row">
-      <span class="app-version-pill" id="app-version-text">VERSION FIX25</span>
+      <span class="app-version-pill" id="app-version-text">VERSION FIX26</span>
       <span class="save-log-pill" id="save-log-text">保存結果: なし</span>
       <button class="settings-btn update" id="btn-force-update" type="button">更新</button>
     </div>
@@ -1184,13 +1210,13 @@
 <div class="toast" id="toast"></div>
 
 <!-- ==================== JSモジュールの読み込み ==================== -->
-<script src="state.js?v=fix25"></script>
-<script src="utils.js?v=fix25"></script>
-<script src="storage.js?v=fix25"></script>
-<script src="scanner.js?v=fix25"></script>
-<script src="camera.js?v=fix25"></script>
-<script src="photos.js?v=fix25"></script>
-<script src="main.js?v=fix25"></script>
+<script src="state.js?v=fix26"></script>
+<script src="utils.js?v=fix26"></script>
+<script src="storage.js?v=fix26"></script>
+<script src="scanner.js?v=fix26"></script>
+<script src="camera.js?v=fix26"></script>
+<script src="photos.js?v=fix26"></script>
+<script src="main.js?v=fix26"></script>
 
 <!-- Service Worker 登録 -->
 <script>

@@ -25,8 +25,8 @@ function updateCameraGuide() {
   if (cfg.aspectRatio && cfg.aspectRatio !== 'full') {
     let target;
     if (cfg.aspectRatio === 'default' || cfg.aspectRatio === '4/3') {
-      // FIX19: デフォルトは4:3固定ではなく、少し縦を広げた標準カメラ風の範囲。
-      target = 1.18;
+      // FIX26: デフォルトは商品撮影の最大範囲寄り。枠で範囲を狭めない。
+      target = availW / availH;
       text = 'DEFAULT';
     } else {
       const parts = cfg.aspectRatio.split('/').map(Number);
@@ -112,7 +112,7 @@ async function discoverWidestBackCamera(qBase) {
     let stream = null;
     try {
       stream = await navigator.mediaDevices.getUserMedia({
-        video: { deviceId: { exact: d.deviceId }, width: qBase.width, height: qBase.height },
+        video: { deviceId: { exact: d.deviceId }, width: qBase.width, height: qBase.height, resizeMode: 'none' },
         audio: false
       });
       const track = stream.getVideoTracks()[0];
@@ -634,14 +634,15 @@ function applyCameraViewportLayout() {
   // FIX25: すべての比率で範囲優先。比率で映像を切らない。
   // FULLは縦方向の表示スペースを多く取り、デフォルト/他比率も取得映像の比率を基本にする。
   if (cfg.aspectRatio === 'full') {
+    // FIX26: FULLは縦写真用だが、専用フル画面UIにはしない。通常UIのまま少し縦を使う。
     vf.style.aspectRatio = 'auto';
     vf.style.flex = '1 1 auto';
     vf.style.height = 'auto';
-    vf.style.maxHeight = 'none';
-    vf.style.minHeight = '0';
+    vf.style.maxHeight = 'calc(100dvh - 210px)';
+    vf.style.minHeight = '260px';
   } else {
-    const vw = video?.videoWidth || 3;
-    const vh = video?.videoHeight || 4;
+    const vw = video?.videoWidth || 4;
+    const vh = video?.videoHeight || 3;
     vf.style.aspectRatio = String(vw / vh);
     vf.style.flex = '0 0 auto';
     vf.style.height = 'auto';
@@ -654,8 +655,12 @@ function applyCameraViewportLayout() {
 function updateCameraModeClass() {
   const full = activeTab === 'camera' && cfg.aspectRatio === 'full';
   const page = $('pg-camera');
-  if (page) page.classList.toggle('default-preview', cfg.aspectRatio === 'default' || cfg.aspectRatio === '4/3');
-  document.body.classList.toggle('cam-full-mode', !!full);
+  if (page) {
+    page.classList.toggle('default-preview', cfg.aspectRatio === 'default' || cfg.aspectRatio === '4/3');
+    page.classList.toggle('full-preview', !!full);
+  }
+  // FIX26: FULLでもヘッダー/タブ/操作UIは通常のまま。cam-full-modeによる専用UIは使わない。
+  document.body.classList.remove('cam-full-mode');
   document.body.classList.toggle('fullscreen', document.fullscreenElement != null || document.webkitFullscreenElement != null);
 }
 
@@ -758,7 +763,10 @@ function setAspectRatio(ratio) {
   updateCameraGuide();
   // FIX18: ストリームは比率で縛らないため、比率切替ではカメラ再起動しない。
   // プレビュー枠と保存クロップだけ変更するので、切替が速くなりレンズ/FOVも変わりにくい。
-  if (camActive) { applyCameraVideoFit(); updateCameraGuide(); updatePreview(); }
+  if (camActive) {
+    if (typeof autoApplyWideIfAvailable === 'function' && camTrack) autoApplyWideIfAvailable(camTrack, true);
+    applyCameraVideoFit(); updateCameraGuide(); updatePreview();
+  }
   else if (typeof applyCfgToUI === 'function') applyCfgToUI();
 }
 

@@ -1,6 +1,6 @@
 'use strict';
 
-const APP_VERSION = 'FIX25';
+const APP_VERSION = 'FIX26';
 
 /* ════ キー定数 ════ */
 const SETTINGS_KEY = 'sc-settings-v1';
@@ -77,9 +77,9 @@ let groupMoveTarget = 'ph';
 /* ════ 定数マッピング ════ */
 const CAM_QUALITY = {
   low:  { width: { ideal:  640 }, height: { ideal:  480 } },
-  mid:  { width: { ideal: 1280 }, height: { ideal:  720 } },
-  high: { width: { ideal: 1920 }, height: { ideal: 1080 } },
-  max:  { width: { ideal: 3840 }, height: { ideal: 2160 } }
+  mid:  { width: { ideal: 1280 }, height: { ideal:  960 } },
+  high: { width: { ideal: 1920 }, height: { ideal: 1440 } },
+  max:  { width: { ideal: 4000 }, height: { ideal: 3000 } }
 };
 
 const ASPECT_RATIOS = { 'default': 0, '16/9': 16/9, '21/9': 21/9 };
