@@ -324,10 +324,28 @@ function applyCameraVideoFit() {
 }
 
 function getCaptureCrop(vw, vh) {
-  // FIX25: 商品撮影では「比率変更で範囲が狭まる」ことを避ける。
-  // デフォルト/FULL/16:9/21:9すべて、保存は取得映像全体を基本にする。
-  // 比率ボタンは表示ガイド/見え方の補助に留め、撮影範囲は狭めない。
-  return { sx: 0, sy: 0, sw: vw, sh: vh, targetRatio: vw / vh, isFull: cfg.aspectRatio === 'full' };
+  // FIX29:
+  // デフォルト/FULLは最大範囲を優先してクロップしない。
+  // 16:9 / 21:9 は「選んだ比率で保存される」ことを優先して、保存時だけ正確にクロップする。
+  const mode = (cfg.aspectRatio === '4/3') ? 'default' : cfg.aspectRatio;
+  let sx = 0, sy = 0, sw = vw, sh = vh;
+  let targetRatio = vw / vh;
+
+  if (mode === '16/9' || mode === '21/9') {
+    targetRatio = mode === '16/9' ? (16 / 9) : (21 / 9);
+    const srcRatio = vw / vh;
+    if (srcRatio > targetRatio) {
+      // 元映像が横に広すぎる → 左右を少し切る
+      sw = vh * targetRatio;
+      sx = (vw - sw) / 2;
+    } else {
+      // 元映像が縦に広すぎる → 上下を切る
+      sh = vw / targetRatio;
+      sy = (vh - sh) / 2;
+    }
+  }
+
+  return { sx, sy, sw, sh, targetRatio, isFull: mode === 'full' };
 }
 
 /* ════ カメラ停止 ════ */
@@ -583,8 +601,10 @@ async function takePhoto() {
     ctx.drawImage(video, sx, sy, sw, sh, 0, 0, canvas.height, canvas.width);
     ctx.restore();
   } else {
+    const mode = (cfg.aspectRatio === '4/3') ? 'default' : cfg.aspectRatio;
+    const outRatio = (mode === '16/9') ? (16 / 9) : (mode === '21/9') ? (21 / 9) : (sw / sh);
     canvas.width  = Math.min(sw, maxW);
-    canvas.height = Math.round(canvas.width / (sw / sh));
+    canvas.height = Math.round(canvas.width / outRatio);
     ctx.drawImage(video, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
   }
 
