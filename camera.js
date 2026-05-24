@@ -641,7 +641,9 @@ async function takePhoto() {
       const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', q));
       if (!blob) return;
       photo.dataUrl = await blobToDataUrl(blob);
-      if (typeof autoSaveToDevice === 'function') autoSaveToDevice(photo, blob);
+      // FIX30: 撮影ごとにiPhoneの保存/共有画面が出る原因になるため、
+      // 自動端末保存(autoSaveToDevice)は呼ばない。
+      // 写真はアプリ内に保存し、端末保存はカメラ画面の『保存』ボタンから未保存分だけ実行する。
       if (typeof dbPut === 'function') { await dbPut(photo); await dbPrune(cfg.maxPhotos); }
     } catch (e) { console.error('[Camera] Save:', e); }
   }, 50);

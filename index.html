@@ -657,7 +657,7 @@
     }
 
 
-    /* FIX29 FINAL: 拡大しないカメラ表示。FULL/デフォルトは取得映像を切らずに表示・保存する */
+    /* FIX30 FINAL: 拡大しないカメラ表示。FULL/デフォルトは取得映像を切らずに表示・保存する */
     #pg-camera.full-preview #cam-video,
     body.cam-full-mode #pg-camera #cam-video,
     #pg-camera.default-preview #cam-video{
@@ -690,10 +690,10 @@
 
 
 
-    /* FIX29: 商品撮影優先。グループ選択はカメラ画面から常時消す */
+    /* FIX30: 商品撮影優先。グループ選択はカメラ画面から常時消す */
     #pg-camera #cam-group-bar{ display:none !important; }
 
-    /* FIX29: カメラ内ボタンを同じ高さで扱いやすく */
+    /* FIX30: カメラ内ボタンを同じ高さで扱いやすく */
     #pg-camera #btn-native-camera,
     #pg-camera #btn-wide-camera,
     #pg-camera #btn-save-unsaved,
@@ -720,7 +720,7 @@
       font-size:10px;
     }
 
-    /* FIX29: 最近の写真は操作ボタンに埋もれない位置・高さへ */
+    /* FIX30: 最近の写真は操作ボタンに埋もれない位置・高さへ */
     #pg-camera #thumb-strip-wrap{
       z-index:80 !important;
       margin:8px 8px 6px !important;
@@ -743,7 +743,7 @@
       background:rgba(3,10,18,.86) !important;
     }
 
-    /* FIX29: デフォルト/FULL/比率変更で勝手に範囲を狭めない。映像全体を優先 */
+    /* FIX30: デフォルト/FULL/比率変更で勝手に範囲を狭めない。映像全体を優先 */
     #pg-camera #cam-video{
       object-fit:contain !important;
       object-position:center center !important;
@@ -752,7 +752,7 @@
 
 
 
-    /* FIX29 final override: FULLでもUIは通常のまま。デフォルトは最大範囲優先 */
+    /* FIX30 final override: FULLでもUIは通常のまま。デフォルトは最大範囲優先 */
     body.cam-full-mode .hdr,
     body.cam-full-mode .tabs{ display:flex !important; }
     body.cam-full-mode #app{ height:auto !important; overflow:visible !important; }
@@ -777,7 +777,7 @@
     }
 
   
-    /* FIX29: 広角/倍率状態表示 */
+    /* FIX30: 広角/倍率状態表示 */
     #pg-camera .wide-status-pill{
       display:inline-flex;
       align-items:center;
@@ -804,7 +804,7 @@
       background:rgba(255,80,110,.72);
       border-color:rgba(255,80,110,.95);
     }
-    /* FIX29: iPhoneは最近写真を軽量・操作しやすく */
+    /* FIX30: iPhoneは最近写真を軽量・操作しやすく */
     body.ios-like #pg-camera #thumb-strip .mini-thumb{
       flex-basis:54px !important;
       width:54px !important;
@@ -815,7 +815,7 @@
     }
 
 
-    /* FIX29: 広角/倍率表示は不要。広角ボタンも非表示 */
+    /* FIX30: 広角/倍率表示は不要。広角ボタンも非表示 */
     #pg-camera #wide-status,
     #pg-camera #btn-wide-camera{
       display:none !important;
@@ -1179,7 +1179,7 @@
     <div class="settings-divider"></div>
     <div class="settings-ver">SCANNER + CAMERA · v4.1</div>
     <div class="app-update-row">
-      <span class="app-version-pill" id="app-version-text">VERSION FIX29</span>
+      <span class="app-version-pill" id="app-version-text">VERSION FIX30</span>
       <span class="save-log-pill" id="save-log-text">保存結果: なし</span>
       <button class="settings-btn update" id="btn-force-update" type="button">更新</button>
     </div>
