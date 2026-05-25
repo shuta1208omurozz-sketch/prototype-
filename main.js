@@ -92,6 +92,7 @@ function applyCfgToUI() {
   setChk('set-cont-scan',    cfg.continuousScan);
   setChk('set-use-group',    cfg.useGroup);
   setChk('set-outdoor-mode', cfg.outdoorMode);
+  setChk('set-android-auto-download', !!cfg.androidAutoDownload);
   // 屋外モードをbodyクラスに反映
   document.body.classList.toggle('outdoor-mode', !!cfg.outdoorMode);
 
@@ -216,6 +217,18 @@ function bindEvents() {
     saveCfg();
     document.body.classList.toggle('outdoor-mode', cfg.outdoorMode);
     showToast(cfg.outdoorMode ? '☀ 屋外モード ON' : '屋外モード OFF', cfg.outdoorMode ? 'ok' : '');
+  });
+  on('set-android-auto-download', 'change', e => {
+    if (typeof IS_IOS_LIKE !== 'undefined' && IS_IOS_LIKE) {
+      e.target.checked = false;
+      cfg.androidAutoDownload = false;
+      saveCfg();
+      showToast('iPhoneでは撮影ごとの自動保存はOFF固定です', 'warn', 3500);
+      return;
+    }
+    cfg.androidAutoDownload = !!e.target.checked;
+    saveCfg();
+    showToast('Android自動保存: ' + (cfg.androidAutoDownload ? 'ON' : 'OFF') + '（固定しました）', cfg.androidAutoDownload ? 'ok' : '');
   });
   document.querySelectorAll('[data-mp]').forEach(btn => btn.addEventListener('click', () => {
     MAX_PH = +btn.dataset.mp; cfg.maxPhotos = MAX_PH; saveCfg(); applyCfgToUI(); updateCounts();

@@ -641,10 +641,23 @@ async function takePhoto() {
       const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', q));
       if (!blob) return;
       photo.dataUrl = await blobToDataUrl(blob);
-      // FIX30: 撮影ごとにiPhoneの保存/共有画面が出る原因になるため、
-      // 自動端末保存(autoSaveToDevice)は呼ばない。
-      // 写真はアプリ内に保存し、端末保存はカメラ画面の『保存』ボタンから未保存分だけ実行する。
+      // FIX31: iPhoneは撮影ごとの保存/共有画面を出さない。Androidのみ設定ONで自動ダウンロード。
+      if (cfg.androidAutoDownload && !(typeof IS_IOS_LIKE !== 'undefined' && IS_IOS_LIKE)) {
+        try {
+          const ok = (typeof downloadOnePhotoDirect === 'function') ? await downloadOnePhotoDirect(photo) : false;
+          if (ok) {
+            photo.savedToDevice = true;
+            if (typeof showToast === 'function') showToast('✓ 自動保存しました', 'ok', 1200);
+          } else {
+            if (typeof showToast === 'function') showToast('[E044] 自動保存に失敗。未保存に残しました', 'warn', 3500);
+          }
+        } catch (dlErr) {
+          console.warn('[AndroidAutoDownload]', dlErr);
+          if (typeof showToast === 'function') showToast('[E044] 自動保存に失敗。未保存に残しました', 'warn', 3500);
+        }
+      }
       if (typeof dbPut === 'function') { await dbPut(photo); await dbPrune(cfg.maxPhotos); }
+      if (typeof updateUnsavedSaveButton === 'function') updateUnsavedSaveButton();
     } catch (e) { console.error('[Camera] Save:', e); }
   }, 50);
 }
