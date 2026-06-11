@@ -15,6 +15,16 @@ function updateAppVersionUI() {
   if (el) el.textContent = 'VERSION ' + (typeof APP_VERSION !== 'undefined' ? APP_VERSION : 'UNKNOWN');
 }
 
+function updateJumpButtonUI() {
+  const place = cfg.jumpButtonPlace || 'barcode';
+  document.body.classList.toggle('jump-place-barcode', place === 'barcode');
+  document.body.classList.toggle('jump-place-toolbar', place === 'toolbar');
+  document.body.classList.toggle('jump-toolbar-fixed', !!cfg.jumpButtonFixed);
+  document.querySelectorAll('[data-jump-place]').forEach(b => b.classList.toggle('on', b.dataset.jumpPlace === place));
+  const fixed = $('set-jump-fixed');
+  if (fixed) fixed.checked = !!cfg.jumpButtonFixed;
+}
+
 async function forceAppUpdate() {
   try {
     showToast('更新準備中...', '', 1500);
@@ -93,6 +103,7 @@ function applyCfgToUI() {
   setChk('set-use-group',    cfg.useGroup);
   setChk('set-outdoor-mode', cfg.outdoorMode);
   setChk('set-android-auto-download', !!cfg.androidAutoDownload);
+  setChk('set-jump-fixed', !!cfg.jumpButtonFixed);
   // 屋外モードをbodyクラスに反映
   document.body.classList.toggle('outdoor-mode', !!cfg.outdoorMode);
 
@@ -115,6 +126,7 @@ function applyCfgToUI() {
     document.documentElement.style.setProperty('--photo-size', (cfg.photoSize || 80) + 'px');
   }
   $('btn-bc-compact')?.classList.toggle('on', cfg.bcCompactMode);
+  updateJumpButtonUI();
   updateGroupUI();
 }
 
@@ -172,19 +184,55 @@ document.querySelectorAll('.tab').forEach(btn => {
   btn.onclick = () => switchTab(btn.dataset.tab);
 });
 
-function jumpListItems(containerId, itemSelector, count) {
-  const container = $(containerId);
-  if (!container) return;
-  const items = Array.from(container.querySelectorAll(itemSelector)).filter(el => el.offsetParent !== null);
-  if (!items.length) { showToast('移動できる項目がありません', 'warn'); return; }
-  const scroller = container.closest('.page') || document.scrollingElement || document.documentElement;
-  const currentTop = scroller.scrollTop || 0;
-  let currentIdx = items.findIndex(el => (el.offsetTop + el.offsetHeight) > currentTop + 12);
-  if (currentIdx < 0) currentIdx = 0;
-  const targetIdx = Math.min(items.length - 1, currentIdx + Math.max(1, count || 3));
-  const target = items[targetIdx];
-  scroller.scrollTo({ top: Math.max(0, target.offsetTop - 8), behavior: 'smooth' });
+function scrollTargetIntoView(target) {
+  if (!target) return;
+  // FIX37: offsetTopでscrollToすると、履歴ページ/本文スクロールの環境差で動かないことがある。
+  // scrollIntoViewはAndroid Chrome/iPhone Safari両方で一番安定する。
+  try {
+    target.scrollIntoView({ behavior: 'smooth', block: 'start', inline: 'nearest' });
+  } catch (_) {
+    target.scrollIntoView(true);
+  }
 }
+
+function getVisibleListItems(containerId, itemSelector) {
+  const container = $(containerId);
+  if (!container) return [];
+  return Array.from(container.querySelectorAll(itemSelector)).filter(el => {
+    const r = el.getBoundingClientRect();
+    return r.width > 0 && r.height > 0;
+  });
+}
+
+function jumpListItems(containerId, itemSelector, count) {
+  const items = getVisibleListItems(containerId, itemSelector);
+  if (!items.length) { showToast('移動できる項目がありません', 'warn'); return; }
+
+  // 今画面内で一番上に近いカードを基準に、3件下へ移動
+  const topLine = 8;
+  let currentIdx = items.findIndex(el => el.getBoundingClientRect().bottom > topLine);
+  if (currentIdx < 0) currentIdx = 0;
+
+  const targetIdx = Math.min(items.length - 1, currentIdx + Math.max(1, count || 3));
+  if (targetIdx === currentIdx) { showToast('これ以上下はありません', 'warn'); return; }
+  scrollTargetIntoView(items[targetIdx]);
+}
+
+function jumpListItemsFromElement(containerId, itemSelector, fromEl, count) {
+  const items = getVisibleListItems(containerId, itemSelector);
+  if (!items.length || !fromEl) { showToast('移動できる項目がありません', 'warn'); return; }
+
+  const currentIdx = items.indexOf(fromEl.closest(itemSelector) || fromEl);
+  if (currentIdx < 0) { showToast('移動位置を取得できません', 'warn'); return; }
+
+  const targetIdx = Math.min(items.length - 1, currentIdx + Math.max(1, count || 3));
+  if (targetIdx === currentIdx) { showToast('これ以上下はありません', 'warn'); return; }
+  scrollTargetIntoView(items[targetIdx]);
+}
+
+// scanner.js側のバーコード横ボタンから確実に呼べるように公開
+window.jumpListItems = jumpListItems;
+window.jumpListItemsFromElement = jumpListItemsFromElement;
 
 /* ════ イベント登録 ════ */
 function bindEvents() {
@@ -198,6 +246,20 @@ function bindEvents() {
   // UI設定
   on('set-photo-size', 'input',  e => { $('val-photo-size').textContent = e.target.value + 'px'; document.documentElement.style.setProperty('--photo-size', e.target.value + 'px'); });
   on('set-photo-size', 'change', e => { cfg.photoSize = +e.target.value; saveCfg(); });
+
+  document.querySelectorAll('[data-jump-place]').forEach(btn => btn.addEventListener('click', () => {
+    cfg.jumpButtonPlace = btn.dataset.jumpPlace || 'barcode';
+    saveCfg();
+    updateJumpButtonUI();
+    renderBcList();
+    showToast('↓3位置: ' + (cfg.jumpButtonPlace === 'barcode' ? 'バーコード横' : '上部'), 'ok');
+  }));
+  on('set-jump-fixed', 'change', e => {
+    cfg.jumpButtonFixed = !!e.target.checked;
+    saveCfg();
+    updateJumpButtonUI();
+    showToast('↓3固定: ' + (cfg.jumpButtonFixed ? 'ON' : 'OFF'), cfg.jumpButtonFixed ? 'ok' : '');
+  });
 
   // スキャン設定
   on('set-cont-scan', 'change', e => { cfg.continuousScan = e.target.checked; saveCfg(); showToast('連続スキャン: ' + (cfg.continuousScan ? 'ON' : 'OFF'), cfg.continuousScan ? 'ok' : ''); });

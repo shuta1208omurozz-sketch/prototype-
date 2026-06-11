@@ -6,7 +6,7 @@
   <title>Scanner + Camera</title>
 
   <!-- PWA -->
-  <link rel="manifest" href="manifest.json?v=fix35"/>
+  <link rel="manifest" href="manifest.json?v=fix37"/>
   <meta name="mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -849,6 +849,47 @@
       pointer-events:none;
     }
     .mini-thumb .photo-order-badge{ font-size:8px; padding:1px 4px; }
+
+
+    /* FIX37: ↓3ボタンをバーコード横に置けるようにする */
+    .bc-value-row{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      width:100%;
+      min-width:0;
+    }
+    .bc-value-row .bc-val-large{
+      flex:1 1 auto;
+      min-width:0;
+      overflow-wrap:anywhere;
+    }
+    .bc-inline-jump{
+      flex:0 0 auto;
+      height:30px;
+      min-width:48px;
+      padding:0 8px;
+      border-radius:999px;
+      border:1px solid rgba(0,255,136,.65);
+      background:rgba(0,255,136,.10);
+      color:#00ff88;
+      font-family:'Share Tech Mono',monospace;
+      font-size:11px;
+      letter-spacing:.5px;
+    }
+    .bc-inline-jump:active{ transform:scale(.96); }
+    body.jump-toolbar-fixed #pg-history .toolbar,
+    body.jump-toolbar-fixed #pg-photos .photo-toolbar{
+      position:sticky;
+      top:0;
+      z-index:30;
+      background:rgba(5,10,16,.92);
+      backdrop-filter:blur(8px);
+      border-bottom:1px solid rgba(0,212,255,.22);
+    }
+    body.jump-place-barcode #btn-bc-jump-3{ display:none !important; }
+    body.jump-place-toolbar .bc-inline-jump{ display:none !important; }
+
 </style>
 </head>
 <body class="theme-cyan">
@@ -1135,6 +1176,17 @@
         </div>
         <input type="range" id="set-photo-size" min="50" max="300" step="10" value="80" style="width:100%; margin-top:12px;" />
       </div>
+      <div class="settings-row">
+        <div><div class="settings-lbl">↓3ボタン位置</div><div class="settings-sub">バーコード横に置くと、スクロール中でも押しやすいです。</div></div>
+        <div class="settings-ctrl">
+          <button class="seg-btn" data-jump-place="barcode">バーコード横</button>
+          <button class="seg-btn" data-jump-place="toolbar">上部</button>
+        </div>
+      </div>
+      <div class="settings-row">
+        <div><div class="settings-lbl">↓3ボタン位置を固定</div><div class="settings-sub">上部表示の時はスクロールしてもツールバーを残します。設定は保存されます。</div></div>
+        <label class="toggle-sw"><input type="checkbox" id="set-jump-fixed"/><span class="toggle-slider"></span></label>
+      </div>
     </div>
     <div class="settings-divider"></div>
 
@@ -1217,7 +1269,7 @@
     <div class="settings-divider"></div>
     <div class="settings-ver">SCANNER + CAMERA · v4.1</div>
     <div class="app-update-row">
-      <span class="app-version-pill" id="app-version-text">VERSION FIX32</span>
+      <span class="app-version-pill" id="app-version-text">VERSION FIX37</span>
       <span class="save-log-pill" id="save-log-text">保存結果: なし</span>
       <button class="settings-btn update" id="btn-force-update" type="button">更新</button>
     </div>
@@ -1293,13 +1345,13 @@
 <div class="toast" id="toast"></div>
 
 <!-- ==================== JSモジュールの読み込み ==================== -->
-<script src="state.js?v=fix35"></script>
-<script src="utils.js?v=fix35"></script>
-<script src="storage.js?v=fix35"></script>
-<script src="scanner.js?v=fix35"></script>
-<script src="camera.js?v=fix35"></script>
-<script src="photos.js?v=fix35"></script>
-<script src="main.js?v=fix35"></script>
+<script src="state.js?v=fix37"></script>
+<script src="utils.js?v=fix37"></script>
+<script src="storage.js?v=fix37"></script>
+<script src="scanner.js?v=fix37"></script>
+<script src="camera.js?v=fix37"></script>
+<script src="photos.js?v=fix37"></script>
+<script src="main.js?v=fix37"></script>
 
 <!-- Service Worker 登録 -->
 <script>

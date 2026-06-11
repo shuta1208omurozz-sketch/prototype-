@@ -1,6 +1,6 @@
 'use strict';
 
-const APP_VERSION = 'FIX35';
+const APP_VERSION = 'FIX36';
 const IS_IOS_LIKE = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
 /* ════ キー定数 ════ */
@@ -26,7 +26,9 @@ let cfg = {
   cameraDeviceLabel: '',
   preferUltraWide: true,
   _wideMinZoom: 1,
-  androidAutoDownload: false
+  androidAutoDownload: false,
+  jumpButtonPlace: 'barcode',
+  jumpButtonFixed: true
 };
 
 /* ════ データ ════ */

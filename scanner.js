@@ -645,10 +645,22 @@ function renderBcList() {
     thumbDiv.appendChild(canvas);
     if (cfg.bcCompactMode) thumbDiv.style.display = 'none';
 
-    // 値テキスト
+    // 値テキスト + FIX37: ↓3ボタンをバーコード横に配置
+    const valueRow = document.createElement('div');
+    valueRow.className = 'bc-value-row';
+
     const valDiv = document.createElement('div');
     valDiv.className = 'bc-val-large';
     valDiv.textContent = item.value;
+
+    const inlineJumpBtn = document.createElement('button');
+    inlineJumpBtn.className = 'bc-inline-jump';
+    inlineJumpBtn.type = 'button';
+    inlineJumpBtn.title = 'この位置から3件下へ移動';
+    inlineJumpBtn.textContent = '↓3';
+
+    valueRow.appendChild(valDiv);
+    valueRow.appendChild(inlineJumpBtn);
 
     // メタ行
     const metaRow = document.createElement('div');
@@ -682,13 +694,13 @@ function renderBcList() {
 
     el.appendChild(selChk);
     el.appendChild(thumbDiv);
-    el.appendChild(valDiv);
+    el.appendChild(valueRow);
     el.appendChild(metaRow);
 
     // イベント
     el.onclick = (e) => {
       if (multiSelModeBc) { toggleMultiSelectBc(item.id, el); return; }
-      if (e.target === checkBtn || e.target === selChk || e.target === deleteBtn) return;
+      if (e.target === checkBtn || e.target === selChk || e.target === deleteBtn || e.target === inlineJumpBtn) return;
       openBcModal(item);
     };
     checkBtn.onclick = (e) => {
@@ -704,6 +716,13 @@ function renderBcList() {
     selChk.onclick = (e) => {
       e.stopPropagation();
       toggleMultiSelectBc(item.id, el);
+    };
+
+    inlineJumpBtn.onclick = (e) => {
+      e.stopPropagation();
+      if (typeof jumpListItemsFromElement === 'function') {
+        jumpListItemsFromElement('bc-list', '.bc-card', el, 3);
+      }
     };
 
     frag.appendChild(el);
