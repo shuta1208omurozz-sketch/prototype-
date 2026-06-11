@@ -6,7 +6,7 @@
   <title>Scanner + Camera</title>
 
   <!-- PWA -->
-  <link rel="manifest" href="manifest.json?v=fix37"/>
+  <link rel="manifest" href="manifest.json?v=fix38"/>
   <meta name="mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -824,13 +824,14 @@
   
 
     /* FIX35: 時間ごとのスキャン区切り・3件移動・写真番号 */
+    /* FIX38: 時間バーは固定しない。バーコード画像の上にかぶると読み込みの邪魔になるため */
     .time-section-header{
       display:flex; align-items:center; justify-content:space-between;
       padding:6px 8px; margin:8px 0 4px;
       border:1px solid rgba(0,212,255,.30); border-radius:8px;
       background:rgba(0,212,255,.08); color:rgba(220,245,255,.96);
       font-family:'Share Tech Mono',monospace; font-size:11px; letter-spacing:.4px;
-      position:sticky; top:0; z-index:3; backdrop-filter:blur(6px);
+      position:static; top:auto; z-index:1; backdrop-filter:none; pointer-events:none; /* FIX38: 時間バーがバーコード画像にかぶらないよう固定表示を解除 */
     }
     .time-section-header .time-count{ color:#00ff88; font-size:10px; }
     .btn-jump-3{
@@ -1269,7 +1270,7 @@
     <div class="settings-divider"></div>
     <div class="settings-ver">SCANNER + CAMERA · v4.1</div>
     <div class="app-update-row">
-      <span class="app-version-pill" id="app-version-text">VERSION FIX37</span>
+      <span class="app-version-pill" id="app-version-text">VERSION FIX38</span>
       <span class="save-log-pill" id="save-log-text">保存結果: なし</span>
       <button class="settings-btn update" id="btn-force-update" type="button">更新</button>
     </div>
@@ -1345,13 +1346,13 @@
 <div class="toast" id="toast"></div>
 
 <!-- ==================== JSモジュールの読み込み ==================== -->
-<script src="state.js?v=fix37"></script>
-<script src="utils.js?v=fix37"></script>
-<script src="storage.js?v=fix37"></script>
-<script src="scanner.js?v=fix37"></script>
-<script src="camera.js?v=fix37"></script>
-<script src="photos.js?v=fix37"></script>
-<script src="main.js?v=fix37"></script>
+<script src="state.js?v=fix38"></script>
+<script src="utils.js?v=fix38"></script>
+<script src="storage.js?v=fix38"></script>
+<script src="scanner.js?v=fix38"></script>
+<script src="camera.js?v=fix38"></script>
+<script src="photos.js?v=fix38"></script>
+<script src="main.js?v=fix38"></script>
 
 <!-- Service Worker 登録 -->
 <script>
