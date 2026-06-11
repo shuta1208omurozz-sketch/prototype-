@@ -36,6 +36,34 @@ function updateSaveResultLogUI() {
 }
 
 
+function getPhotoSerialMap() {
+  const map = new Map();
+  photos
+    .slice()
+    .filter(p => p && p.id)
+    .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0))
+    .forEach((p, i) => map.set(p.id, i + 1));
+  return map;
+}
+
+function getPhotoSerial(photo) {
+  if (!photo) return 0;
+  return getPhotoSerialMap().get(photo.id) || 0;
+}
+
+function getPhotoDisplayNumber(photo, fallbackSerial = 0) {
+  const code = String(photo?.scannedCode || '').replace(/\D/g, '');
+  if (code) return code.slice(-5).padStart(Math.min(5, code.length), '0');
+  return String(fallbackSerial || 0).padStart(3, '0');
+}
+
+function createPhotoOrderBadge(photo, fallbackSerial = 0) {
+  const badge = document.createElement('div');
+  badge.className = 'photo-order-badge';
+  badge.textContent = '#' + getPhotoDisplayNumber(photo, fallbackSerial);
+  return badge;
+}
+
 /* ════ フィルタ・ソート ════ */
 function getFilteredPh() {
   let f = photos.slice();
@@ -58,7 +86,9 @@ function renderPhotoGrid() {
   grid.innerHTML = '';
 
   let lastDay = '';
+  const serialMap = getPhotoSerialMap();
   getFilteredPh().forEach(p => {
+    const serial = serialMap.get(p.id) || 0;
     const day = getDayString(p.timestamp);
     if (day !== lastDay) {
       const hdr = document.createElement('div');
@@ -72,6 +102,7 @@ function renderPhotoGrid() {
     const imgWrap = document.createElement('div');
     imgWrap.className = 'photo-card-img';
 
+    imgWrap.appendChild(createPhotoOrderBadge(p, serial));
     if (cfg.useGroup && p.group) {
       const gb = document.createElement('div');
       gb.className = 'card-group-badge'; gb.textContent = p.group;
@@ -106,8 +137,10 @@ function updateThumbStrip() {
   strip.innerHTML = '';
   const isIOS = (typeof IS_IOS_LIKE !== 'undefined' && IS_IOS_LIKE);
   const maxThumbs = isIOS ? 6 : 10;
+  const serialMap = getPhotoSerialMap();
   photos.slice(0, maxThumbs).forEach(p => {
     const d   = document.createElement('div'); d.className = 'mini-thumb';
+    d.appendChild(createPhotoOrderBadge(p, serialMap.get(p.id) || 0));
     const img = document.createElement('img');
     img.loading = 'lazy';
     img.decoding = 'async';
@@ -178,7 +211,10 @@ function openLightbox(p) {
   currentLightbox = p;
   $('lb-img').src       = p.dataUrl;
   $('lb-img').style.transform = `rotate(${p.rotation || 0}deg)`;
-  $('lb-ttl').textContent = fmtTime(p.timestamp) + ' · ' +
+  const serial = getPhotoSerial(p);
+  const displayNo = getPhotoDisplayNumber(p, serial);
+  const codePart = p.scannedCode ? ' · BC ' + p.scannedCode : '';
+  $('lb-ttl').textContent = '#' + displayNo + codePart + ' · ' + fmtTime(p.timestamp) + ' · ' +
     (p.facingMode === 'user' ? 'フロント' : p.facingMode === 'merged' ? '結合' : 'リア');
   $('lightbox').style.display = '';
 }
@@ -247,8 +283,8 @@ function updateUnsavedSaveButton() {
   const btn = $('btn-save-unsaved');
   if (btn) {
     btn.disabled = n === 0;
-    btn.textContent = n ? `保存 ${n}` : '保存';
-    btn.title = n ? `未保存の写真 ${n}枚を保存` : '未保存の写真はありません';
+    btn.textContent = (typeof IS_IOS_LIKE !== 'undefined' && IS_IOS_LIKE) ? (n ? `PCへ送る ${n}` : 'PCへ送る') : (n ? `保存 ${n}` : '保存');
+    btn.title = n ? ((typeof IS_IOS_LIKE !== 'undefined' && IS_IOS_LIKE) ? `未保存の写真 ${n}枚をZIPでPCへ送る` : `未保存の写真 ${n}枚を保存`) : '未保存の写真はありません';
   }
   ['unsaved-indicator', 'unsaved-count-inline', 'photo-unsaved-count'].forEach(id => {
     const el = $(id);
@@ -293,11 +329,198 @@ async function downloadOnePhotoDirect(photo) {
   }
 }
 
+
+/* ════ FIX33: iPhone用 未保存写真ZIP化保存 ════
+ * iPhone Safari/PWAは複数a.downloadをブロックしやすいため、
+ * 未保存写真を1つのZIPにまとめて1回だけ保存させる。
+ * 圧縮はしない(store)ので、100枚以上でも処理が軽く、PCへ移しやすい。
+ */
+let _crcTable = null;
+function getCrcTable() {
+  if (_crcTable) return _crcTable;
+  _crcTable = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    _crcTable[n] = c >>> 0;
+  }
+  return _crcTable;
+}
+function crc32(bytes) {
+  const table = getCrcTable();
+  let c = 0xFFFFFFFF;
+  for (let i = 0; i < bytes.length; i++) c = table[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+function dosDateTime(ts) {
+  const d = new Date(ts || Date.now());
+  const time = (d.getHours() << 11) | (d.getMinutes() << 5) | Math.floor(d.getSeconds() / 2);
+  const date = ((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate();
+  return { time, date };
+}
+function u16(n) { return new Uint8Array([n & 255, (n >>> 8) & 255]); }
+function u32(n) { return new Uint8Array([n & 255, (n >>> 8) & 255, (n >>> 16) & 255, (n >>> 24) & 255]); }
+function safeZipName(s) {
+  return String(s || 'photo').replace(/[\\/:*?"<>|\u0000-\u001F]/g, '_').slice(0, 80);
+}
+async function createZipBlobFromPhotos(list) {
+  const enc = new TextEncoder();
+  const localParts = [];
+  const centralParts = [];
+  let offset = 0;
+
+  for (let i = 0; i < list.length; i++) {
+    const p = list[i];
+    const blob = await dataUrlToBlob(p.dataUrl);
+    if (!blob) throw new Error('画像変換に失敗しました');
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    const crc = crc32(bytes);
+    const ts = fmtTime(p.timestamp).replace(/[/\s:]/g, '-');
+    const prefix = p.scannedCode ? p.scannedCode.slice(-5) : 'photo';
+    const name = safeZipName(`${String(i + 1).padStart(3, '0')}_${prefix}_${ts}.jpg`);
+    const nameBytes = enc.encode(name);
+    const dt = dosDateTime(p.timestamp);
+
+    const localHeader = new Blob([
+      u32(0x04034b50), // local file header signature
+      u16(20),         // version needed
+      u16(0),          // flags
+      u16(0),          // compression: store
+      u16(dt.time), u16(dt.date),
+      u32(crc), u32(bytes.length), u32(bytes.length),
+      u16(nameBytes.length), u16(0),
+      nameBytes
+    ]);
+    localParts.push(localHeader, bytes);
+
+    const centralHeader = new Blob([
+      u32(0x02014b50), // central dir signature
+      u16(20), u16(20),
+      u16(0), u16(0),
+      u16(dt.time), u16(dt.date),
+      u32(crc), u32(bytes.length), u32(bytes.length),
+      u16(nameBytes.length), u16(0), u16(0),
+      u16(0), u16(0),
+      u32(0), u32(offset),
+      nameBytes
+    ]);
+    centralParts.push(centralHeader);
+    offset += 30 + nameBytes.length + bytes.length;
+  }
+
+  const centralSize = centralParts.reduce((sum, part) => sum + part.size, 0);
+  const end = new Blob([
+    u32(0x06054b50),
+    u16(0), u16(0),
+    u16(list.length), u16(list.length),
+    u32(centralSize), u32(offset),
+    u16(0)
+  ]);
+  return new Blob([...localParts, ...centralParts, end], { type: 'application/zip' });
+}
+async function saveUnsavedPhotosAsZipForIOS(list) {
+  const btn = $('btn-save-unsaved');
+  if (btn) btn.disabled = true;
+  try {
+    showToast(`未保存 ${list.length}枚をZIP化中...`, '', 3000);
+    setSaveResultLog(0, 0, list.length, `ZIP作成中: ${list.length}枚`);
+    const zipBlob = await createZipBlobFromPhotos(list);
+    const url = URL.createObjectURL(zipBlob);
+    const name = `photos_${new Date().toISOString().replace(/[:.]/g, '-').slice(0,19)}_${list.length}枚.zip`;
+    fallbackDownload(url, name);
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+
+    // iPhoneはダウンロード完了をWeb側で厳密に検知できないため、
+    // 1ファイル保存開始に成功した時点で未保存から外す。失敗時はcatchへ入る。
+    await markPhotosSavedToDevice(list);
+    setSaveResultLog(list.length, 0, list.length, `ZIP保存開始: ${list.length}枚`);
+    showToast(`✓ ZIP保存を開始しました: ${list.length}枚`, 'ok', 5000);
+    return true;
+  } catch (e) {
+    console.error('[IOSZipSave]', e);
+    setSaveResultLog(0, list.length, list.length, '[E046] ZIP保存失敗');
+    showToast('[E046] ZIP保存に失敗: ' + (e.message || e.name), 'err', 5000);
+    return false;
+  } finally {
+    if (btn) btn.disabled = false;
+    updateUnsavedSaveButton();
+  }
+}
+
+
+function openIOSSavePanel(list) {
+  const photosToShow = (list || []).filter(Boolean);
+  if (!photosToShow.length) return;
+
+  let bg = $('ios-save-panel-bg');
+  if (!bg) {
+    bg = document.createElement('div');
+    bg.id = 'ios-save-panel-bg';
+    bg.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.86);display:flex;flex-direction:column;color:#fff;font-family:system-ui,-apple-system,sans-serif;';
+    bg.innerHTML = `
+      <div style="padding:10px 12px;display:flex;align-items:center;gap:8px;background:#07111c;border-bottom:1px solid rgba(0,212,255,.35);">
+        <div style="font-weight:700;font-size:14px;flex:1;">iPhone保存</div>
+        <button id="ios-save-mark" style="border:1px solid #00d4ff;background:rgba(0,212,255,.12);color:#dff9ff;border-radius:8px;padding:7px 9px;font-size:12px;">保存済みにする</button>
+        <button id="ios-save-close" style="border:1px solid #555;background:#111;color:#fff;border-radius:8px;padding:7px 10px;font-size:13px;">×</button>
+      </div>
+      <div id="ios-save-note" style="padding:8px 12px;font-size:12px;line-height:1.6;color:#cfefff;background:#0b1724;">
+        iPhone Safari/PWAでは複数画像の自動ダウンロードがブロックされることがあります。画像を長押しして「写真に保存」または「画像を保存」を使ってください。保存後に「保存済みにする」を押すと未保存から外れます。
+      </div>
+      <div id="ios-save-list" style="flex:1;overflow:auto;padding:10px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;-webkit-overflow-scrolling:touch;"></div>
+    `;
+    document.body.appendChild(bg);
+  }
+
+  const grid = $('ios-save-list');
+  grid.innerHTML = '';
+  photosToShow.forEach((p, i) => {
+    const card = document.createElement('div');
+    card.style.cssText = 'background:#050a10;border:1px solid rgba(0,212,255,.35);border-radius:10px;overflow:hidden;';
+    const img = document.createElement('img');
+    img.src = p.dataUrl;
+    img.alt = '保存画像 ' + (i + 1);
+    img.loading = 'lazy';
+    img.style.cssText = 'display:block;width:100%;height:auto;max-height:42vh;object-fit:contain;background:#000;';
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;gap:6px;align-items:center;padding:6px;font-size:11px;color:#cfefff;';
+    const label = document.createElement('span');
+    label.textContent = `#${getPhotoDisplayNumber(p, i + 1)} · ${i + 1}/${photosToShow.length}`;
+    label.style.flex = '1';
+    const dl = document.createElement('button');
+    dl.textContent = 'DL';
+    dl.style.cssText = 'border:1px solid #00d4ff;background:rgba(0,212,255,.12);color:#dff9ff;border-radius:7px;padding:5px 8px;font-size:11px;';
+    dl.onclick = async () => {
+      const ok = await downloadOnePhotoDirect(p);
+      showToast(ok ? 'ダウンロードを開始しました。保存されない場合は長押し保存してください' : '[E044] ダウンロード開始失敗', ok ? '' : 'warn', 3500);
+    };
+    row.append(label, dl);
+    card.append(img, row);
+    grid.appendChild(card);
+  });
+
+  bg.style.display = 'flex';
+  $('ios-save-close').onclick = () => { bg.style.display = 'none'; };
+  $('ios-save-mark').onclick = async () => {
+    if (!confirm(`${photosToShow.length}枚を保存済みにしますか？\n実際に保存してから押してください。`)) return;
+    await markPhotosSavedToDevice(photosToShow);
+    setSaveResultLog(photosToShow.length, 0, photosToShow.length, `iPhone保存済み: ${photosToShow.length}枚`);
+    showToast(`✓ ${photosToShow.length}枚を保存済みにしました`, 'ok');
+    bg.style.display = 'none';
+  };
+}
+
 async function saveUnsavedPhotosToDevice() {
   const list = getUnsavedPhotos();
   if (!list.length) {
     showToast('未保存の写真はありません', '');
     updateUnsavedSaveButton();
+    return;
+  }
+
+  // FIX33: iPhoneは複数画像の連続DLではなく、未保存写真を1つのZIPにまとめて1回で保存する。
+  // Androidは従来通り、都度保存/連続DLの挙動を維持する。
+  if (typeof IS_IOS_LIKE !== 'undefined' && IS_IOS_LIKE) {
+    await saveUnsavedPhotosAsZipForIOS(list);
     return;
   }
 

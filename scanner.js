@@ -53,6 +53,171 @@ function loadZxingBrowser() {
 }
 
 
+/* ════ CDN不要: iPhone用ローカルEAN-13スキャン（E011対策） ════ */
+const EAN_L = {
+  '0001101':'0','0011001':'1','0010011':'2','0111101':'3','0100011':'4',
+  '0110001':'5','0101111':'6','0111011':'7','0110111':'8','0001011':'9'
+};
+const EAN_G = {
+  '0100111':'0','0110011':'1','0011011':'2','0100001':'3','0011101':'4',
+  '0111001':'5','0000101':'6','0010001':'7','0001001':'8','0010111':'9'
+};
+const EAN_R = {
+  '1110010':'0','1100110':'1','1101100':'2','1000010':'3','1011100':'4',
+  '1001110':'5','1010000':'6','1000100':'7','1001000':'8','1110100':'9'
+};
+const EAN_PARITY = {
+  'LLLLLL':'0','LLGLGG':'1','LLGGLG':'2','LLGGGL':'3','LGLLGG':'4',
+  'LGGLLG':'5','LGGGLL':'6','LGLGLG':'7','LGLGGL':'8','LGGLGL':'9'
+};
+
+function ean13ChecksumOk(code) {
+  if (!/^\d{13}$/.test(code)) return false;
+  let sum = 0;
+  for (let i = 0; i < 12; i++) sum += Number(code[i]) * (i % 2 ? 3 : 1);
+  return ((10 - (sum % 10)) % 10) === Number(code[12]);
+}
+
+function otsuThreshold(values) {
+  const hist = new Array(256).fill(0);
+  for (const v of values) hist[v|0]++;
+  const total = values.length;
+  let sum = 0;
+  for (let i = 0; i < 256; i++) sum += i * hist[i];
+  let sumB = 0, wB = 0, best = 127, maxVar = -1;
+  for (let t = 0; t < 256; t++) {
+    wB += hist[t];
+    if (!wB) continue;
+    const wF = total - wB;
+    if (!wF) break;
+    sumB += t * hist[t];
+    const mB = sumB / wB;
+    const mF = (sum - sumB) / wF;
+    const between = wB * wF * (mB - mF) * (mB - mF);
+    if (between > maxVar) { maxVar = between; best = t; }
+  }
+  return best;
+}
+
+function decodeEan13Bits(bits) {
+  if (!bits || bits.length !== 95) return null;
+  if (bits.slice(0,3) !== '101' || bits.slice(45,50) !== '01010' || bits.slice(92,95) !== '101') return null;
+  let left = '', parity = '';
+  for (let i = 0; i < 6; i++) {
+    const seg = bits.slice(3 + i * 7, 3 + (i + 1) * 7);
+    if (EAN_L[seg] !== undefined) { left += EAN_L[seg]; parity += 'L'; }
+    else if (EAN_G[seg] !== undefined) { left += EAN_G[seg]; parity += 'G'; }
+    else return null;
+  }
+  const first = EAN_PARITY[parity];
+  if (first === undefined) return null;
+  let right = '';
+  for (let i = 0; i < 6; i++) {
+    const seg = bits.slice(50 + i * 7, 50 + (i + 1) * 7);
+    if (EAN_R[seg] === undefined) return null;
+    right += EAN_R[seg];
+  }
+  const code = first + left + right;
+  return ean13ChecksumOk(code) ? code : null;
+}
+
+function tryDecodeEan13FromRow(gray, width) {
+  const thr = otsuThreshold(gray);
+  let bin = new Uint8Array(width);
+  for (let i = 0; i < width; i++) bin[i] = gray[i] < thr ? 1 : 0; // 黒=1
+
+  // 端の黒点を探す。少し内側から複数候補を試す
+  let first = -1, last = -1;
+  for (let i = 0; i < width; i++) if (bin[i]) { first = i; break; }
+  for (let i = width - 1; i >= 0; i--) if (bin[i]) { last = i; break; }
+  if (first < 0 || last <= first || last - first < 95) return null;
+
+  const span = last - first + 1;
+  const shifts = [-8,-4,0,4,8];
+  const scales = [0.96,0.98,1.0,1.02,1.04];
+  for (const sc of scales) {
+    const w = span * sc;
+    const cx = (first + last) / 2;
+    const st = cx - w / 2;
+    const step = w / 95;
+    if (st < 0 || st + w >= width) continue;
+    for (const sh of shifts) {
+      let bits = '';
+      for (let m = 0; m < 95; m++) {
+        const x = Math.max(0, Math.min(width - 1, Math.round(st + (m + 0.5) * step + sh * step / 10)));
+        bits += bin[x] ? '1' : '0';
+      }
+      const val = decodeEan13Bits(bits);
+      if (val) return val;
+    }
+  }
+  return null;
+}
+
+function localDecodeEan13FromVideo(video) {
+  if (!video || video.readyState < 2 || !video.videoWidth || !video.videoHeight) return null;
+  if (!_roiCanvas) {
+    _roiCanvas = document.createElement('canvas');
+    _roiCtx = _roiCanvas.getContext('2d', { alpha:false, willReadFrequently:true });
+  }
+  const vw = video.videoWidth, vh = video.videoHeight;
+  const srcH = Math.round(vh * 0.34);
+  const outW = Math.min(900, vw);
+  const outH = Math.max(120, Math.round(srcH * outW / vw));
+  if (_roiCanvas.width !== outW) _roiCanvas.width = outW;
+  if (_roiCanvas.height !== outH) _roiCanvas.height = outH;
+  _roiCtx.drawImage(video, 0, Math.round((vh - srcH) / 2), vw, srcH, 0, 0, outW, outH);
+  const img = _roiCtx.getImageData(0, 0, outW, outH).data;
+  const rows = [0.42,0.46,0.50,0.54,0.58,0.36,0.64];
+  for (const rr of rows) {
+    const y = Math.max(0, Math.min(outH - 1, Math.round(outH * rr)));
+    const gray = new Uint8Array(outW);
+    let p = y * outW * 4;
+    for (let x = 0; x < outW; x++, p += 4) {
+      gray[x] = (img[p] * 0.299 + img[p+1] * 0.587 + img[p+2] * 0.114) | 0;
+    }
+    const val = tryDecodeEan13FromRow(gray, outW);
+    if (val) return val;
+  }
+  return null;
+}
+
+async function startLocalEanScan(reasonText = '') {
+  try {
+    await prepareScanVideo();
+    scanning = true;
+    scanEngine = 'local-ean13';
+    setScanUI(true);
+    setStatus('go', '[I003] iPhoneローカルEAN-13スキャン中...');
+    const btn = $('btn-scan');
+    if (btn) {
+      btn.textContent = '■ スキャン停止';
+      btn.classList.add('stop', 'active');
+    }
+    if (typeof showToast === 'function') showToast(reasonText || 'CDN不要のEAN-13スキャンに切替', 'ok', 3500);
+    localEanDetectLoop();
+  } catch (e) {
+    handleScanStartError(e, 'LOCAL_EAN');
+  }
+}
+
+function localEanDetectLoop() {
+  if (!scanning || activeTab !== 'scan') { if (raf) cancelAnimationFrame(raf); raf = null; return; }
+  const now = performance.now();
+  if (now - _lastScanTime < 260) { raf = requestAnimationFrame(localEanDetectLoop); return; }
+  _lastScanTime = now;
+  const v = $('scan-video');
+  try {
+    const val = localDecodeEan13FromVideo(v);
+    if (val) handleScanSuccess(val, 'ean_13');
+    else _requiresClearFrame = false;
+  } catch (e) {
+    console.warn('[LocalEAN13]', e);
+  }
+  if (scanning) raf = requestAnimationFrame(localEanDetectLoop);
+}
+
+
 /* ════ スキャンUI ════ */
 function setScanUI(active) {
   $('scan-line').style.display = (!active || scanMode !== 'all') ? 'none' : '';
@@ -113,7 +278,15 @@ function stopScan() {
 
 async function startScan() {
   if (scanning) return;
-  const useNative = ('BarcodeDetector' in window) && !isIOSDevice();
+  const ios = isIOSDevice();
+
+  // FIX33: iPhoneでEAN-13を使う場合は、外部CDNに依存しないローカルEAN-13スキャンを優先。
+  // CDN失敗(E011)でスキャン開始できない事故を避ける。
+  if (ios && scanMode === 'ean13') {
+    return startLocalEanScan('[I003] iPhone EAN-13ローカルスキャン中');
+  }
+
+  const useNative = ('BarcodeDetector' in window) && !ios;
   if (useNative) return startNativeScan();
   return startZxingScan();
 }
@@ -212,6 +385,10 @@ async function startZxingScan() {
     if (typeof showToast === 'function') showToast(reason, 'ok', 3500);
   } catch (e) {
     console.error('[ZXing start]', e);
+    // iPhoneでE011(CDN失敗)が出る環境向け。CDN不要のEAN-13専用ローカルスキャンへ自動切替。
+    if (scanMode === 'ean13') {
+      return startLocalEanScan('[I003] CDN不要のEAN-13スキャンに切替');
+    }
     handleScanStartError(e, 'ZXING');
   }
 }
@@ -228,6 +405,8 @@ function handleScanStartError(e, engine) {
   if (engine === 'ZXING') {
     if (String(e.message || '').includes('CDN')) [code, msg] = ['E011', '互換スキャン読込失敗。通信/CDN/広告ブロックを確認'];
     else [code, msg] = ['E012', (ios ? 'iPhone互換スキャン初期化失敗: ' : '互換スキャン初期化失敗: ') + (e.message || e.name || 'unknown')];
+  } else if (engine === 'LOCAL_EAN') {
+    [code, msg] = ['E013', 'iPhoneローカルEAN-13スキャン開始失敗: ' + (e.message || e.name || 'unknown')];
   } else {
     [code, msg] = errMap[e.name] || ['E005', 'カメラエラー: ' + String(e.message || e.name || '').slice(0, 80)];
   }
@@ -393,6 +572,28 @@ function getFilteredBc() {
   return list.sort((a, b) => sortOrderBc === 'desc' ? b.timestamp - a.timestamp : a.timestamp - b.timestamp);
 }
 
+function getScanTimeBucketLabel(ts) {
+  const d = new Date(ts || Date.now());
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const h = String(d.getHours()).padStart(2, '0');
+  return `${y}/${m}/${day} ${h}:00〜${h}:59`;
+}
+
+function makeTimeSectionHeader(label, count) {
+  const hdr = document.createElement('div');
+  hdr.className = 'time-section-header';
+  const left = document.createElement('span');
+  left.textContent = '⏱ ' + label;
+  const right = document.createElement('span');
+  right.className = 'time-count';
+  right.textContent = count + '件';
+  hdr.appendChild(left);
+  hdr.appendChild(right);
+  return hdr;
+}
+
 function renderBcList() {
   const container = $('bc-list');
   const emptyEl   = $('bc-empty');
@@ -409,7 +610,19 @@ function renderBcList() {
   container.innerHTML = '';
   const frag = document.createDocumentFragment();
 
+  const bucketCounts = {};
+  list.forEach(x => {
+    const label = getScanTimeBucketLabel(x.timestamp);
+    bucketCounts[label] = (bucketCounts[label] || 0) + 1;
+  });
+  let lastBucketLabel = '';
+
   list.forEach(item => {
+    const bucketLabel = getScanTimeBucketLabel(item.timestamp);
+    if (bucketLabel !== lastBucketLabel) {
+      frag.appendChild(makeTimeSectionHeader(bucketLabel, bucketCounts[bucketLabel] || 0));
+      lastBucketLabel = bucketLabel;
+    }
     const isSelected = multiSelectedBc.includes(item.id);
     const fmtUpper   = (item.format || '').toUpperCase().replace('_', ' ');
     const isEan      = (item.format || '').includes('ean');

@@ -172,10 +172,26 @@ document.querySelectorAll('.tab').forEach(btn => {
   btn.onclick = () => switchTab(btn.dataset.tab);
 });
 
+function jumpListItems(containerId, itemSelector, count) {
+  const container = $(containerId);
+  if (!container) return;
+  const items = Array.from(container.querySelectorAll(itemSelector)).filter(el => el.offsetParent !== null);
+  if (!items.length) { showToast('移動できる項目がありません', 'warn'); return; }
+  const scroller = container.closest('.page') || document.scrollingElement || document.documentElement;
+  const currentTop = scroller.scrollTop || 0;
+  let currentIdx = items.findIndex(el => (el.offsetTop + el.offsetHeight) > currentTop + 12);
+  if (currentIdx < 0) currentIdx = 0;
+  const targetIdx = Math.min(items.length - 1, currentIdx + Math.max(1, count || 3));
+  const target = items[targetIdx];
+  scroller.scrollTo({ top: Math.max(0, target.offsetTop - 8), behavior: 'smooth' });
+}
+
 /* ════ イベント登録 ════ */
 function bindEvents() {
   const on = (id, ev, fn) => $(id)?.addEventListener(ev, fn);
   on('btn-force-update', 'click', forceAppUpdate);
+  on('btn-bc-jump-3', 'click', () => jumpListItems('bc-list', '.bc-card', 3));
+  on('btn-ph-jump-3', 'click', () => jumpListItems('photo-grid', '.photo-card', 3));
 
 
 
