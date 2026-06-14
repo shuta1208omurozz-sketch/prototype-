@@ -645,7 +645,7 @@ function renderBcList() {
     thumbDiv.appendChild(canvas);
     if (cfg.bcCompactMode) thumbDiv.style.display = 'none';
 
-    // 値テキスト + FIX37: ↓3ボタンをバーコード横に配置
+    // 値テキスト + FIX39: ↓1ボタンをバーコード左側に配置
     const valueRow = document.createElement('div');
     valueRow.className = 'bc-value-row';
 
@@ -656,11 +656,11 @@ function renderBcList() {
     const inlineJumpBtn = document.createElement('button');
     inlineJumpBtn.className = 'bc-inline-jump';
     inlineJumpBtn.type = 'button';
-    inlineJumpBtn.title = 'この位置から3件下へ移動';
-    inlineJumpBtn.textContent = '↓3';
+    inlineJumpBtn.title = 'この位置から1件下へ移動';
+    inlineJumpBtn.textContent = '↓1';
 
-    valueRow.appendChild(valDiv);
     valueRow.appendChild(inlineJumpBtn);
+    valueRow.appendChild(valDiv);
 
     // メタ行
     const metaRow = document.createElement('div');
@@ -721,7 +721,7 @@ function renderBcList() {
     inlineJumpBtn.onclick = (e) => {
       e.stopPropagation();
       if (typeof jumpListItemsFromElement === 'function') {
-        jumpListItemsFromElement('bc-list', '.bc-card', el, 3);
+        jumpListItemsFromElement('bc-list', '.bc-card', el, 1);
       }
     };
 

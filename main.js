@@ -140,6 +140,9 @@ function switchTab(newTab, pushHistory = true) {
 
   const prevTab = activeTab;
   activeTab = newTab;
+  if (prevTab === 'camera' && newTab !== 'camera' && typeof forceTorchOff === 'function') {
+    void forceTorchOff();
+  }
   if (typeof updateCameraModeClass === 'function') updateCameraModeClass();
 
   // 戻るボタン対策: タブ遷移を履歴に積む
@@ -238,8 +241,8 @@ window.jumpListItemsFromElement = jumpListItemsFromElement;
 function bindEvents() {
   const on = (id, ev, fn) => $(id)?.addEventListener(ev, fn);
   on('btn-force-update', 'click', forceAppUpdate);
-  on('btn-bc-jump-3', 'click', () => jumpListItems('bc-list', '.bc-card', 3));
-  on('btn-ph-jump-3', 'click', () => jumpListItems('photo-grid', '.photo-card', 3));
+  on('btn-bc-jump-3', 'click', () => jumpListItems('bc-list', '.bc-card', 1));
+  on('btn-ph-jump-3', 'click', () => jumpListItems('photo-grid', '.photo-card', 1));
 
 
 
@@ -252,13 +255,13 @@ function bindEvents() {
     saveCfg();
     updateJumpButtonUI();
     renderBcList();
-    showToast('↓3位置: ' + (cfg.jumpButtonPlace === 'barcode' ? 'バーコード横' : '上部'), 'ok');
+    showToast('↓1位置: ' + (cfg.jumpButtonPlace === 'barcode' ? 'バーコード横' : '上部'), 'ok');
   }));
   on('set-jump-fixed', 'change', e => {
     cfg.jumpButtonFixed = !!e.target.checked;
     saveCfg();
     updateJumpButtonUI();
-    showToast('↓3固定: ' + (cfg.jumpButtonFixed ? 'ON' : 'OFF'), cfg.jumpButtonFixed ? 'ok' : '');
+    showToast('↓1固定: ' + (cfg.jumpButtonFixed ? 'ON' : 'OFF'), cfg.jumpButtonFixed ? 'ok' : '');
   });
 
   // スキャン設定
@@ -556,6 +559,7 @@ async function startGlobalCamera(forceRestart = false) {
 }
 
 function stopGlobalCamera() {
+  if (typeof forceTorchOff === 'function') void forceTorchOff();
   // 物理カメラを完全停止（バックグラウンド移行時のみ呼ぶ）
   if (globalStream) {
     globalStream.getTracks().forEach(t => t.stop());

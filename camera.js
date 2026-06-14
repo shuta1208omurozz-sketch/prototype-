@@ -350,6 +350,7 @@ function getCaptureCrop(vw, vh) {
 
 /* ════ カメラ停止 ════ */
 function stopCam() {
+  if (typeof forceTorchOff === 'function') void forceTorchOff();
   camActive = false;
   // ストリームは共有のため物理停止しない。ビデオ要素からのみ切断する
   const video = $('cam-video');
@@ -366,6 +367,7 @@ let _resumeScanWanted = false;
 let _lastResumeAt = 0;
 
 function pauseAllCameraForBackground() {
+  if (typeof forceTorchOff === 'function') void forceTorchOff();
   _resumeScanWanted = activeTab === 'scan' && !!scanning;
 
   const sv = $('scan-video');
@@ -554,13 +556,37 @@ async function applyZoom(val) {
 }
 
 /* ════ トーチ ════ */
+function setTorchButtonOff() {
+  const btn = $('btn-torch');
+  if (!btn) return;
+  btn.classList.remove('on', 'active');
+  btn.style.color = '';
+  btn.setAttribute('aria-pressed', 'false');
+}
+
+async function forceTorchOff() {
+  const track = camTrack || globalCamTrack;
+  // UIは先にOFFへ戻す。モード移動後にボタンだけON表示で残る事故を防ぐ。
+  setTorchButtonOff();
+  try {
+    if (track && track.readyState !== 'ended') {
+      const st = track.getSettings?.() || {};
+      if (st.torch) await track.applyConstraints({ advanced: [{ torch: false }] });
+    }
+  } catch (e) { console.warn('[Camera] Torch off:', e); }
+}
+
 async function toggleTorch() {
   if (!camTrack) return;
   try {
     const newState = !camTrack.getSettings().torch;
     await camTrack.applyConstraints({ advanced: [{ torch: newState }] });
     const btn = $('btn-torch');
-    if (btn) { btn.classList.toggle('on', newState); btn.style.color = newState ? 'var(--accent)' : ''; }
+    if (btn) {
+      btn.classList.toggle('on', newState);
+      btn.style.color = newState ? 'var(--accent)' : '';
+      btn.setAttribute('aria-pressed', newState ? 'true' : 'false');
+    }
   } catch (e) { console.error('[Camera] Torch:', e); }
 }
 

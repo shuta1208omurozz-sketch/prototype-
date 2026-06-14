@@ -6,7 +6,7 @@
   <title>Scanner + Camera</title>
 
   <!-- PWA -->
-  <link rel="manifest" href="manifest.json?v=fix38"/>
+  <link rel="manifest" href="manifest.json?v=fix39"/>
   <meta name="mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -823,7 +823,7 @@
 
   
 
-    /* FIX35: 時間ごとのスキャン区切り・3件移動・写真番号 */
+    /* FIX39: 時間ごとのスキャン区切り・1件移動・写真番号 */
     /* FIX38: 時間バーは固定しない。バーコード画像の上にかぶると読み込みの邪魔になるため */
     .time-section-header{
       display:flex; align-items:center; justify-content:space-between;
@@ -852,7 +852,7 @@
     .mini-thumb .photo-order-badge{ font-size:8px; padding:1px 4px; }
 
 
-    /* FIX37: ↓3ボタンをバーコード横に置けるようにする */
+    /* FIX39: ↓1ボタンをバーコード左側に置けるようにする */
     .bc-value-row{
       display:flex;
       align-items:center;
@@ -980,7 +980,7 @@
       <input class="sbox" id="search-box" placeholder="バーコード値を検索..." type="search"/>
       <button class="btn-sm" id="btn-bc-compact" title="画像を隠して1行で表示">☰ 1行</button>
       <button class="btn-sm" id="btn-bc-sort">↓ 新しい順</button>
-      <button class="btn-sm btn-jump-3" id="btn-bc-jump-3" title="3件下へ移動">↓3</button>
+      <button class="btn-sm btn-jump-3" id="btn-bc-jump-3" title="1件下へ移動">↓1</button>
       <button class="btn-sm accent" id="btn-bc-select-mode" style="display:none">☑ 選択</button>
       <button class="btn-sm accent" id="btn-bc-csv" style="display:none">CSV</button>
       <button class="btn-sm danger" id="btn-bc-clear" style="display:none">全削除</button>
@@ -1132,7 +1132,7 @@
         <select id="hist-ph-group-select" class="group-select" style="padding:2px 4px; font-size:10px;"></select>
       </div>
       <button class="btn-sm" id="btn-ph-sort" style="margin-left:auto;">↓ 新しい順</button>
-      <button class="btn-sm btn-jump-3" id="btn-ph-jump-3" title="3枚下へ移動">↓3</button>
+      <button class="btn-sm btn-jump-3" id="btn-ph-jump-3" title="1枚下へ移動">↓1</button>
       <button class="btn-sm accent" id="btn-ph-select-mode" style="display:none">☑ 選択</button>
       <button class="btn-sm accent" id="btn-merge-mode" style="display:none">📐 結合</button>
       <button class="btn-sm danger" id="btn-photo-clear" style="display:none">全削除</button>
@@ -1178,14 +1178,14 @@
         <input type="range" id="set-photo-size" min="50" max="300" step="10" value="80" style="width:100%; margin-top:12px;" />
       </div>
       <div class="settings-row">
-        <div><div class="settings-lbl">↓3ボタン位置</div><div class="settings-sub">バーコード横に置くと、スクロール中でも押しやすいです。</div></div>
+        <div><div class="settings-lbl">↓1ボタン位置</div><div class="settings-sub">バーコード横に置くと、スクロール中でも押しやすいです。</div></div>
         <div class="settings-ctrl">
           <button class="seg-btn" data-jump-place="barcode">バーコード横</button>
           <button class="seg-btn" data-jump-place="toolbar">上部</button>
         </div>
       </div>
       <div class="settings-row">
-        <div><div class="settings-lbl">↓3ボタン位置を固定</div><div class="settings-sub">上部表示の時はスクロールしてもツールバーを残します。設定は保存されます。</div></div>
+        <div><div class="settings-lbl">↓1ボタン位置を固定</div><div class="settings-sub">上部表示の時はスクロールしてもツールバーを残します。設定は保存されます。</div></div>
         <label class="toggle-sw"><input type="checkbox" id="set-jump-fixed"/><span class="toggle-slider"></span></label>
       </div>
     </div>
@@ -1346,13 +1346,13 @@
 <div class="toast" id="toast"></div>
 
 <!-- ==================== JSモジュールの読み込み ==================== -->
-<script src="state.js?v=fix38"></script>
-<script src="utils.js?v=fix38"></script>
-<script src="storage.js?v=fix38"></script>
-<script src="scanner.js?v=fix38"></script>
-<script src="camera.js?v=fix38"></script>
-<script src="photos.js?v=fix38"></script>
-<script src="main.js?v=fix38"></script>
+<script src="state.js?v=fix39"></script>
+<script src="utils.js?v=fix39"></script>
+<script src="storage.js?v=fix39"></script>
+<script src="scanner.js?v=fix39"></script>
+<script src="camera.js?v=fix39"></script>
+<script src="photos.js?v=fix39"></script>
+<script src="main.js?v=fix39"></script>
 
 <!-- Service Worker 登録 -->
 <script>
