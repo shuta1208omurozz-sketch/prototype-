@@ -6,7 +6,7 @@
   <title>Scanner + Camera</title>
 
   <!-- PWA -->
-  <link rel="manifest" href="manifest.json?v=fix52"/>
+  <link rel="manifest" href="manifest.json?v=fix55"/>
   <meta name="mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -1340,6 +1340,207 @@
       background:rgba(255,170,68,.16) !important;
     }
 
+
+
+    /* FIX53: 回転矢印ボタンは削除。シャッター中央、右にSCAN、その右にフラッシュ */
+    #pg-camera #btn-horizontal,
+    #pg-camera #btn-direction,
+    #pg-camera #direction-arrow{
+      display:none !important;
+    }
+    #pg-camera #cam-controls .btn-row{
+      position:relative !important;
+      height:64px !important;
+      min-height:64px !important;
+      transform:none !important;
+      display:block !important;
+      overflow:visible !important;
+    }
+    #pg-camera #btn-shutter{
+      position:absolute !important;
+      left:50% !important;
+      top:50% !important;
+      transform:translate(-50%, -50%) !important;
+      z-index:5 !important;
+    }
+    #pg-camera #btn-goto-scan-main{
+      position:absolute !important;
+      left:calc(50% + 42px) !important;
+      top:50% !important;
+      transform:translateY(-50%) !important;
+      z-index:6 !important;
+    }
+    #pg-camera #btn-torch{
+      position:absolute !important;
+      left:calc(50% + 84px) !important;
+      top:50% !important;
+      transform:translateY(-50%) !important;
+      z-index:6 !important;
+    }
+    @media (max-width:380px){
+      #pg-camera #btn-goto-scan-main{ left:calc(50% + 38px) !important; }
+      #pg-camera #btn-torch{ left:calc(50% + 76px) !important; }
+    }
+
+
+    /* FIX54: 撮影ボタンを大きくし、最近の写真を埋もれにくい位置へ */
+    #pg-camera #cam-vf{ order:1 !important; }
+    #pg-camera #thumb-strip-wrap{
+      order:2 !important;
+      position:relative !important;
+      left:auto !important;
+      right:auto !important;
+      top:auto !important;
+      bottom:auto !important;
+      z-index:120 !important;
+      flex:0 0 auto !important;
+      margin:6px 8px 4px !important;
+      padding:7px !important;
+      max-height:118px !important;
+      overflow:hidden !important;
+      background:rgba(3,10,18,.94) !important;
+      border:1px solid rgba(0,255,136,.55) !important;
+      box-shadow:0 0 16px rgba(0,255,136,.14) !important;
+    }
+    #pg-camera .cam-settings-row{ order:3 !important; }
+    #pg-camera #cam-controls{ order:4 !important; }
+    #pg-camera .cam-bottom-row{ order:5 !important; }
+    body.cam-full-mode #pg-camera #thumb-strip-wrap{
+      position:relative !important;
+      left:auto !important;
+      right:auto !important;
+      top:auto !important;
+      bottom:auto !important;
+      margin:6px 8px 4px !important;
+      max-height:118px !important;
+    }
+    #pg-camera #thumb-strip-wrap .thumb-strip-hdr{
+      margin-bottom:5px !important;
+      font-size:12px !important;
+    }
+    #pg-camera #thumb-strip{
+      min-height:70px !important;
+      gap:8px !important;
+    }
+    #pg-camera #thumb-strip .mini-thumb{
+      flex-basis:68px !important;
+      width:68px !important;
+      height:68px !important;
+    }
+    #pg-camera #btn-thumb-toggle2,
+    #pg-camera #btn-thumb-toggle{
+      min-width:84px !important;
+      height:34px !important;
+      padding:0 12px !important;
+      font-size:12px !important;
+    }
+
+    #pg-camera #cam-controls .btn-row{
+      height:78px !important;
+      min-height:78px !important;
+    }
+    #pg-camera #btn-shutter,
+    #pg-camera .btn-shutter,
+    #pg-camera .shutter{
+      width:68px !important;
+      height:68px !important;
+      min-width:68px !important;
+      min-height:68px !important;
+    }
+    #pg-camera #btn-goto-scan-main,
+    #pg-camera #btn-torch{
+      width:48px !important;
+      height:48px !important;
+      min-width:48px !important;
+      min-height:48px !important;
+      border-radius:999px !important;
+      font-size:12px !important;
+      padding:0 !important;
+      display:inline-flex !important;
+      align-items:center !important;
+      justify-content:center !important;
+    }
+    #pg-camera #btn-goto-scan-main{
+      left:calc(50% + 52px) !important;
+    }
+    #pg-camera #btn-torch{
+      left:calc(50% + 106px) !important;
+    }
+    @media (max-width:380px){
+      #pg-camera #cam-controls .btn-row{
+        height:72px !important;
+        min-height:72px !important;
+      }
+      #pg-camera #btn-shutter,
+      #pg-camera .btn-shutter,
+      #pg-camera .shutter{
+        width:62px !important;
+        height:62px !important;
+        min-width:62px !important;
+        min-height:62px !important;
+      }
+      #pg-camera #btn-goto-scan-main,
+      #pg-camera #btn-torch{
+        width:44px !important;
+        height:44px !important;
+        min-width:44px !important;
+        min-height:44px !important;
+        font-size:11px !important;
+      }
+      #pg-camera #btn-goto-scan-main{ left:calc(50% + 48px) !important; }
+      #pg-camera #btn-torch{ left:calc(50% + 98px) !important; }
+      #pg-camera #thumb-strip .mini-thumb{
+        flex-basis:62px !important;
+        width:62px !important;
+        height:62px !important;
+      }
+    }
+
+
+    /* FIX55: シャッター左にBC履歴ボタン。履歴カードから1件ずつグループ移動 */
+    #pg-camera #btn-goto-history-main{
+      position:absolute !important;
+      left:calc(50% - 100px) !important;
+      top:50% !important;
+      transform:translateY(-50%) !important;
+      z-index:6 !important;
+      width:48px !important;
+      height:48px !important;
+      min-width:48px !important;
+      min-height:48px !important;
+      border-radius:999px !important;
+      font-size:12px !important;
+      padding:0 !important;
+      display:inline-flex !important;
+      align-items:center !important;
+      justify-content:center !important;
+    }
+    .card-group-move{
+      flex:0 0 auto !important;
+      width:30px;
+      height:28px;
+      border:1px solid rgba(0,212,255,.48);
+      border-radius:8px;
+      background:rgba(0,212,255,.08);
+      color:#9eefff;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      font-size:14px;
+      padding:0;
+    }
+    .card-group-move:active{ transform:scale(.96); }
+    @media (max-width:380px){
+      #pg-camera #btn-goto-history-main{
+        left:calc(50% - 92px) !important;
+        width:44px !important;
+        height:44px !important;
+        min-width:44px !important;
+        min-height:44px !important;
+        font-size:11px !important;
+      }
+    }
+
 </style>
 </head>
 <body class="theme-cyan">
@@ -1355,7 +1556,7 @@
       </svg>
     </div>
     <div>
-      <div class="hdr-title"><span class="hdr-version-pill" id="app-version-top">VERSION FIX52</span></div>
+      <div class="hdr-title"><span class="hdr-version-pill" id="app-version-top">VERSION FIX55</span></div>
       <div class="hdr-sub">SCAN · PHOTO · STORE</div>
     </div>
     <div class="hdr-count" id="hdr-count">0BC / 0📷</div>
@@ -1534,10 +1735,10 @@
     </div>
     <div class="cam-controls" id="cam-controls">
       <div class="btn-row">
+        <button id="btn-goto-history-main" class="btn-sub" title="バーコード履歴へ移動" aria-label="バーコード履歴へ移動" style="background:rgba(0,212,255,.10);border-color:#00d4ff;color:#9eefff;font-family:'Share Tech Mono',monospace;font-size:10px;">BC</button>
         <button id="btn-torch" class="btn-sub" aria-label="ライト切り替え">🔦</button>
         <button id="btn-shutter" class="shutter btn-shutter" aria-label="シャッター"></button>
         <button id="btn-goto-scan-main" class="btn-sub" title="スキャンモードへ移動" aria-label="スキャンモードへ移動" style="background:rgba(0,255,136,.10);border-color:#00ff88;color:#00ff88;font-family:'Share Tech Mono',monospace;font-size:10px;">SCAN</button>
-        <button id="btn-horizontal" class="btn-sub" title="横向き回転: OFF" aria-label="横向き回転">↔</button>
       </div>
       <div class="zoom-toggle-row"><button id="btn-zoom-toggle" aria-label="倍率スライダー表示切替">🔍 倍率</button><button id="btn-native-camera" aria-label="純正カメラで撮影して取り込み">純正</button><button id="btn-save-unsaved" aria-label="未保存の写真を保存">保存</button><input id="native-camera-input" type="file" accept="image/*" capture="environment" style="display:none"></div>
       <div class="save-status-row"><span id="unsaved-count-inline">未保存 0</span><span id="save-result-mini"></span></div>
@@ -1713,7 +1914,7 @@
     <div class="settings-divider"></div>
     <div class="settings-ver">SCANNER + CAMERA · v4.1</div>
     <div class="app-update-row">
-      <span class="app-version-pill" id="app-version-text">VERSION FIX52</span>
+      <span class="app-version-pill" id="app-version-text">VERSION FIX55</span>
       <span class="save-log-pill" id="save-log-text">保存結果: なし</span>
       <button class="settings-btn update" id="btn-force-update" type="button">更新</button>
     </div>
@@ -1789,13 +1990,13 @@
 <div class="toast" id="toast"></div>
 
 <!-- ==================== JSモジュールの読み込み ==================== -->
-<script src="state.js?v=fix52"></script>
-<script src="utils.js?v=fix52"></script>
-<script src="storage.js?v=fix52"></script>
-<script src="scanner.js?v=fix52"></script>
-<script src="camera.js?v=fix52"></script>
-<script src="photos.js?v=fix52"></script>
-<script src="main.js?v=fix52"></script>
+<script src="state.js?v=fix55"></script>
+<script src="utils.js?v=fix55"></script>
+<script src="storage.js?v=fix55"></script>
+<script src="scanner.js?v=fix55"></script>
+<script src="camera.js?v=fix55"></script>
+<script src="photos.js?v=fix55"></script>
+<script src="main.js?v=fix55"></script>
 
 <!-- Service Worker 登録 -->
 <script>

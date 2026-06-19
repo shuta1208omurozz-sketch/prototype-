@@ -974,6 +974,13 @@ document.addEventListener('DOMContentLoaded', () => {
   on('btn-direction',  toggleDirection);
   on('btn-goto-scan',      goToScanFromCamera);
   on('btn-goto-scan-main', goToScanFromCamera);
+  on('btn-goto-history-main', () => {
+    if (typeof forceTorchOff === 'function') void forceTorchOff();
+    if (typeof switchTab === 'function') {
+      switchTab('history');
+      setTimeout(() => { if (typeof renderBcList === 'function') renderBcList(); }, 0);
+    }
+  });
   on('btn-zoom-toggle',    () => setZoomPanel(!zoomPanelOpen));
   on('btn-wide-camera',    activateWideCamera);
   on('btn-native-camera',  openNativeCameraCapture);

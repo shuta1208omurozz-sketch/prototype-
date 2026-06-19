@@ -757,7 +757,14 @@ function renderBcList() {
     deleteBtn.title = '削除';
     deleteBtn.innerHTML = '&#x1F5D1;';
 
+    const groupBtn = document.createElement('button');
+    groupBtn.className = 'card-group-move';
+    groupBtn.type = 'button';
+    groupBtn.title = 'このバーコードをグループ移動';
+    groupBtn.textContent = '📁';
+
     metaRow.appendChild(metaInfo);
+    metaRow.appendChild(groupBtn);
     metaRow.appendChild(plusBtn);
     metaRow.appendChild(minusBtn);
     metaRow.appendChild(checkBtn);
@@ -771,7 +778,7 @@ function renderBcList() {
     // イベント
     el.onclick = (e) => {
       if (multiSelModeBc) { toggleMultiSelectBc(item.id, el); return; }
-      if (e.target === checkBtn || e.target === selChk || e.target === deleteBtn || e.target === inlineJumpBtn || e.target === plusBtn || e.target === minusBtn) return;
+      if (e.target === checkBtn || e.target === selChk || e.target === deleteBtn || e.target === groupBtn || e.target === inlineJumpBtn || e.target === plusBtn || e.target === minusBtn) return;
       openBcModal(item);
     };
     plusBtn.onclick = (e) => {
@@ -791,6 +798,16 @@ function renderBcList() {
     deleteBtn.onclick = (e) => {
       e.stopPropagation();
       deleteBc(item.id);
+    };
+    groupBtn.onclick = (e) => {
+      e.stopPropagation();
+      multiSelectedBc = [item.id];
+      groupMoveTarget = 'bc';
+      if (typeof updateGroupUI === 'function') updateGroupUI();
+      const sel = $('group-move-select');
+      if (sel && item.group) sel.value = item.group;
+      const pop = $('group-move-popup');
+      if (pop) pop.style.display = 'flex';
     };
     selChk.onclick = (e) => {
       e.stopPropagation();
