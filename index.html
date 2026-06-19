@@ -6,7 +6,7 @@
   <title>Scanner + Camera</title>
 
   <!-- PWA -->
-  <link rel="manifest" href="manifest.json?v=fix39"/>
+  <link rel="manifest" href="manifest.json?v=fix41"/>
   <meta name="mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -891,6 +891,33 @@
     body.jump-place-barcode #btn-bc-jump-3{ display:none !important; }
     body.jump-place-toolbar .bc-inline-jump{ display:none !important; }
 
+
+
+    /* FIX40: 他のAndroidでプレビューが小さく見える問題への対策。
+       カメラ枠を残り画面いっぱいに近づけ、映像表示は追いやすさ優先で広げる。 */
+    #pg-camera.cam-pg.on{
+      height:calc(100dvh - 84px) !important;
+      gap:4px !important;
+    }
+    #pg-camera #cam-vf{
+      flex:1 1 auto !important;
+      min-height:clamp(240px, 48dvh, 560px) !important;
+      max-height:none !important;
+      margin:3px 6px 4px !important;
+      width:calc(100% - 12px) !important;
+    }
+    #pg-camera #cam-video,
+    #pg-camera.default-preview #cam-video,
+    #pg-camera.full-preview #cam-video{
+      object-fit:cover !important;
+      object-position:center center !important;
+    }
+    @media (max-height:700px){
+      #pg-camera.cam-pg.on{ height:calc(100dvh - 78px) !important; }
+      #pg-camera #cam-vf{ min-height:220px !important; }
+      #pg-camera #thumb-strip-wrap{ max-height:86px !important; }
+    }
+
 </style>
 </head>
 <body class="theme-cyan">
@@ -1038,7 +1065,7 @@
       </div>
       <div id="cam-range-guide" aria-hidden="true">
         <div id="cam-range-box">
-          <span id="cam-range-label">FULL</span>
+          <span id="cam-range-label">DEFAULT</span>
         </div>
       </div>
       <div id="cam-ph" style="display:flex;position:absolute;inset:0;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:#000;">
@@ -1346,13 +1373,13 @@
 <div class="toast" id="toast"></div>
 
 <!-- ==================== JSモジュールの読み込み ==================== -->
-<script src="state.js?v=fix39"></script>
-<script src="utils.js?v=fix39"></script>
-<script src="storage.js?v=fix39"></script>
-<script src="scanner.js?v=fix39"></script>
-<script src="camera.js?v=fix39"></script>
-<script src="photos.js?v=fix39"></script>
-<script src="main.js?v=fix39"></script>
+<script src="state.js?v=fix41"></script>
+<script src="utils.js?v=fix41"></script>
+<script src="storage.js?v=fix41"></script>
+<script src="scanner.js?v=fix41"></script>
+<script src="camera.js?v=fix41"></script>
+<script src="photos.js?v=fix41"></script>
+<script src="main.js?v=fix41"></script>
 
 <!-- Service Worker 登録 -->
 <script>

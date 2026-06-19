@@ -20,7 +20,7 @@ function updateCameraGuide() {
   const availW = Math.max(40, W - pad * 2);
   const availH = Math.max(40, H - pad * 2);
   let boxW = availW, boxH = availH;
-  let text = 'FULL';
+  let text = 'DEFAULT';
 
   if (cfg.aspectRatio && cfg.aspectRatio !== 'full') {
     let target;
@@ -309,7 +309,7 @@ function applyCameraVideoFit() {
 
   // FIX21: FULLだけは追加拡大・追加クロップをしない。
   // デフォルト/16:9/21:9は枠に合わせて表示し、保存も同じ範囲にする。
-  video.style.objectFit = 'contain';
+  video.style.objectFit = 'cover';
   video.style.objectPosition = 'center center';
   video.style.position = 'absolute';
   video.style.inset = '0';
@@ -735,22 +735,12 @@ function applyCameraViewportLayout() {
 
   // FIX25: すべての比率で範囲優先。比率で映像を切らない。
   // FULLは縦方向の表示スペースを多く取り、デフォルト/他比率も取得映像の比率を基本にする。
-  if (cfg.aspectRatio === 'full') {
-    // FIX28: FULLは縦写真用だが、専用フル画面UIにはしない。通常UIのまま少し縦を使う。
-    vf.style.aspectRatio = 'auto';
-    vf.style.flex = '1 1 auto';
-    vf.style.height = 'auto';
-    vf.style.maxHeight = 'calc(100dvh - 210px)';
-    vf.style.minHeight = '260px';
-  } else {
-    const vw = video?.videoWidth || 4;
-    const vh = video?.videoHeight || 3;
-    vf.style.aspectRatio = String(vw / vh);
-    vf.style.flex = '0 0 auto';
-    vf.style.height = 'auto';
-    vf.style.maxHeight = 'calc(100dvh - 250px)';
-    vf.style.minHeight = '0';
-  }
+  // FIX40: FULLを廃止。全比率でカメラ枠を小さく固定せず、残り画面を使って追いやすくする。
+  vf.style.aspectRatio = 'auto';
+  vf.style.flex = '1 1 auto';
+  vf.style.height = 'auto';
+  vf.style.maxHeight = 'none';
+  vf.style.minHeight = 'clamp(220px, 48dvh, 560px)';
   requestAnimationFrame(() => { updateCameraGuide(); applyCameraVideoFit(); });
 }
 
