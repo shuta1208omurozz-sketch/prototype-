@@ -6,7 +6,7 @@
   <title>Scanner + Camera</title>
 
   <!-- PWA -->
-  <link rel="manifest" href="manifest.json?v=fix48"/>
+  <link rel="manifest" href="manifest.json?v=fix52"/>
   <meta name="mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -1207,6 +1207,139 @@
       #pg-camera #btn-direction{ min-width:48px !important; font-size:9px !important; }
     }
 
+
+
+    /* FIX49: BC画面個数切替・カメラボタン位置調整・回転方向ボタン削除 */
+    #btn-count-mode-bc{
+      min-width:86px !important;
+      font-weight:700 !important;
+      border-color:rgba(255,170,68,.35) !important;
+    }
+    #pg-camera #btn-direction,
+    #pg-camera #direction-arrow{
+      display:none !important;
+    }
+    #pg-camera #cam-controls .btn-row{
+      justify-content:center !important;
+      gap:14px !important;
+      transform:translateX(-14px);
+    }
+    #pg-camera #btn-thumb-toggle,
+    #pg-camera #btn-thumb-toggle2{
+      min-width:82px !important;
+      min-height:34px !important;
+      padding:7px 12px !important;
+      font-size:12px !important;
+      font-weight:700 !important;
+    }
+    @media (max-width:380px){
+      #pg-camera #cam-controls .btn-row{
+        gap:10px !important;
+        transform:translateX(-10px);
+      }
+      #pg-camera #btn-thumb-toggle,
+      #pg-camera #btn-thumb-toggle2{
+        min-width:74px !important;
+        font-size:11px !important;
+      }
+    }
+
+
+
+    /* FIX50: ボタン列を右へ戻す・履歴メニューを非スクロール化・写真↓削除 */
+    #pg-camera #cam-controls .btn-row{
+      transform:translateX(0px) !important;
+      gap:14px !important;
+    }
+    @media (max-width:380px){
+      #pg-camera #cam-controls .btn-row{
+        transform:translateX(0px) !important;
+        gap:10px !important;
+      }
+    }
+    #btn-ph-jump-3{
+      display:none !important;
+    }
+    #pg-history .toolbar,
+    #pg-photos .photo-toolbar{
+      overflow-x:visible !important;
+      overflow-y:visible !important;
+      flex-wrap:wrap !important;
+      scrollbar-width:auto !important;
+      row-gap:6px !important;
+    }
+    #pg-history .toolbar .btn-sm,
+    #pg-photos .photo-toolbar .btn-sm{
+      flex:0 0 auto !important;
+    }
+    #pg-history .toolbar .sbox{
+      flex:1 1 150px !important;
+      min-width:130px !important;
+    }
+    #pg-photos .photo-toolbar .photo-count,
+    #pg-photos .photo-toolbar .save-log-pill{
+      flex:0 0 auto !important;
+    }
+
+
+
+    /* FIX51: カメラ操作列を固定配置。シャッター中央、右にフラッシュ、その右にSCAN */
+    #pg-camera #cam-controls .btn-row{
+      position:relative !important;
+      height:64px !important;
+      min-height:64px !important;
+      transform:none !important;
+      display:block !important;
+      overflow:visible !important;
+    }
+    #pg-camera #btn-shutter{
+      position:absolute !important;
+      left:50% !important;
+      top:50% !important;
+      transform:translate(-50%, -50%) !important;
+      z-index:5 !important;
+    }
+    #pg-camera #btn-torch{
+      position:absolute !important;
+      left:calc(50% + 42px) !important;
+      top:50% !important;
+      transform:translateY(-50%) !important;
+      z-index:6 !important;
+    }
+    #pg-camera #btn-goto-scan-main{
+      position:absolute !important;
+      left:calc(50% + 84px) !important;
+      top:50% !important;
+      transform:translateY(-50%) !important;
+      z-index:6 !important;
+    }
+    #pg-camera #btn-horizontal{
+      position:absolute !important;
+      right:calc(50% + 42px) !important;
+      top:50% !important;
+      transform:translateY(-50%) !important;
+      z-index:6 !important;
+    }
+    @media (max-width:380px){
+      #pg-camera #btn-torch{ left:calc(50% + 38px) !important; }
+      #pg-camera #btn-goto-scan-main{ left:calc(50% + 76px) !important; }
+      #pg-camera #btn-horizontal{ right:calc(50% + 38px) !important; }
+    }
+
+
+
+    /* FIX52: 横固定は←→の矢印表示。押すたびにOFF→右回転→左回転→OFF */
+    #pg-camera #btn-horizontal{
+      font-family:'Share Tech Mono',monospace !important;
+      font-size:18px !important;
+      font-weight:700 !important;
+    }
+    #pg-camera #btn-horizontal.on{
+      border-color:#ffaa44 !important;
+      color:#ffaa44 !important;
+      background:rgba(255,170,68,.16) !important;
+    }
+
 </style>
 </head>
 <body class="theme-cyan">
@@ -1222,7 +1355,7 @@
       </svg>
     </div>
     <div>
-      <div class="hdr-title"><span class="hdr-version-pill" id="app-version-top">VERSION FIX48</span></div>
+      <div class="hdr-title"><span class="hdr-version-pill" id="app-version-top">VERSION FIX52</span></div>
       <div class="hdr-sub">SCAN · PHOTO · STORE</div>
     </div>
     <div class="hdr-count" id="hdr-count">0BC / 0📷</div>
@@ -1341,7 +1474,6 @@
       <div class="flash" id="flash"></div>
       <div class="focus-ring" id="focus-ring"></div>
       <!-- 横固定モード方向インジケーター -->
-      <div id="direction-arrow" class="direction-arrow" style="display:none;">→</div>
       <!-- アスペクト比クロップ範囲オーバーレイ -->
       <div id="crop-overlay" class="crop-overlay" style="display:none;">
         <div class="crop-mask crop-mask-top"></div>
@@ -1405,8 +1537,7 @@
         <button id="btn-torch" class="btn-sub" aria-label="ライト切り替え">🔦</button>
         <button id="btn-shutter" class="shutter btn-shutter" aria-label="シャッター"></button>
         <button id="btn-goto-scan-main" class="btn-sub" title="スキャンモードへ移動" aria-label="スキャンモードへ移動" style="background:rgba(0,255,136,.10);border-color:#00ff88;color:#00ff88;font-family:'Share Tech Mono',monospace;font-size:10px;">SCAN</button>
-        <button id="btn-horizontal" class="btn-sub" title="横固定モード" aria-label="横固定モード">⟲</button>
-        <button id="btn-direction" class="btn-sub" title="カメラ画面の回転方向を切替" aria-label="カメラ画面の回転方向を切替" style="font-size:13px;font-family:'Share Tech Mono',monospace;letter-spacing:-1px;">→</button>
+        <button id="btn-horizontal" class="btn-sub" title="横向き回転: OFF" aria-label="横向き回転">↔</button>
       </div>
       <div class="zoom-toggle-row"><button id="btn-zoom-toggle" aria-label="倍率スライダー表示切替">🔍 倍率</button><button id="btn-native-camera" aria-label="純正カメラで撮影して取り込み">純正</button><button id="btn-save-unsaved" aria-label="未保存の写真を保存">保存</button><input id="native-camera-input" type="file" accept="image/*" capture="environment" style="display:none"></div>
       <div class="save-status-row"><span id="unsaved-count-inline">未保存 0</span><span id="save-result-mini"></span></div>
@@ -1437,7 +1568,6 @@
         <select id="hist-ph-group-select" class="group-select" style="padding:2px 4px; font-size:10px;"></select>
       </div>
       <button class="btn-sm" id="btn-ph-sort" style="margin-left:auto;">↓ 新しい順</button>
-      <button class="btn-sm btn-jump-3" id="btn-ph-jump-3" title="指定枚数下へ移動">↓1</button>
       <button class="btn-sm accent" id="btn-ph-select-mode" style="display:none">☑ 選択</button>
       <button class="btn-sm accent" id="btn-merge-mode" style="display:none">📐 結合</button>
       <button class="btn-sm danger" id="btn-photo-clear" style="display:none">全削除</button>
@@ -1583,7 +1713,7 @@
     <div class="settings-divider"></div>
     <div class="settings-ver">SCANNER + CAMERA · v4.1</div>
     <div class="app-update-row">
-      <span class="app-version-pill" id="app-version-text">VERSION FIX48</span>
+      <span class="app-version-pill" id="app-version-text">VERSION FIX52</span>
       <span class="save-log-pill" id="save-log-text">保存結果: なし</span>
       <button class="settings-btn update" id="btn-force-update" type="button">更新</button>
     </div>
@@ -1659,13 +1789,13 @@
 <div class="toast" id="toast"></div>
 
 <!-- ==================== JSモジュールの読み込み ==================== -->
-<script src="state.js?v=fix48"></script>
-<script src="utils.js?v=fix48"></script>
-<script src="storage.js?v=fix48"></script>
-<script src="scanner.js?v=fix48"></script>
-<script src="camera.js?v=fix48"></script>
-<script src="photos.js?v=fix48"></script>
-<script src="main.js?v=fix48"></script>
+<script src="state.js?v=fix52"></script>
+<script src="utils.js?v=fix52"></script>
+<script src="storage.js?v=fix52"></script>
+<script src="scanner.js?v=fix52"></script>
+<script src="camera.js?v=fix52"></script>
+<script src="photos.js?v=fix52"></script>
+<script src="main.js?v=fix52"></script>
 
 <!-- Service Worker 登録 -->
 <script>

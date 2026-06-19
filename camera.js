@@ -780,19 +780,14 @@ function goToScanModeFromCamera() {
 /* ════ 横固定モード ════ */
 function updateHorizontalUI() {
   const btn = $('btn-horizontal');
-  if (btn) btn.classList.toggle('on', forceHorizontal);
-  // 方向ボタン: 横固定ONのとき有効化、状態を反映
-  const dirBtn = $('btn-direction');
-  if (dirBtn) {
-    // 「→」だけだと意味が分かりにくいので、横固定ONの時だけ「向き→/向き←」として表示する
-    dirBtn.style.display      = forceHorizontal ? 'flex' : 'none';
-    dirBtn.style.opacity      = forceHorizontal ? '1' : '0';
-    dirBtn.style.pointerEvents= forceHorizontal ? '' : 'none';
-    dirBtn.textContent        = rotateRight ? '画面↻' : '画面↺';
-    dirBtn.title              = 'カメラ画面の回転方向を切替';
-    dirBtn.setAttribute('aria-label', 'カメラ画面の回転方向を切替');
-    dirBtn.classList.toggle('direction-right',  forceHorizontal && rotateRight);
-    dirBtn.classList.toggle('direction-left',   forceHorizontal && !rotateRight);
+  if (btn) {
+    btn.classList.toggle('on', forceHorizontal);
+    btn.textContent = !forceHorizontal ? '↔' : (rotateRight ? '→' : '←');
+    const title = !forceHorizontal
+      ? '横向き回転OFF。押すと右向きに回転'
+      : (rotateRight ? '右向き回転中。押すと左向きに回転' : '左向き回転中。押すとOFF');
+    btn.title = title;
+    btn.setAttribute('aria-label', title);
   }
 }
 
@@ -836,7 +831,16 @@ function updatePreview(video) {
 }
 
 function toggleHorizontal() {
-  forceHorizontal = !forceHorizontal;
+  // 1ボタンで循環: OFF(↔) → 右回転(→) → 左回転(←) → OFF
+  if (!forceHorizontal) {
+    forceHorizontal = true;
+    rotateRight = true;
+  } else if (rotateRight) {
+    rotateRight = false;
+  } else {
+    forceHorizontal = false;
+    rotateRight = true;
+  }
   applyCameraVideoFit();
   updateHorizontalUI();
   updateArrow();
