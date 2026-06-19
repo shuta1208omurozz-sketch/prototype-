@@ -788,9 +788,9 @@ function updateHorizontalUI() {
     dirBtn.style.display      = forceHorizontal ? 'flex' : 'none';
     dirBtn.style.opacity      = forceHorizontal ? '1' : '0';
     dirBtn.style.pointerEvents= forceHorizontal ? '' : 'none';
-    dirBtn.textContent        = rotateRight ? '向き→' : '向き←';
-    dirBtn.title              = '横向き保存の回転方向を反転';
-    dirBtn.setAttribute('aria-label', '横向き保存の回転方向を反転');
+    dirBtn.textContent        = rotateRight ? '画面↻' : '画面↺';
+    dirBtn.title              = 'カメラ画面の回転方向を切替';
+    dirBtn.setAttribute('aria-label', 'カメラ画面の回転方向を切替');
     dirBtn.classList.toggle('direction-right',  forceHorizontal && rotateRight);
     dirBtn.classList.toggle('direction-left',   forceHorizontal && !rotateRight);
   }
@@ -804,11 +804,11 @@ function updateArrow() {
     return;
   }
   arrow.style.display = 'flex';
-  arrow.textContent = rotateRight ? '→' : '←';
+  arrow.textContent = rotateRight ? '↻' : '↺';
   // 方向ボタンのテキストも更新
   const dirBtn = $('btn-direction');
   if (dirBtn) {
-    dirBtn.textContent = rotateRight ? '向き→' : '向き←';
+    dirBtn.textContent = rotateRight ? '画面↻' : '画面↺';
     dirBtn.classList.toggle('direction-right',  rotateRight);
     dirBtn.classList.toggle('direction-left',   !rotateRight);
   }

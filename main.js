@@ -10,6 +10,29 @@ function updateDeviceClassUI() {
   document.body.classList.toggle('ios-like', !!(typeof IS_IOS_LIKE !== 'undefined' && IS_IOS_LIKE));
 }
 
+async function applyOrientationLock(showResult = false) {
+  document.body.classList.toggle('orientation-lock-wanted', !!cfg.lockOrientation);
+  const api = (typeof screen !== 'undefined') ? screen.orientation : null;
+  if (!api) {
+    if (showResult) showToast('この端末では画面回転固定APIが使えません', 'warn', 3500);
+    return false;
+  }
+  try {
+    if (cfg.lockOrientation) {
+      await api.lock('portrait');
+      if (showResult) showToast('画面回転: 縦固定ON', 'ok');
+      return true;
+    }
+    if (typeof api.unlock === 'function') api.unlock();
+    if (showResult) showToast('画面回転固定OFF', '');
+    return true;
+  } catch (e) {
+    console.warn('[OrientationLock]', e);
+    if (showResult) showToast('この端末/ブラウザでは完全固定できません', 'warn', 4000);
+    return false;
+  }
+}
+
 function updateAppVersionUI() {
   const versionText = 'VERSION ' + (typeof APP_VERSION !== 'undefined' ? APP_VERSION : 'UNKNOWN');
   const el = $('app-version-text');
@@ -148,6 +171,7 @@ function applyCfgToUI() {
   setChk('set-cont-scan',    cfg.continuousScan);
   setChk('set-use-group',    cfg.useGroup);
   setChk('set-outdoor-mode', cfg.outdoorMode);
+  setChk('set-lock-orientation', !!cfg.lockOrientation);
   setChk('set-android-auto-download', !!cfg.androidAutoDownload);
   setChk('set-jump-fixed', !!cfg.jumpButtonFixed);
   // 屋外モードをbodyクラスに反映
@@ -158,12 +182,14 @@ function applyCfgToUI() {
   document.querySelectorAll('.quality-btn').forEach(b=> b.classList.toggle('on', b.dataset.q   === cfg.camQuality));
   document.querySelectorAll('[data-mp]').forEach(b  => b.classList.toggle('on', b.dataset.mp  === String(cfg.maxPhotos)));
   document.querySelectorAll('.mode-btn[data-mode]').forEach(b  => b.classList.toggle('on', b.dataset.mode === cfg.scanFormat));
-  const countBtn = $('btn-count-mode');
-  if (countBtn) {
-    countBtn.classList.toggle('on', !!cfg.countMode);
-    countBtn.textContent = cfg.countMode ? '個数ON' : '個数OFF';
-    countBtn.title = cfg.countMode ? '同じバーコードは新品数+1' : '通常登録モード';
-  }
+  ['btn-count-mode', 'btn-count-mode-bc'].forEach(id => {
+    const countBtn = $(id);
+    if (countBtn) {
+      countBtn.classList.toggle('on', !!cfg.countMode);
+      countBtn.textContent = cfg.countMode ? '個数ON' : '個数OFF';
+      countBtn.title = cfg.countMode ? '同じバーコードは新品数+1' : '通常登録モード';
+    }
+  });
   document.querySelectorAll('.ratio-btn').forEach(b => b.classList.toggle('on', b.dataset.r   === cfg.aspectRatio));
 
   if (typeof applyCameraViewportLayout === 'function') applyCameraViewportLayout();
@@ -336,12 +362,15 @@ function bindEvents() {
     if (scanning) { stopScan(); setTimeout(startScan, 200); }
     showToast('フォーマット: ' + (cfg.scanFormat === 'ean13' ? 'EAN-13' : '全て'), 'ok');
   }));
-  on('btn-count-mode', 'click', () => {
+  const toggleCountMode = () => {
     cfg.countMode = !cfg.countMode;
     saveCfg();
     applyCfgToUI();
+    renderBcList();
     showToast(cfg.countMode ? '個数カウントON: 同じバーコードで新品数+1' : '個数カウントOFF', cfg.countMode ? 'ok' : '');
-  });
+  };
+  on('btn-count-mode', 'click', toggleCountMode);
+  on('btn-count-mode-bc', 'click', toggleCountMode);
 
   // カメラ設定
   document.querySelectorAll('[data-cq]').forEach(btn => btn.addEventListener('click', () => {
@@ -368,6 +397,12 @@ function bindEvents() {
     saveCfg();
     document.body.classList.toggle('outdoor-mode', cfg.outdoorMode);
     showToast(cfg.outdoorMode ? '☀ 屋外モード ON' : '屋外モード OFF', cfg.outdoorMode ? 'ok' : '');
+  });
+  on('set-lock-orientation', 'change', async e => {
+    cfg.lockOrientation = !!e.target.checked;
+    saveCfg();
+    await applyOrientationLock(true);
+    applyCfgToUI();
   });
   on('set-android-auto-download', 'change', e => {
     if (typeof IS_IOS_LIKE !== 'undefined' && IS_IOS_LIKE) {
@@ -642,6 +677,14 @@ function stopGlobalCamera() {
   camTrack   = null;
 }
 
+
+window.addEventListener('orientationchange', () => {
+  if (cfg.lockOrientation) setTimeout(() => { void applyOrientationLock(false); }, 250);
+});
+window.addEventListener('resize', () => {
+  if (cfg.lockOrientation) setTimeout(() => { void applyOrientationLock(false); }, 250);
+});
+
 /* ════ 初期化 ════ */
 async function init() {
   loadCfg();
@@ -652,6 +695,7 @@ async function init() {
   bcHistory = bcHistory.map(x => ({ checked: false, ...x }));
   try { photos = (await dbAll()).reverse(); } catch(_) { photos = []; }
   applyCfgToUI();
+  void applyOrientationLock(false);
   updateAppVersionUI();
   if (typeof updateUnsavedSaveButton === 'function') updateUnsavedSaveButton();
   if (typeof updateSaveResultLogUI === 'function') updateSaveResultLogUI();

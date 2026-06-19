@@ -6,7 +6,7 @@
   <title>Scanner + Camera</title>
 
   <!-- PWA -->
-  <link rel="manifest" href="manifest.json?v=fix46"/>
+  <link rel="manifest" href="manifest.json?v=fix48"/>
   <meta name="mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -1160,6 +1160,53 @@
       .hdr{ height:22px !important; min-height:22px !important; }
     }
 
+
+
+    /* FIX47: カメラUI調整・フォルダー保存UI削除 */
+    #btn-folder-toggle,
+    #save-folder-row,
+    #btn-folder-pick,
+    #btn-folder-clear{
+      display:none !important;
+    }
+    #btn-count-mode-bc.on{
+      border-color:#ffaa44 !important;
+      color:#ffaa44 !important;
+      background:rgba(255,170,68,.16) !important;
+    }
+    #pg-camera #cam-controls .btn-row{
+      gap:12px !important;
+      justify-content:center !important;
+    }
+    #pg-camera #thumb-strip-wrap{
+      order:2 !important;
+      display:block;
+      z-index:90 !important;
+      flex:0 0 auto !important;
+      margin:6px 6px 4px !important;
+      max-height:96px !important;
+      background:rgba(3,10,18,.86) !important;
+      border:1px solid rgba(0,212,255,.20) !important;
+      border-radius:10px !important;
+    }
+    #pg-camera #thumb-strip{
+      min-height:62px !important;
+      max-height:68px !important;
+      overflow-x:auto !important;
+      overflow-y:hidden !important;
+    }
+    #pg-camera #cam-controls{ order:3 !important; }
+    #pg-camera .cam-bottom-row{ order:4 !important; }
+    #pg-camera #btn-direction{
+      min-width:54px !important;
+      font-size:10px !important;
+      letter-spacing:0 !important;
+    }
+    @media (max-width:380px){
+      #pg-camera #cam-controls .btn-row{ gap:8px !important; }
+      #pg-camera #btn-direction{ min-width:48px !important; font-size:9px !important; }
+    }
+
 </style>
 </head>
 <body class="theme-cyan">
@@ -1175,7 +1222,7 @@
       </svg>
     </div>
     <div>
-      <div class="hdr-title"><span class="hdr-version-pill" id="app-version-top">VERSION FIX46</span></div>
+      <div class="hdr-title"><span class="hdr-version-pill" id="app-version-top">VERSION FIX48</span></div>
       <div class="hdr-sub">SCAN · PHOTO · STORE</div>
     </div>
     <div class="hdr-count" id="hdr-count">0BC / 0📷</div>
@@ -1250,6 +1297,7 @@
       <input class="sbox" id="search-box" placeholder="バーコード値を検索..." type="search"/>
       <button class="btn-sm" id="btn-bc-compact" title="画像を隠して1行で表示">☰ 1行</button>
       <button class="btn-sm" id="btn-bc-sort">↓ 新しい順</button>
+      <button class="btn-sm" id="btn-count-mode-bc" type="button">個数OFF</button>
       <button class="btn-sm btn-jump-3" id="btn-bc-jump-3" title="指定件数下へ移動">↓1</button>
       <button class="btn-sm accent" id="btn-bc-select-mode" style="display:none">☑ 選択</button>
       <button class="btn-sm accent" id="btn-bc-csv" style="display:none">CSV</button>
@@ -1345,14 +1393,20 @@
         <button class="ratio-btn" data-r="21/9">21:9</button>
       </div>
     </div>
+    <div class="thumb-strip-wrap" id="thumb-strip-wrap" style="display:none;">
+      <div class="thumb-strip-hdr">
+        <span class="thumb-strip-lbl">最近の写真</span>
+        <button class="thumb-toggle-btn on" id="btn-thumb-toggle2">非表示</button>
+      </div>
+      <div class="thumb-strip" id="thumb-strip"></div>
+    </div>
     <div class="cam-controls" id="cam-controls">
       <div class="btn-row">
-        <button id="btn-folder-toggle" class="btn-sub" aria-label="フォルダ切り替え">📁</button>
         <button id="btn-torch" class="btn-sub" aria-label="ライト切り替え">🔦</button>
         <button id="btn-shutter" class="shutter btn-shutter" aria-label="シャッター"></button>
         <button id="btn-goto-scan-main" class="btn-sub" title="スキャンモードへ移動" aria-label="スキャンモードへ移動" style="background:rgba(0,255,136,.10);border-color:#00ff88;color:#00ff88;font-family:'Share Tech Mono',monospace;font-size:10px;">SCAN</button>
         <button id="btn-horizontal" class="btn-sub" title="横固定モード" aria-label="横固定モード">⟲</button>
-        <button id="btn-direction" class="btn-sub" title="撮影方向を反転" aria-label="撮影方向を反転" style="font-size:13px;font-family:'Share Tech Mono',monospace;letter-spacing:-1px;">→</button>
+        <button id="btn-direction" class="btn-sub" title="カメラ画面の回転方向を切替" aria-label="カメラ画面の回転方向を切替" style="font-size:13px;font-family:'Share Tech Mono',monospace;letter-spacing:-1px;">→</button>
       </div>
       <div class="zoom-toggle-row"><button id="btn-zoom-toggle" aria-label="倍率スライダー表示切替">🔍 倍率</button><button id="btn-native-camera" aria-label="純正カメラで撮影して取り込み">純正</button><button id="btn-save-unsaved" aria-label="未保存の写真を保存">保存</button><input id="native-camera-input" type="file" accept="image/*" capture="environment" style="display:none"></div>
       <div class="save-status-row"><span id="unsaved-count-inline">未保存 0</span><span id="save-result-mini"></span></div>
@@ -1363,13 +1417,6 @@
         <span id="zoom-level">1.00x</span>
       </div>
     </div>
-    <div class="thumb-strip-wrap" id="thumb-strip-wrap" style="display:none;">
-      <div class="thumb-strip-hdr">
-        <span class="thumb-strip-lbl">最近の写真</span>
-        <button class="thumb-toggle-btn on" id="btn-thumb-toggle2">非表示</button>
-      </div>
-      <div class="thumb-strip" id="thumb-strip"></div>
-    </div>
     <div class="cam-bottom-row">
       <div class="orient-bar">
         <div class="orient-dot" id="orient-dot"></div>
@@ -1378,18 +1425,6 @@
       <span id="stab-ind" style="font-family:'Share Tech Mono',monospace;font-size:8px;color:#4a6a8a;letter-spacing:1px;"></span>
       <button class="thumb-toggle-btn" id="btn-goto-scan" style="background:rgba(0,255,136,.08);border-color:#00ff88;color:#00ff88;">▶ スキャン</button>
       <button class="thumb-toggle-btn" id="btn-thumb-toggle">🖼 サムネ</button>
-    </div>
-    <div class="save-folder-row" id="save-folder-row" style="display:none;">
-      <div class="save-folder-hdr">
-        <span class="save-folder-label">📁 自動保存先</span>
-        <span class="save-folder-android">Android Chrome 限定</span>
-      </div>
-      <div class="save-folder-path none" id="folder-path-txt">未設定（Downloadsに保存）</div>
-      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
-        <button class="btn-folder-pick" id="btn-folder-pick">📂 フォルダを選択</button>
-        <button class="btn-folder-clear" id="btn-folder-clear" style="display:none">× 解除</button>
-      </div>
-      <div class="save-folder-note">DCIMやピクチャも選択可。選択後は固定されます。<br/>iOSは非対応（Downloads/共有で保存）</div>
     </div>
   </div>
 
@@ -1439,6 +1474,10 @@
       <div class="settings-row">
         <div><div class="settings-lbl">屋外高コントラストモード</div><div class="settings-sub">太陽光下でも見やすい白背景に切替</div></div>
         <label class="toggle-sw"><input type="checkbox" id="set-outdoor-mode"/><span class="toggle-slider"></span></label>
+      </div>
+      <div class="settings-row">
+        <div><div class="settings-lbl">画面回転を縦固定</div><div class="settings-sub">本体の自動回転をできるだけ無視して縦画面に固定します。端末・ブラウザ制限で失敗する場合があります。</div></div>
+        <label class="toggle-sw"><input type="checkbox" id="set-lock-orientation"/><span class="toggle-slider"></span></label>
       </div>
       <div class="settings-row" style="flex-direction:column; align-items:flex-start;">
         <div style="display:flex; justify-content:space-between; width:100%;">
@@ -1544,7 +1583,7 @@
     <div class="settings-divider"></div>
     <div class="settings-ver">SCANNER + CAMERA · v4.1</div>
     <div class="app-update-row">
-      <span class="app-version-pill" id="app-version-text">VERSION FIX46</span>
+      <span class="app-version-pill" id="app-version-text">VERSION FIX48</span>
       <span class="save-log-pill" id="save-log-text">保存結果: なし</span>
       <button class="settings-btn update" id="btn-force-update" type="button">更新</button>
     </div>
@@ -1620,13 +1659,13 @@
 <div class="toast" id="toast"></div>
 
 <!-- ==================== JSモジュールの読み込み ==================== -->
-<script src="state.js?v=fix46"></script>
-<script src="utils.js?v=fix46"></script>
-<script src="storage.js?v=fix46"></script>
-<script src="scanner.js?v=fix46"></script>
-<script src="camera.js?v=fix46"></script>
-<script src="photos.js?v=fix46"></script>
-<script src="main.js?v=fix46"></script>
+<script src="state.js?v=fix48"></script>
+<script src="utils.js?v=fix48"></script>
+<script src="storage.js?v=fix48"></script>
+<script src="scanner.js?v=fix48"></script>
+<script src="camera.js?v=fix48"></script>
+<script src="photos.js?v=fix48"></script>
+<script src="main.js?v=fix48"></script>
 
 <!-- Service Worker 登録 -->
 <script>
