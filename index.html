@@ -6,7 +6,7 @@
   <title>Scanner + Camera</title>
 
   <!-- PWA -->
-  <link rel="manifest" href="manifest.json?v=fix41"/>
+  <link rel="manifest" href="manifest.json?v=fix42"/>
   <meta name="mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -893,29 +893,40 @@
 
 
 
-    /* FIX40: 他のAndroidでプレビューが小さく見える問題への対策。
-       カメラ枠を残り画面いっぱいに近づけ、映像表示は追いやすさ優先で広げる。 */
-    #pg-camera.cam-pg.on{
-      height:calc(100dvh - 84px) !important;
-      gap:4px !important;
+    /* FIX42: カメラ範囲はFIX39へ戻し、操作ボタンだけ少し小さくする */
+    .hdr-version-pill{
+      display:inline-flex;
+      align-items:center;
+      margin-left:6px;
+      padding:1px 5px;
+      border:1px solid rgba(0,255,136,.42);
+      border-radius:999px;
+      color:#00ff88;
+      background:rgba(0,255,136,.08);
+      font-family:'Share Tech Mono',monospace;
+      font-size:8px;
+      letter-spacing:.4px;
+      vertical-align:middle;
+      white-space:nowrap;
     }
-    #pg-camera #cam-vf{
-      flex:1 1 auto !important;
-      min-height:clamp(240px, 48dvh, 560px) !important;
-      max-height:none !important;
-      margin:3px 6px 4px !important;
-      width:calc(100% - 12px) !important;
+    #pg-camera #btn-zoom-toggle,
+    #pg-camera #btn-native-camera,
+    #pg-camera #btn-save-unsaved{
+      min-width:62px !important;
+      height:30px !important;
+      padding:0 8px !important;
+      font-size:9px !important;
     }
-    #pg-camera #cam-video,
-    #pg-camera.default-preview #cam-video,
-    #pg-camera.full-preview #cam-video{
-      object-fit:cover !important;
-      object-position:center center !important;
+    #pg-camera #btn-shutter,
+    #pg-camera .btn-shutter,
+    #pg-camera .shutter{
+      width:58px !important;
+      height:58px !important;
+      min-width:58px !important;
+      min-height:58px !important;
     }
-    @media (max-height:700px){
-      #pg-camera.cam-pg.on{ height:calc(100dvh - 78px) !important; }
-      #pg-camera #cam-vf{ min-height:220px !important; }
-      #pg-camera #thumb-strip-wrap{ max-height:86px !important; }
+    #pg-camera #cam-controls .btn-row{
+      gap:10px !important;
     }
 
 </style>
@@ -933,7 +944,7 @@
       </svg>
     </div>
     <div>
-      <div class="hdr-title">Scanner + Camera</div>
+      <div class="hdr-title">Scanner + Camera <span class="hdr-version-pill" id="app-version-top">VERSION FIX42</span></div>
       <div class="hdr-sub">SCAN · PHOTO · STORE</div>
     </div>
     <div class="hdr-count" id="hdr-count">0BC / 0📷</div>
@@ -1065,7 +1076,7 @@
       </div>
       <div id="cam-range-guide" aria-hidden="true">
         <div id="cam-range-box">
-          <span id="cam-range-label">DEFAULT</span>
+          <span id="cam-range-label">FULL</span>
         </div>
       </div>
       <div id="cam-ph" style="display:flex;position:absolute;inset:0;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:#000;">
@@ -1373,13 +1384,13 @@
 <div class="toast" id="toast"></div>
 
 <!-- ==================== JSモジュールの読み込み ==================== -->
-<script src="state.js?v=fix41"></script>
-<script src="utils.js?v=fix41"></script>
-<script src="storage.js?v=fix41"></script>
-<script src="scanner.js?v=fix41"></script>
-<script src="camera.js?v=fix41"></script>
-<script src="photos.js?v=fix41"></script>
-<script src="main.js?v=fix41"></script>
+<script src="state.js?v=fix42"></script>
+<script src="utils.js?v=fix42"></script>
+<script src="storage.js?v=fix42"></script>
+<script src="scanner.js?v=fix42"></script>
+<script src="camera.js?v=fix42"></script>
+<script src="photos.js?v=fix42"></script>
+<script src="main.js?v=fix42"></script>
 
 <!-- Service Worker 登録 -->
 <script>

@@ -11,8 +11,11 @@ function updateDeviceClassUI() {
 }
 
 function updateAppVersionUI() {
+  const versionText = 'VERSION ' + (typeof APP_VERSION !== 'undefined' ? APP_VERSION : 'UNKNOWN');
   const el = $('app-version-text');
-  if (el) el.textContent = 'VERSION ' + (typeof APP_VERSION !== 'undefined' ? APP_VERSION : 'UNKNOWN');
+  if (el) el.textContent = versionText;
+  const top = $('app-version-top');
+  if (top) top.textContent = versionText;
 }
 
 function updateJumpButtonUI() {
