@@ -1,5 +1,34 @@
 'use strict';
 
+let _lastInvalidEan13NotifyAt = 0;
+function notifyInvalidEan13(val = '') {
+  const now = Date.now();
+  if (now - _lastInvalidEan13NotifyAt < 2500) return;
+  _lastInvalidEan13NotifyAt = now;
+  const msg = '13桁ではありません' + (val ? ': ' + val : '');
+  if (typeof showToast === 'function') showToast(msg, 'warn', 2500);
+  if (typeof setStatus === 'function') setStatus('err', msg);
+}
+
+function getBcNewCount(item) {
+  const n = Math.floor(Number(item?.newCount));
+  return Number.isFinite(n) && n >= 0 ? n : 1;
+}
+
+function saveBcHistory() {
+  localStorage.setItem(BC_KEY, JSON.stringify(bcHistory));
+}
+
+function adjustBcNewCount(item, delta) {
+  if (!item) return;
+  item.newCount = Math.max(0, getBcNewCount(item) + delta);
+  item.timestamp = Date.now();
+  saveBcHistory();
+  renderBcList();
+  updateCounts();
+  showToast('新品: ' + item.newCount + '個', 'ok');
+}
+
 /* ════ iPhone/非対応ブラウザ用 ZXing フォールバック ════ */
 let zxingReader = null;
 let zxingControls = null;
@@ -360,7 +389,7 @@ async function startZxingScan() {
         let fmtRaw = typeof result.getBarcodeFormat === 'function' ? result.getBarcodeFormat() : result.format;
         let fmt = normalizeZxingFormat(fmtRaw);
         if (scanMode === 'ean13' && val.length === 12) val = '0' + val;
-        if (scanMode === 'ean13' && val.length !== 13) return;
+        if (scanMode === 'ean13' && val.length !== 13) { notifyInvalidEan13(val); return; }
         handleScanSuccess(val, fmt === 'unknown' && scanMode === 'ean13' ? 'ean_13' : fmt);
       } else if (error) {
         const name = error.name || '';
@@ -483,7 +512,7 @@ async function detect() {
       const b = barcodes[0];
       let val = b.rawValue;
       if (scanMode === 'ean13' && val.length === 12) val = '0' + val;
-      if (scanMode === 'ean13' && val.length !== 13) { raf = requestAnimationFrame(detect); return; }
+      if (scanMode === 'ean13' && val.length !== 13) { notifyInvalidEan13(val); raf = requestAnimationFrame(detect); return; }
 
       handleScanSuccess(val, b.format);
     }
@@ -512,8 +541,32 @@ function handleScanSuccess(val, format) {
   lastScannedValue = val;
   _requiresClearFrame = true;
 
-  // ── 同一数値の重複登録を禁止 ──
-  if (bcHistory.some(x => x.value === val)) {
+  // ── 同一数値の扱い ──
+  const existing = bcHistory.find(x => x.value === val);
+  if (existing && cfg.countMode) {
+    existing.newCount = getBcNewCount(existing) + 1;
+    existing.timestamp = Date.now();
+    existing.format = existing.format || format;
+    if (cfg.useGroup && (!existing.group || existing.group === '未分類')) existing.group = cfg.currentGroup;
+    saveBcHistory();
+
+    const dispEl = $('scan-bc-display');
+    const phEl   = $('scan-bc-placeholder');
+    const valEl  = $('scan-bc-val');
+    const metaEl = $('scan-bc-meta');
+    if (phEl)   phEl.style.display   = 'none';
+    if (dispEl) dispEl.style.display = '';
+    if (valEl)  valEl.textContent    = val;
+    if (metaEl) metaEl.textContent   = '新品 ' + existing.newCount + '個 · ' + fmtShort(existing.timestamp);
+    updateCounts();
+    renderBcList();
+    showToast('新品 +1: ' + existing.newCount + '個', 'ok');
+    if (!cfg.continuousScan) stopScan();
+    return;
+  }
+
+  // 通常モードでは同一数値の重複登録を禁止
+  if (existing) {
     const dupEl = $('scan-bc-dup');
     if (dupEl) { dupEl.style.display = ''; setTimeout(() => { dupEl.style.display = 'none'; }, 1500); }
     showToast('既に登録済み: ' + val, '');
@@ -529,9 +582,9 @@ function handleScanSuccess(val, format) {
   }
 
   const grp  = cfg.useGroup ? cfg.currentGroup : '未分類';
-  const item = { id: Date.now(), value: val, format, timestamp: Date.now(), group: grp, checked: false };
+  const item = { id: Date.now(), value: val, format, timestamp: Date.now(), group: grp, checked: false, newCount: cfg.countMode ? 1 : undefined };
   bcHistory.unshift(item);
-  localStorage.setItem(BC_KEY, JSON.stringify(bcHistory));
+  saveBcHistory();
 
   /* ── スキャン結果表示エリアを更新 ── */
   const dispEl = $('scan-bc-display');
@@ -543,7 +596,7 @@ function handleScanSuccess(val, format) {
   if (phEl)   phEl.style.display   = 'none';
   if (dispEl) dispEl.style.display = '';
   if (valEl)  valEl.textContent    = val;
-  if (metaEl) metaEl.textContent   = (format || '').toUpperCase().replace('_', ' ') + ' · ' + fmtShort(item.timestamp);
+  if (metaEl) metaEl.textContent   = (format || '').toUpperCase().replace('_', ' ') + ' · ' + fmtShort(item.timestamp) + (cfg.countMode ? ' · 新品 ' + getBcNewCount(item) + '個' : '');
   if (cnvEl && wrapEl) {
     if (JS_FMT[format]) {
       wrapEl.style.display = '';
@@ -555,7 +608,7 @@ function handleScanSuccess(val, format) {
 
   updateCounts();
   renderBcList();
-  showToast('スキャン成功: ' + val, 'ok');
+  showToast(cfg.countMode ? '新品 1個: ' + val : 'スキャン成功: ' + val, 'ok');
 
   if (!cfg.continuousScan) stopScan();
 }
@@ -645,7 +698,7 @@ function renderBcList() {
     thumbDiv.appendChild(canvas);
     if (cfg.bcCompactMode) thumbDiv.style.display = 'none';
 
-    // 値テキスト + FIX39: ↓1ボタンをバーコード左側に配置
+    // 値テキスト + FIX44: ↓xボタンをバーコード左側に配置
     const valueRow = document.createElement('div');
     valueRow.className = 'bc-value-row';
 
@@ -656,8 +709,9 @@ function renderBcList() {
     const inlineJumpBtn = document.createElement('button');
     inlineJumpBtn.className = 'bc-inline-jump';
     inlineJumpBtn.type = 'button';
-    inlineJumpBtn.title = 'この位置から1件下へ移動';
-    inlineJumpBtn.textContent = '↓1';
+    const jumpStep = (typeof getJumpStep === 'function') ? getJumpStep() : 1;
+    inlineJumpBtn.title = 'この位置から' + jumpStep + '件下へ移動';
+    inlineJumpBtn.textContent = '↓' + jumpStep;
 
     valueRow.appendChild(inlineJumpBtn);
     valueRow.appendChild(valDiv);
@@ -671,13 +725,28 @@ function renderBcList() {
     metaInfo.innerHTML = `<span class="card-fmt${isEan ? ' ean' : ''}">${fmtUpper}</span>`
       + `<span class="card-time">${fmtShort(item.timestamp)}</span>`
       + `<span class="card-num">#${item.value.slice(-4)}</span>`
+      + ((cfg.countMode || item.newCount !== undefined) ? `<span class="card-count">新品:${getBcNewCount(item)}</span>` : '')
       + (item.checked ? '<span class="card-chk-lbl">✓済</span>' : '');
-    if (cfg.useGroup && item.group) {
+    if (item.group && item.group !== '未分類') {
       const badge = document.createElement('span');
       badge.className = 'card-group-badge';
       badge.textContent = item.group;
       el.appendChild(badge);
     }
+
+    const plusBtn = document.createElement('button');
+    plusBtn.className = 'card-count-btn';
+    plusBtn.type = 'button';
+    plusBtn.title = '新品数を+1';
+    plusBtn.textContent = '+1';
+    plusBtn.style.display = (cfg.countMode || item.newCount !== undefined) ? '' : 'none';
+
+    const minusBtn = document.createElement('button');
+    minusBtn.className = 'card-count-btn';
+    minusBtn.type = 'button';
+    minusBtn.title = '新品数を-1';
+    minusBtn.textContent = '-1';
+    minusBtn.style.display = (cfg.countMode || item.newCount !== undefined) ? '' : 'none';
 
     const checkBtn = document.createElement('button');
     checkBtn.className = 'card-check';
@@ -689,6 +758,8 @@ function renderBcList() {
     deleteBtn.innerHTML = '&#x1F5D1;';
 
     metaRow.appendChild(metaInfo);
+    metaRow.appendChild(plusBtn);
+    metaRow.appendChild(minusBtn);
     metaRow.appendChild(checkBtn);
     metaRow.appendChild(deleteBtn);
 
@@ -700,8 +771,16 @@ function renderBcList() {
     // イベント
     el.onclick = (e) => {
       if (multiSelModeBc) { toggleMultiSelectBc(item.id, el); return; }
-      if (e.target === checkBtn || e.target === selChk || e.target === deleteBtn || e.target === inlineJumpBtn) return;
+      if (e.target === checkBtn || e.target === selChk || e.target === deleteBtn || e.target === inlineJumpBtn || e.target === plusBtn || e.target === minusBtn) return;
       openBcModal(item);
+    };
+    plusBtn.onclick = (e) => {
+      e.stopPropagation();
+      adjustBcNewCount(item, +1);
+    };
+    minusBtn.onclick = (e) => {
+      e.stopPropagation();
+      adjustBcNewCount(item, -1);
     };
     checkBtn.onclick = (e) => {
       e.stopPropagation();
@@ -721,7 +800,7 @@ function renderBcList() {
     inlineJumpBtn.onclick = (e) => {
       e.stopPropagation();
       if (typeof jumpListItemsFromElement === 'function') {
-        jumpListItemsFromElement('bc-list', '.bc-card', el, 1);
+        jumpListItemsFromElement('bc-list', '.bc-card', el, (typeof getJumpStep === 'function') ? getJumpStep() : 1);
       }
     };
 
@@ -771,7 +850,7 @@ function updateMultiSelTxtBc() {
 function openBcModal(item) {
   currentDetail = item;
   $('modal-val').textContent  = item.value;
-  $('modal-meta').textContent = (item.format||'').toUpperCase().replace('_',' ') + ' · ' + fmtTime(item.timestamp);
+  $('modal-meta').textContent = (item.format||'').toUpperCase().replace('_',' ') + ' · ' + fmtTime(item.timestamp) + ((cfg.countMode || item.newCount !== undefined) ? ' · 新品 ' + getBcNewCount(item) + '個' : '');
   $('copied-msg').style.display = 'none';
   const hasFmt = !!JS_FMT[item.format];
   $('modal-bc').style.display  = hasFmt ? '' : 'none';
@@ -788,11 +867,12 @@ function closeBcModal() {
 function exportCSV() {
   if (!bcHistory.length) return;
   const hasG = cfg.useGroup;
-  const hdr  = hasG ? '\uFEFF値,フォーマット,グループ,日時,確認済み' : '\uFEFF値,フォーマット,日時,確認済み';
+  const hdr  = hasG ? '\uFEFF値,フォーマット,新品数,グループ,日時,確認済み' : '\uFEFF値,フォーマット,新品数,日時,確認済み';
   const rows = [hdr, ...bcHistory.map(x => {
     const v = `"${x.value}","${(x.format||'').replace('_',' ')}"`;
+    const cnt = `,"${getBcNewCount(x)}"`;
     const g = hasG ? `,"${x.group||''}"` : '';
-    return v + g + `,"${fmtTime(x.timestamp)}","${x.checked?'済':''}"`;
+    return v + cnt + g + `,"${fmtTime(x.timestamp)}","${x.checked?'済':''}"`;
   })];
   const a = document.createElement('a');
   a.href     = URL.createObjectURL(new Blob([rows.join('\n')], { type:'text/csv' }));
