@@ -29,6 +29,23 @@ function adjustBcNewCount(item, delta) {
   showToast('新品: ' + item.newCount + '個', 'ok');
 }
 
+
+function setBarcodeForNextPhoto(item) {
+  if (!item || !item.value) return;
+  lastScannedValue = String(item.value);
+  if (cfg.useGroup && item.group) {
+    cfg.currentGroup = item.group;
+    try { saveCfg(); } catch (_) {}
+    if (typeof updateGroupUI === 'function') updateGroupUI();
+  }
+  if (typeof showToast === 'function') {
+    showToast('撮影対象: ' + lastScannedValue + ' / 写真名は下5桁 ' + lastScannedValue.slice(-5), 'ok', 2600);
+  }
+  const lbl = $('orient-label');
+  if (lbl) lbl.textContent = '撮影対象 ' + lastScannedValue.slice(-5);
+  if (typeof switchTab === 'function') switchTab('camera');
+}
+
 /* ════ iPhone/非対応ブラウザ用 ZXing フォールバック ════ */
 let zxingReader = null;
 let zxingControls = null;
@@ -703,8 +720,9 @@ function renderBcList() {
     valueRow.className = 'bc-value-row';
 
     const valDiv = document.createElement('div');
-    valDiv.className = 'bc-val-large';
+    valDiv.className = 'bc-val-large tap-photo-target';
     valDiv.textContent = item.value;
+    valDiv.title = 'このバーコードで写真を撮る';
 
     const inlineJumpBtn = document.createElement('button');
     inlineJumpBtn.className = 'bc-inline-jump';
@@ -774,6 +792,11 @@ function renderBcList() {
     el.appendChild(thumbDiv);
     el.appendChild(valueRow);
     el.appendChild(metaRow);
+
+    valDiv.onclick = (e) => {
+      e.stopPropagation();
+      setBarcodeForNextPhoto(item);
+    };
 
     // イベント
     el.onclick = (e) => {

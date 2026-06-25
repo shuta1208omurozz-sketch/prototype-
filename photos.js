@@ -16,6 +16,84 @@ function createSaveBadge(photo) {
   return badge;
 }
 
+
+function isPhotoFavorite(photo) {
+  return !!(photo && photo.favorite);
+}
+
+function createPhotoFavoriteMark(photo) {
+  if (!isPhotoFavorite(photo)) return null;
+  const mark = document.createElement('div');
+  mark.className = 'photo-fav-mark';
+  mark.textContent = '★';
+  return mark;
+}
+
+function createPhotoFavoriteButton(photo) {
+  const btn = document.createElement('button');
+  btn.className = 'photo-fav-btn' + (isPhotoFavorite(photo) ? ' on' : '');
+  btn.type = 'button';
+  btn.title = isPhotoFavorite(photo) ? 'お気に入り解除' : 'お気に入り登録';
+  btn.setAttribute('aria-label', btn.title);
+  btn.textContent = isPhotoFavorite(photo) ? '★' : '☆';
+  btn.onclick = (e) => {
+    e.stopPropagation();
+    togglePhotoFavorite(photo);
+  };
+  return btn;
+}
+
+function updateLightboxFavoriteUI() {
+  const btn = $('lb-fav');
+  if (!btn || !currentLightbox) return;
+  const on = isPhotoFavorite(currentLightbox);
+  btn.classList.toggle('on', on);
+  btn.textContent = on ? '★ お気に入り' : '☆ お気に入り';
+  btn.title = on ? 'お気に入り解除' : 'お気に入り登録';
+}
+
+async function setPhotoFavorite(photo, favorite) {
+  if (!photo) return;
+  photo.favorite = !!favorite;
+  try { if (typeof dbPut === 'function') await dbPut(photo); } catch (e) { console.warn('[Favorite save]', e); }
+  const idx = photos.findIndex(p => p.id === photo.id);
+  if (idx >= 0) photos[idx] = photo;
+  if (currentLightbox && currentLightbox.id === photo.id) currentLightbox = photo;
+  if (activeTab === 'photos' && typeof renderPhotoGrid === 'function') renderPhotoGrid();
+  if (typeof updateThumbStrip === 'function') updateThumbStrip();
+  if (currentLightbox && currentLightbox.id === photo.id) updateLightboxFavoriteUI();
+}
+
+function togglePhotoFavorite(photo) {
+  if (!photo) return;
+  setPhotoFavorite(photo, !isPhotoFavorite(photo));
+  if (typeof showToast === 'function') showToast(!isPhotoFavorite(photo) ? 'お気に入りを解除しました' : '★ お気に入りにしました', 'ok', 1200);
+}
+
+function getFavoritePhotoIds(list = photos) {
+  return new Set((list || []).filter(p => p && p.favorite).map(p => p.id));
+}
+
+async function deleteNonFavoritePhotos(list, label = '写真') {
+  const targets = (list || []).filter(p => p && !p.favorite);
+  const protectedCount = (list || []).filter(p => p && p.favorite).length;
+  if (!targets.length) {
+    if (typeof showToast === 'function') showToast('お気に入り写真は削除しません', 'warn', 2500);
+    return { deleted: 0, protected: protectedCount };
+  }
+  await Promise.all(targets.map(p => dbDel(p.id)));
+  const deletedIds = new Set(targets.map(p => p.id));
+  photos = photos.filter(p => !deletedIds.has(p.id));
+  updateCounts();
+  if (activeTab === 'photos') renderPhotoGrid();
+  updateThumbStrip();
+  if (typeof updateUnsavedSaveButton === 'function') updateUnsavedSaveButton();
+  if (typeof showToast === 'function') {
+    showToast(`${label}を${targets.length}枚削除しました${protectedCount ? ' / お気に入り' + protectedCount + '枚は保護' : ''}`, 'ok', 2500);
+  }
+  return { deleted: targets.length, protected: protectedCount };
+}
+
 function setSaveResultLog(ok = 0, fail = 0, total = 0, message = '') {
   lastSaveResult = { ok, fail, total, message, timestamp: Date.now() };
   updateSaveResultLogUI();
@@ -97,12 +175,14 @@ function renderPhotoGrid() {
     }
     const isSel = (mergeMode && mergeSelected.includes(p.id)) || (multiSelModePh && multiSelectedPh.includes(p.id));
     const item  = document.createElement('div');
-    item.className = 'photo-card photo-item' + (isSel ? ' selected' : '');
+    item.className = 'photo-card photo-item' + (isSel ? ' selected' : '') + (isPhotoFavorite(p) ? ' favorite' : '');
 
     const imgWrap = document.createElement('div');
     imgWrap.className = 'photo-card-img';
 
     imgWrap.appendChild(createPhotoOrderBadge(p, serial));
+    const favMark = createPhotoFavoriteMark(p);
+    if (favMark) imgWrap.appendChild(favMark);
     if (cfg.useGroup && p.group) {
       const gb = document.createElement('div');
       gb.className = 'card-group-badge'; gb.textContent = p.group;
@@ -113,6 +193,7 @@ function renderPhotoGrid() {
     imgWrap.appendChild(img);
     const saveBadge = createSaveBadge(p);
     if (saveBadge) imgWrap.appendChild(saveBadge);
+    imgWrap.appendChild(createPhotoFavoriteButton(p));
 
     const selOv = document.createElement('div'); selOv.className = 'photo-select-overlay';
     const chk   = document.createElement('div'); chk.className   = 'photo-select-check'; chk.textContent = '✓';
@@ -139,8 +220,10 @@ function updateThumbStrip() {
   const maxThumbs = isIOS ? 6 : 10;
   const serialMap = getPhotoSerialMap();
   photos.slice(0, maxThumbs).forEach(p => {
-    const d   = document.createElement('div'); d.className = 'mini-thumb';
+    const d   = document.createElement('div'); d.className = 'mini-thumb' + (isPhotoFavorite(p) ? ' favorite' : '');
     d.appendChild(createPhotoOrderBadge(p, serialMap.get(p.id) || 0));
+    const favMarkMini = createPhotoFavoriteMark(p);
+    if (favMarkMini) d.appendChild(favMarkMini);
     const img = document.createElement('img');
     img.loading = 'lazy';
     img.decoding = 'async';
@@ -172,6 +255,11 @@ function setThumbVisible(v) {
 
 /* ════ 写真削除 ════ */
 function deletePhoto(id) {
+  const ph = photos.find(p => p.id === id) || (currentLightbox && currentLightbox.id === id ? currentLightbox : null);
+  if (ph && ph.favorite) {
+    if (typeof showToast === 'function') showToast('★ お気に入り写真は削除しません。解除してから削除してください', 'warn', 3200);
+    return;
+  }
   if (!confirm('この写真を削除しますか？')) return;
   dbDel(id).then(async () => {
     photos = photos.filter(p => p.id !== id);
@@ -217,6 +305,7 @@ function openLightbox(p) {
   $('lb-ttl').textContent = '#' + displayNo + codePart + ' · ' + fmtTime(p.timestamp) + ' · ' +
     (p.facingMode === 'user' ? 'フロント' : p.facingMode === 'merged' ? '結合' : 'リア');
   $('lightbox').style.display = '';
+  updateLightboxFavoriteUI();
 }
 
 function closeLightbox() {
@@ -688,6 +777,7 @@ document.addEventListener('DOMContentLoaded', () => {
   on('lb-close',  closeLightbox);
   on('lb-rotate', rotateLightboxPhoto);
   on('lb-dl',     () => { if (currentLightbox) savePhotoToDevice(currentLightbox); });
+  on('lb-fav',    () => { if (currentLightbox) togglePhotoFavorite(currentLightbox); });
   on('lb-del',    () => { if (currentLightbox) deletePhoto(currentLightbox.id); });
 
   on('btn-ph-select-mode', () => multiSelModePh ? exitMultiSelModePh() : enterMultiSelModePh());

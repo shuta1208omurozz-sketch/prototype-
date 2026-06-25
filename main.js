@@ -427,9 +427,12 @@ function bindEvents() {
     if (!confirm('全てのバーコード履歴を完全に削除しますか？')) return;
     bcHistory = []; localStorage.setItem(BC_KEY, '[]'); updateCounts(); renderBcList(); showToast('BC履歴を削除しました');
   });
-  on('set-clear-photos', 'click', () => {
-    if (!confirm('保存されている全ての写真を完全に削除しますか？')) return;
-    dbClear().then(() => { photos = []; updateCounts(); renderPhotoGrid(); updateThumbStrip(); showToast('写真を全削除しました'); });
+  on('set-clear-photos', 'click', async () => {
+    const protectedCount = photos.filter(p => p && p.favorite).length;
+    const deleteCount = photos.length - protectedCount;
+    if (!deleteCount) { showToast('お気に入り写真しかないため削除しません', 'warn'); return; }
+    if (!confirm(`お気に入り以外の写真 ${deleteCount}枚を削除しますか？${protectedCount ? '\nお気に入り' + protectedCount + '枚は残ります。' : ''}`)) return;
+    await deleteNonFavoritePhotos(photos.slice(), '写真');
   });
 
   // フォルダ設定
@@ -450,13 +453,15 @@ function bindEvents() {
     updateMultiSelTxtPh(); renderPhotoGrid();
   });
   on('btn-multi-cancel', 'click', exitMultiSelModePh);
-  on('btn-multi-del', 'click', () => {
+  on('btn-multi-del', 'click', async () => {
     if (!multiSelectedPh.length) { showToast('[E023] 項目が選択されていません', 'warn'); return; }
-    if (!confirm(multiSelectedPh.length + '枚の写真を削除しますか？')) return;
-    Promise.all(multiSelectedPh.map(id => dbDel(id))).then(() => {
-      photos = photos.filter(p => !multiSelectedPh.includes(p.id));
-      updateCounts(); updateThumbStrip(); exitMultiSelModePh(); showToast('削除しました');
-    });
+    const selected = multiSelectedPh.map(id => photos.find(p => p.id === id)).filter(Boolean);
+    const protectedCount = selected.filter(p => p.favorite).length;
+    const deleteCount = selected.length - protectedCount;
+    if (!deleteCount) { showToast('選択した写真はお気に入りなので削除しません', 'warn'); return; }
+    if (!confirm(`選択写真 ${deleteCount}枚を削除しますか？${protectedCount ? '\nお気に入り' + protectedCount + '枚は残ります。' : ''}`)) return;
+    await deleteNonFavoritePhotos(selected, '選択写真');
+    exitMultiSelModePh();
   });
   on('btn-multi-move', 'click', () => {
     if (!multiSelectedPh.length) { showToast('[E024] 項目が選択されていません', 'warn'); return; }
@@ -519,9 +524,12 @@ function bindEvents() {
     }
   });
 
-  on('btn-photo-clear', 'click', () => {
-    if (!confirm('保存されている全ての写真を削除しますか？')) return;
-    dbClear().then(() => { photos = []; updateCounts(); renderPhotoGrid(); updateThumbStrip(); showToast('写真を全て削除しました'); });
+  on('btn-photo-clear', 'click', async () => {
+    const protectedCount = photos.filter(p => p && p.favorite).length;
+    const deleteCount = photos.length - protectedCount;
+    if (!deleteCount) { showToast('お気に入り写真しかないため削除しません', 'warn'); return; }
+    if (!confirm(`お気に入り以外の写真 ${deleteCount}枚を削除しますか？${protectedCount ? '\nお気に入り' + protectedCount + '枚は残ります。' : ''}`)) return;
+    await deleteNonFavoritePhotos(photos.slice(), '写真');
   });
 
   // 結合モード
