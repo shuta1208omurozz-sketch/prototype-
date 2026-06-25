@@ -43,6 +43,7 @@ function setBarcodeForNextPhoto(item) {
   }
   const lbl = $('orient-label');
   if (lbl) lbl.textContent = '撮影対象 ' + lastScannedValue.slice(-5);
+  if (typeof closeBcModal === 'function') closeBcModal();
   if (typeof switchTab === 'function') switchTab('camera');
 }
 
@@ -720,9 +721,9 @@ function renderBcList() {
     valueRow.className = 'bc-value-row';
 
     const valDiv = document.createElement('div');
-    valDiv.className = 'bc-val-large tap-photo-target';
+    valDiv.className = 'bc-val-large detail-only';
     valDiv.textContent = item.value;
-    valDiv.title = 'このバーコードで写真を撮る';
+    valDiv.title = '詳細を開く';
 
     const inlineJumpBtn = document.createElement('button');
     inlineJumpBtn.className = 'bc-inline-jump';
@@ -792,11 +793,6 @@ function renderBcList() {
     el.appendChild(thumbDiv);
     el.appendChild(valueRow);
     el.appendChild(metaRow);
-
-    valDiv.onclick = (e) => {
-      e.stopPropagation();
-      setBarcodeForNextPhoto(item);
-    };
 
     // イベント
     el.onclick = (e) => {
@@ -1030,6 +1026,10 @@ document.addEventListener('DOMContentLoaded', () => {
       if (msg) { msg.style.display = ''; setTimeout(() => msg.style.display = 'none', 2000); }
       showToast('コピーしました', 'ok');
     });
+  });
+  on('btn-modal-photo', 'click', () => {
+    if (!currentDetail) return;
+    setBarcodeForNextPhoto(currentDetail);
   });
   on('btn-png', 'click', () => {
     if (!currentDetail) return;

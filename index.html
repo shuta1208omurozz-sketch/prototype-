@@ -6,7 +6,7 @@
   <title>Scanner + Camera</title>
 
   <!-- PWA -->
-  <link rel="manifest" href="manifest.json?v=fix57"/>
+  <link rel="manifest" href="manifest.json?v=fix58"/>
   <meta name="mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -1542,7 +1542,7 @@
     }
 
 
-    /* FIX57: 写真お気に入り・履歴バーコードから撮影 */
+    /* FIX58: 写真お気に入り・履歴バーコードから撮影 */
     .photo-card.favorite{
       border-color:rgba(255,214,80,.85) !important;
       box-shadow:0 0 14px rgba(255,214,80,.18) !important;
@@ -1606,16 +1606,29 @@
       background:rgba(255,214,80,.22);
       box-shadow:0 0 12px rgba(255,214,80,.18);
     }
-    .bc-val-large.tap-photo-target{
-      cursor:pointer;
-      text-decoration:underline;
-      text-decoration-color:rgba(0,255,136,.45);
-      text-underline-offset:3px;
+
+    /* FIX58: 詳細から撮影・お気に入り表示切替 */
+    #btn-photo-fav-filter{
+      border-color:rgba(255,214,80,.7) !important;
+      color:#ffd650 !important;
+      background:rgba(255,214,80,.08) !important;
     }
-    .bc-val-large.tap-photo-target::after{
-      content:' 📷';
-      font-size:.86em;
+    #btn-photo-fav-filter.on{
+      background:rgba(255,214,80,.22) !important;
+      box-shadow:0 0 10px rgba(255,214,80,.20);
+    }
+    .btn-modal-photo{
+      background:rgba(0,255,136,.10);
       color:#00ff88;
+      border:1px solid rgba(0,255,136,.55);
+      border-radius:10px;
+      padding:8px 10px;
+      font-family:'Share Tech Mono',monospace;
+      font-size:11px;
+      white-space:nowrap;
+    }
+    .bc-val-large.detail-only{
+      cursor:pointer;
     }
 
 </style>
@@ -1633,7 +1646,7 @@
       </svg>
     </div>
     <div>
-      <div class="hdr-title"><span class="hdr-version-pill" id="app-version-top">VERSION FIX57</span></div>
+      <div class="hdr-title"><span class="hdr-version-pill" id="app-version-top">VERSION FIX58</span></div>
       <div class="hdr-sub">SCAN · PHOTO · STORE</div>
     </div>
     <div class="hdr-count" id="hdr-count">0BC / 0📷</div>
@@ -1848,6 +1861,7 @@
       <button class="btn-sm" id="btn-ph-sort" style="margin-left:auto;">↓ 新しい順</button>
       <button class="btn-sm accent" id="btn-ph-select-mode" style="display:none">☑ 選択</button>
       <button class="btn-sm accent" id="btn-merge-mode" style="display:none">📐 結合</button>
+      <button class="btn-sm fav-filter" id="btn-photo-fav-filter" type="button" title="お気に入り写真だけ表示">★ お気に入り</button>
       <button class="btn-sm danger" id="btn-photo-clear" style="display:none">全削除</button>
     </div>
     <div class="merge-bar" id="merge-bar">
@@ -1989,9 +2003,9 @@
       <button class="settings-btn danger" id="set-clear-photos">写真を全削除</button>
     </div>
     <div class="settings-divider"></div>
-    <div class="settings-ver">SCANNER + CAMERA · FIX57</div>
+    <div class="settings-ver">SCANNER + CAMERA · FIX58</div>
     <div class="app-update-row">
-      <span class="app-version-pill" id="app-version-text">VERSION FIX57</span>
+      <span class="app-version-pill" id="app-version-text">VERSION FIX58</span>
       <span class="save-log-pill" id="save-log-text">保存結果: なし</span>
       <button class="settings-btn update" id="btn-force-update" type="button">更新</button>
     </div>
@@ -2023,6 +2037,7 @@
     <div class="modal-acts">
       <button class="btn-png" id="btn-png" style="display:none">↓ PNG保存</button>
       <button class="btn-copy" id="btn-copy">コピー</button>
+      <button class="btn-modal-photo" id="btn-modal-photo" type="button">📷 このBCで撮影</button>
       <button class="btn-modal-del" id="btn-modal-del">削除</button>
     </div>
   </div>
@@ -2068,13 +2083,13 @@
 <div class="toast" id="toast"></div>
 
 <!-- ==================== JSモジュールの読み込み ==================== -->
-<script src="state.js?v=fix57"></script>
-<script src="utils.js?v=fix57"></script>
-<script src="storage.js?v=fix57"></script>
-<script src="scanner.js?v=fix57"></script>
-<script src="camera.js?v=fix57"></script>
-<script src="photos.js?v=fix57"></script>
-<script src="main.js?v=fix57"></script>
+<script src="state.js?v=fix58"></script>
+<script src="utils.js?v=fix58"></script>
+<script src="storage.js?v=fix58"></script>
+<script src="scanner.js?v=fix58"></script>
+<script src="camera.js?v=fix58"></script>
+<script src="photos.js?v=fix58"></script>
+<script src="main.js?v=fix58"></script>
 
 <!-- Service Worker 登録 -->
 <script>

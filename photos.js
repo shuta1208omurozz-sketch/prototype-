@@ -1,6 +1,22 @@
 'use strict';
 
 let lastSaveResult = null;
+let photoFavoriteOnly = localStorage.getItem('sc-photo-favorite-only') === '1';
+
+function updatePhotoFavoriteFilterUI() {
+  const btn = $('btn-photo-fav-filter');
+  if (!btn) return;
+  btn.classList.toggle('on', photoFavoriteOnly);
+  btn.textContent = photoFavoriteOnly ? '★ お気に入り中' : '★ お気に入り';
+}
+
+function togglePhotoFavoriteFilter() {
+  photoFavoriteOnly = !photoFavoriteOnly;
+  localStorage.setItem('sc-photo-favorite-only', photoFavoriteOnly ? '1' : '0');
+  updatePhotoFavoriteFilterUI();
+  renderPhotoGrid();
+  if (typeof showToast === 'function') showToast(photoFavoriteOnly ? 'お気に入り写真だけ表示' : '全写真を表示', photoFavoriteOnly ? 'ok' : '', 1500);
+}
 
 function getPhotoSaveState(photo) {
   if (!photo || typeof photo.savedToDevice === 'undefined') return null;
@@ -145,6 +161,7 @@ function createPhotoOrderBadge(photo, fallbackSerial = 0) {
 /* ════ フィルタ・ソート ════ */
 function getFilteredPh() {
   let f = photos.slice();
+  if (photoFavoriteOnly) f = f.filter(x => x && x.favorite);
   if (cfg.useGroup) {
     const g = $('hist-ph-group-select').value;
     if (g !== 'all') f = f.filter(x => x.group === g);
@@ -157,7 +174,17 @@ function getFilteredPh() {
 function renderPhotoGrid() {
   const grid  = $('photo-grid');
   const empty = $('photo-empty');
-  if (!photos.length) { grid.style.display = 'none'; empty.style.display = ''; return; }
+  updatePhotoFavoriteFilterUI();
+  const filtered = getFilteredPh();
+  if (!photos.length || !filtered.length) {
+    grid.style.display = 'none';
+    empty.style.display = '';
+    const p = empty.querySelector('p');
+    if (p) p.innerHTML = !photos.length
+      ? '写真がありません<br/>カメラタブから撮影してください'
+      : '表示する写真がありません<br/>お気に入り表示やグループを確認してください';
+    return;
+  }
   empty.style.display = 'none';
   grid.style.display  = '';
   grid.className = 'photo-list' + (mergeMode ? ' merge-mode' : multiSelModePh ? ' multi-mode-ph' : '');
@@ -165,7 +192,7 @@ function renderPhotoGrid() {
 
   let lastDay = '';
   const serialMap = getPhotoSerialMap();
-  getFilteredPh().forEach(p => {
+  filtered.forEach(p => {
     const serial = serialMap.get(p.id) || 0;
     const day = getDayString(p.timestamp);
     if (day !== lastDay) {
@@ -780,6 +807,8 @@ document.addEventListener('DOMContentLoaded', () => {
   on('lb-fav',    () => { if (currentLightbox) togglePhotoFavorite(currentLightbox); });
   on('lb-del',    () => { if (currentLightbox) deletePhoto(currentLightbox.id); });
 
+  on('btn-photo-fav-filter', () => togglePhotoFavoriteFilter());
+  updatePhotoFavoriteFilterUI();
   on('btn-ph-select-mode', () => multiSelModePh ? exitMultiSelModePh() : enterMultiSelModePh());
   updateUnsavedSaveButton();
 });
