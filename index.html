@@ -6,7 +6,7 @@
   <title>Scanner + Camera</title>
 
   <!-- PWA -->
-  <link rel="manifest" href="manifest.json?v=fix58"/>
+  <link rel="manifest" href="manifest.json?v=fix59"/>
   <meta name="mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -1542,7 +1542,7 @@
     }
 
 
-    /* FIX58: 写真お気に入り・履歴バーコードから撮影 */
+    /* FIX59: 写真お気に入り・履歴バーコードから撮影 */
     .photo-card.favorite{
       border-color:rgba(255,214,80,.85) !important;
       box-shadow:0 0 14px rgba(255,214,80,.18) !important;
@@ -1607,7 +1607,7 @@
       box-shadow:0 0 12px rgba(255,214,80,.18);
     }
 
-    /* FIX58: 詳細から撮影・お気に入り表示切替 */
+    /* FIX59: 詳細から撮影・お気に入り表示切替 */
     #btn-photo-fav-filter{
       border-color:rgba(255,214,80,.7) !important;
       color:#ffd650 !important;
@@ -1631,6 +1631,24 @@
       cursor:pointer;
     }
 
+
+    /* FIX59: お気に入り保存・日付/時間選択 */
+    .fav-save{
+      border-color:#ffd36a !important;
+      color:#ffe6a3 !important;
+      background:rgba(255,211,106,.12) !important;
+      font-weight:700;
+    }
+    .btn-multi-date,.btn-multi-hour{
+      border:1px solid rgba(0,212,255,.45);
+      background:rgba(0,212,255,.10);
+      color:#c9f6ff;
+      border-radius:8px;
+      padding:6px 8px;
+      font-size:11px;
+      white-space:nowrap;
+    }
+
 </style>
 </head>
 <body class="theme-cyan">
@@ -1646,7 +1664,7 @@
       </svg>
     </div>
     <div>
-      <div class="hdr-title"><span class="hdr-version-pill" id="app-version-top">VERSION FIX58</span></div>
+      <div class="hdr-title"><span class="hdr-version-pill" id="app-version-top">VERSION FIX59</span></div>
       <div class="hdr-sub">SCAN · PHOTO · STORE</div>
     </div>
     <div class="hdr-count" id="hdr-count">0BC / 0📷</div>
@@ -1859,10 +1877,11 @@
         <select id="hist-ph-group-select" class="group-select" style="padding:2px 4px; font-size:10px;"></select>
       </div>
       <button class="btn-sm" id="btn-ph-sort" style="margin-left:auto;">↓ 新しい順</button>
-      <button class="btn-sm accent" id="btn-ph-select-mode" style="display:none">☑ 選択</button>
-      <button class="btn-sm accent" id="btn-merge-mode" style="display:none">📐 結合</button>
+      <button class="btn-sm accent" id="btn-ph-select-mode">☑ 選択</button>
+      <button class="btn-sm accent" id="btn-merge-mode">📐 結合</button>
       <button class="btn-sm fav-filter" id="btn-photo-fav-filter" type="button" title="お気に入り写真だけ表示">★ お気に入り</button>
-      <button class="btn-sm danger" id="btn-photo-clear" style="display:none">全削除</button>
+      <button class="btn-sm fav-save" id="btn-photo-fav-save" type="button" title="お気に入り写真だけ保存">★保存</button>
+      <button class="btn-sm danger" id="btn-photo-clear">全削除</button>
     </div>
     <div class="merge-bar" id="merge-bar">
       <div class="merge-sel-preview" id="merge-sel-preview"></div>
@@ -1873,6 +1892,8 @@
     <div class="multi-sel-bar" id="multi-sel-bar">
       <span class="multi-sel-txt" id="multi-sel-txt">0枚 選択中</span>
       <button class="btn-multi-all" id="btn-multi-all">全選択</button>
+      <button class="btn-multi-date" id="btn-multi-date">日付選択</button>
+      <button class="btn-multi-hour" id="btn-multi-hour">時間選択</button>
       <button class="btn-multi-move" id="btn-multi-move">📁 移動</button>
       <button class="btn-multi-share" id="btn-multi-share">📤 共有</button>
       <button class="btn-multi-dl" id="btn-multi-dl">↓ 保存</button>
@@ -2003,9 +2024,9 @@
       <button class="settings-btn danger" id="set-clear-photos">写真を全削除</button>
     </div>
     <div class="settings-divider"></div>
-    <div class="settings-ver">SCANNER + CAMERA · FIX58</div>
+    <div class="settings-ver">SCANNER + CAMERA · FIX59</div>
     <div class="app-update-row">
-      <span class="app-version-pill" id="app-version-text">VERSION FIX58</span>
+      <span class="app-version-pill" id="app-version-text">VERSION FIX59</span>
       <span class="save-log-pill" id="save-log-text">保存結果: なし</span>
       <button class="settings-btn update" id="btn-force-update" type="button">更新</button>
     </div>
@@ -2070,6 +2091,19 @@
   </div>
 </div>
 
+<!-- 写真 日付/時間 選択ポップアップ -->
+<div class="popup-bg" id="photo-time-select-popup" style="display:none">
+  <div class="popup">
+    <div class="popup-title" id="photo-time-select-title">写真をまとめて選択</div>
+    <div class="popup-body" id="photo-time-select-note">日付または時間帯を選ぶと、その範囲の写真だけ選択します。</div>
+    <select id="photo-time-select" class="grp-move-select"></select>
+    <div class="popup-btn-row">
+      <button class="popup-btn-cancel" id="photo-time-select-cancel">キャンセル</button>
+      <button class="popup-btn-exec" id="photo-time-select-exec">選択する</button>
+    </div>
+  </div>
+</div>
+
 <!-- iOS保存ポップアップ -->
 <div class="popup-bg" id="ios-popup" style="display:none">
   <div class="popup">
@@ -2083,13 +2117,13 @@
 <div class="toast" id="toast"></div>
 
 <!-- ==================== JSモジュールの読み込み ==================== -->
-<script src="state.js?v=fix58"></script>
-<script src="utils.js?v=fix58"></script>
-<script src="storage.js?v=fix58"></script>
-<script src="scanner.js?v=fix58"></script>
-<script src="camera.js?v=fix58"></script>
-<script src="photos.js?v=fix58"></script>
-<script src="main.js?v=fix58"></script>
+<script src="state.js?v=fix59"></script>
+<script src="utils.js?v=fix59"></script>
+<script src="storage.js?v=fix59"></script>
+<script src="scanner.js?v=fix59"></script>
+<script src="camera.js?v=fix59"></script>
+<script src="photos.js?v=fix59"></script>
+<script src="main.js?v=fix59"></script>
 
 <!-- Service Worker 登録 -->
 <script>

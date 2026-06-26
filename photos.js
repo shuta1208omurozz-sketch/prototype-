@@ -10,6 +10,19 @@ function updatePhotoFavoriteFilterUI() {
   btn.textContent = photoFavoriteOnly ? '★ お気に入り中' : '★ お気に入り';
 }
 
+function getFavoritePhotosForSave() {
+  return photos.filter(p => p && p.favorite && p.dataUrl);
+}
+
+function updatePhotoFavoriteSaveUI() {
+  const btn = $('btn-photo-fav-save');
+  if (!btn) return;
+  const n = getFavoritePhotosForSave().length;
+  btn.disabled = n === 0;
+  btn.textContent = n ? `★保存 ${n}` : '★保存';
+  btn.title = n ? `お気に入り写真 ${n}枚だけ保存` : 'お気に入り写真がありません';
+}
+
 function togglePhotoFavoriteFilter() {
   photoFavoriteOnly = !photoFavoriteOnly;
   localStorage.setItem('sc-photo-favorite-only', photoFavoriteOnly ? '1' : '0');
@@ -104,6 +117,7 @@ async function deleteNonFavoritePhotos(list, label = '写真') {
   if (activeTab === 'photos') renderPhotoGrid();
   updateThumbStrip();
   if (typeof updateUnsavedSaveButton === 'function') updateUnsavedSaveButton();
+  updatePhotoFavoriteSaveUI();
   if (typeof showToast === 'function') {
     showToast(`${label}を${targets.length}枚削除しました${protectedCount ? ' / お気に入り' + protectedCount + '枚は保護' : ''}`, 'ok', 2500);
   }
@@ -175,6 +189,7 @@ function renderPhotoGrid() {
   const grid  = $('photo-grid');
   const empty = $('photo-empty');
   updatePhotoFavoriteFilterUI();
+  updatePhotoFavoriteSaveUI();
   const filtered = getFilteredPh();
   if (!photos.length || !filtered.length) {
     grid.style.display = 'none';
@@ -417,6 +432,7 @@ async function markPhotosSavedToDevice(list) {
   if (typeof updateUnsavedSaveButton === 'function') updateUnsavedSaveButton();
   if (typeof renderPhotoGrid === 'function' && activeTab === 'photos') renderPhotoGrid();
   if (typeof updateThumbStrip === 'function') updateThumbStrip();
+  updatePhotoFavoriteSaveUI();
 }
 
 async function downloadOnePhotoDirect(photo) {
@@ -561,6 +577,161 @@ async function saveUnsavedPhotosAsZipForIOS(list) {
     if (btn) btn.disabled = false;
     updateUnsavedSaveButton();
   }
+}
+
+
+async function savePhotoListAsZipForIOS(list, label = '写真') {
+  const photosToSave = (list || []).filter(p => p && p.dataUrl);
+  if (!photosToSave.length) {
+    showToast(label + 'がありません', 'warn');
+    return false;
+  }
+  try {
+    showToast(`${label} ${photosToSave.length}枚をZIP化中...`, '', 3000);
+    setSaveResultLog(0, 0, photosToSave.length, `${label} ZIP作成中: ${photosToSave.length}枚`);
+    const zipBlob = await createZipBlobFromPhotos(photosToSave);
+    const url = URL.createObjectURL(zipBlob);
+    const name = `${safeZipName(label)}_${new Date().toISOString().replace(/[:.]/g, '-').slice(0,19)}_${photosToSave.length}枚.zip`;
+    fallbackDownload(url, name);
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+    await markPhotosSavedToDevice(photosToSave);
+    setSaveResultLog(photosToSave.length, 0, photosToSave.length, `${label} ZIP保存開始: ${photosToSave.length}枚`);
+    showToast(`✓ ${label}のZIP保存を開始しました: ${photosToSave.length}枚`, 'ok', 5000);
+    return true;
+  } catch (e) {
+    console.error('[PhotoListZipSave]', e);
+    setSaveResultLog(0, photosToSave.length, photosToSave.length, '[E059] ZIP保存失敗');
+    showToast('[E059] ZIP保存に失敗: ' + (e.message || e.name), 'err', 5000);
+    return false;
+  }
+}
+
+async function savePhotoListDirectForAndroid(list, label = '写真') {
+  const photosToSave = (list || []).filter(p => p && p.dataUrl);
+  if (!photosToSave.length) {
+    showToast(label + 'がありません', 'warn');
+    return false;
+  }
+  let ok = 0, fail = 0;
+  showToast(`${label} ${photosToSave.length}枚を保存開始...`, '', 2500);
+  setSaveResultLog(0, 0, photosToSave.length, `${label}保存中: 0/${photosToSave.length}`);
+  try {
+    for (let i = 0; i < photosToSave.length; i++) {
+      const p = photosToSave[i];
+      const done = await downloadOnePhotoDirect(p);
+      if (done) {
+        p.savedToDevice = true;
+        if (typeof dbPut === 'function') await dbPut(p);
+        ok++;
+      } else {
+        fail++;
+      }
+      setSaveResultLog(ok, fail, photosToSave.length, `${label}保存中: ${ok + fail}/${photosToSave.length}`);
+      await new Promise(r => setTimeout(r, 450));
+    }
+    await markPhotosSavedToDevice(photosToSave.filter(p => p.savedToDevice));
+    if (fail) {
+      showToast(`[E060] ${label}: ${ok}枚保存 / ${fail}枚失敗`, 'warn', 5000);
+    } else {
+      showToast(`✓ ${label} ${ok}枚を保存しました`, 'ok');
+    }
+    return ok > 0;
+  } catch (e) {
+    console.error('[PhotoListDirectSave]', e);
+    showToast('[E060] 保存処理エラー: ' + (e.message || e.name), 'err', 5000);
+    return false;
+  } finally {
+    updateUnsavedSaveButton();
+    updatePhotoFavoriteSaveUI();
+    if (activeTab === 'photos') renderPhotoGrid();
+    updateThumbStrip();
+  }
+}
+
+async function saveFavoritePhotosToDevice() {
+  const list = getFavoritePhotosForSave();
+  if (!list.length) {
+    showToast('お気に入り写真がありません', 'warn');
+    updatePhotoFavoriteSaveUI();
+    return;
+  }
+  if (!confirm(`お気に入り写真 ${list.length}枚だけ保存しますか？`)) return;
+  const btn = $('btn-photo-fav-save');
+  if (btn) btn.disabled = true;
+  try {
+    if (typeof IS_IOS_LIKE !== 'undefined' && IS_IOS_LIKE) await savePhotoListAsZipForIOS(list, 'お気に入り');
+    else await savePhotoListDirectForAndroid(list, 'お気に入り');
+  } finally {
+    if (btn) btn.disabled = false;
+    updatePhotoFavoriteSaveUI();
+  }
+}
+
+function formatPhotoSelectDay(ts) {
+  const d = new Date(ts || Date.now());
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}/${m}/${day}`;
+}
+
+function formatPhotoSelectHour(ts) {
+  const d = new Date(ts || Date.now());
+  const base = formatPhotoSelectDay(ts);
+  const h = String(d.getHours()).padStart(2, '0');
+  return `${base} ${h}:00〜${h}:59`;
+}
+
+let _photoTimeSelectGroups = [];
+function buildPhotoSelectGroups(kind) {
+  const f = getFilteredPh().filter(p => p && p.id);
+  const map = new Map();
+  f.forEach(p => {
+    const key = kind === 'hour' ? formatPhotoSelectHour(p.timestamp) : formatPhotoSelectDay(p.timestamp);
+    if (!map.has(key)) map.set(key, []);
+    map.get(key).push(p);
+  });
+  return Array.from(map.entries()).map(([label, list]) => ({ label, list }));
+}
+
+function openPhotoTimeSelect(kind = 'day') {
+  if (!multiSelModePh) enterMultiSelModePh();
+  _photoTimeSelectGroups = buildPhotoSelectGroups(kind);
+  if (!_photoTimeSelectGroups.length) {
+    showToast('選択できる写真がありません', 'warn');
+    return;
+  }
+  const bg = $('photo-time-select-popup');
+  const title = $('photo-time-select-title');
+  const note = $('photo-time-select-note');
+  const sel = $('photo-time-select');
+  if (!bg || !sel) return;
+  title.textContent = kind === 'hour' ? '時間ごとに写真を選択' : '日付ごとに写真を選択';
+  note.textContent = kind === 'hour'
+    ? '時間帯を選ぶと、その1時間に撮った写真をまとめて選択します。'
+    : '日付を選ぶと、その日に撮った写真をまとめて選択します。';
+  sel.innerHTML = '';
+  _photoTimeSelectGroups.forEach((g, i) => {
+    const opt = document.createElement('option');
+    opt.value = String(i);
+    opt.textContent = `${g.label}　${g.list.length}枚`;
+    sel.appendChild(opt);
+  });
+  bg.dataset.kind = kind;
+  bg.style.display = '';
+}
+
+function applyPhotoTimeSelect() {
+  const bg = $('photo-time-select-popup');
+  const sel = $('photo-time-select');
+  const idx = Number(sel?.value || 0);
+  const g = _photoTimeSelectGroups[idx];
+  if (!g) return;
+  multiSelectedPh = g.list.map(p => p.id);
+  updateMultiSelTxtPh();
+  renderPhotoGrid();
+  if (bg) bg.style.display = 'none';
+  showToast(`${g.label} の写真 ${g.list.length}枚を選択しました`, 'ok', 2200);
 }
 
 
@@ -808,7 +979,13 @@ document.addEventListener('DOMContentLoaded', () => {
   on('lb-del',    () => { if (currentLightbox) deletePhoto(currentLightbox.id); });
 
   on('btn-photo-fav-filter', () => togglePhotoFavoriteFilter());
+  on('btn-photo-fav-save', () => saveFavoritePhotosToDevice());
   updatePhotoFavoriteFilterUI();
+  updatePhotoFavoriteSaveUI();
   on('btn-ph-select-mode', () => multiSelModePh ? exitMultiSelModePh() : enterMultiSelModePh());
+  on('btn-multi-date', () => openPhotoTimeSelect('day'));
+  on('btn-multi-hour', () => openPhotoTimeSelect('hour'));
+  on('photo-time-select-cancel', () => { const bg = $('photo-time-select-popup'); if (bg) bg.style.display = 'none'; });
+  on('photo-time-select-exec', applyPhotoTimeSelect);
   updateUnsavedSaveButton();
 });
