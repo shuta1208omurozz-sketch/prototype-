@@ -6,7 +6,7 @@
   <title>Scanner + Camera</title>
 
   <!-- PWA -->
-  <link rel="manifest" href="manifest.json?v=fix59"/>
+  <link rel="manifest" href="manifest.json?v=fix60"/>
   <meta name="mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -1542,7 +1542,7 @@
     }
 
 
-    /* FIX59: 写真お気に入り・履歴バーコードから撮影 */
+    /* FIX60: 写真お気に入り・履歴バーコードから撮影 */
     .photo-card.favorite{
       border-color:rgba(255,214,80,.85) !important;
       box-shadow:0 0 14px rgba(255,214,80,.18) !important;
@@ -1550,20 +1550,24 @@
     .photo-fav-btn{
       position:absolute;
       right:4px;
-      bottom:4px;
+      top:4px;
+      bottom:auto;
       z-index:8;
-      width:30px;
-      height:30px;
+      width:24px;
+      height:24px;
+      min-width:24px;
+      min-height:24px;
       border-radius:999px;
       border:1px solid rgba(255,214,80,.65);
       background:rgba(5,8,12,.78);
       color:#ffd650;
-      font-size:17px;
+      font-size:13px;
       line-height:1;
       display:flex;
       align-items:center;
       justify-content:center;
       padding:0;
+      box-shadow:0 0 6px rgba(0,0,0,.35);
     }
     .photo-fav-btn.on{
       background:rgba(255,214,80,.18);
@@ -1578,20 +1582,29 @@
     .mini-thumb .photo-fav-mark,
     .photo-card-img .photo-fav-mark{
       position:absolute;
-      left:4px;
-      bottom:4px;
+      right:3px;
+      top:3px;
+      left:auto;
+      bottom:auto;
       z-index:7;
-      min-width:20px;
-      height:20px;
+      min-width:16px;
+      height:16px;
       border-radius:999px;
-      background:rgba(255,214,80,.9);
+      background:rgba(255,214,80,.92);
       color:#111;
-      font-size:12px;
+      font-size:9px;
+      line-height:1;
       display:flex;
       align-items:center;
       justify-content:center;
-      box-shadow:0 0 8px rgba(255,214,80,.35);
+      box-shadow:0 0 6px rgba(255,214,80,.30);
       pointer-events:none;
+    }
+    .photo-card-img .photo-fav-mark{
+      display:none; /* 写真履歴は右上の小さい☆ボタンをお気に入り表示兼操作にする */
+    }
+    .mini-thumb .photo-fav-mark{
+      display:flex;
     }
     #lb-fav{
       border:1px solid rgba(255,214,80,.75);
@@ -1607,7 +1620,7 @@
       box-shadow:0 0 12px rgba(255,214,80,.18);
     }
 
-    /* FIX59: 詳細から撮影・お気に入り表示切替 */
+    /* FIX60: 詳細から撮影・お気に入り表示切替 */
     #btn-photo-fav-filter{
       border-color:rgba(255,214,80,.7) !important;
       color:#ffd650 !important;
@@ -1632,7 +1645,7 @@
     }
 
 
-    /* FIX59: お気に入り保存・日付/時間選択 */
+    /* FIX60: お気に入り保存・日付/時間選択 */
     .fav-save{
       border-color:#ffd36a !important;
       color:#ffe6a3 !important;
@@ -1664,7 +1677,7 @@
       </svg>
     </div>
     <div>
-      <div class="hdr-title"><span class="hdr-version-pill" id="app-version-top">VERSION FIX59</span></div>
+      <div class="hdr-title"><span class="hdr-version-pill" id="app-version-top">VERSION FIX60</span></div>
       <div class="hdr-sub">SCAN · PHOTO · STORE</div>
     </div>
     <div class="hdr-count" id="hdr-count">0BC / 0📷</div>
@@ -2024,9 +2037,9 @@
       <button class="settings-btn danger" id="set-clear-photos">写真を全削除</button>
     </div>
     <div class="settings-divider"></div>
-    <div class="settings-ver">SCANNER + CAMERA · FIX59</div>
+    <div class="settings-ver">SCANNER + CAMERA · FIX60</div>
     <div class="app-update-row">
-      <span class="app-version-pill" id="app-version-text">VERSION FIX59</span>
+      <span class="app-version-pill" id="app-version-text">VERSION FIX60</span>
       <span class="save-log-pill" id="save-log-text">保存結果: なし</span>
       <button class="settings-btn update" id="btn-force-update" type="button">更新</button>
     </div>
@@ -2117,13 +2130,13 @@
 <div class="toast" id="toast"></div>
 
 <!-- ==================== JSモジュールの読み込み ==================== -->
-<script src="state.js?v=fix59"></script>
-<script src="utils.js?v=fix59"></script>
-<script src="storage.js?v=fix59"></script>
-<script src="scanner.js?v=fix59"></script>
-<script src="camera.js?v=fix59"></script>
-<script src="photos.js?v=fix59"></script>
-<script src="main.js?v=fix59"></script>
+<script src="state.js?v=fix60"></script>
+<script src="utils.js?v=fix60"></script>
+<script src="storage.js?v=fix60"></script>
+<script src="scanner.js?v=fix60"></script>
+<script src="camera.js?v=fix60"></script>
+<script src="photos.js?v=fix60"></script>
+<script src="main.js?v=fix60"></script>
 
 <!-- Service Worker 登録 -->
 <script>
