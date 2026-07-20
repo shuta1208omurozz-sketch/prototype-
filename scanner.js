@@ -1,13 +1,31 @@
 'use strict';
 
 let _lastInvalidEan13NotifyAt = 0;
-function notifyInvalidEan13(val = '') {
+function notifyInvalidEan13(val = '', format = '', reason = '') {
   const now = Date.now();
   if (now - _lastInvalidEan13NotifyAt < 2500) return;
   _lastInvalidEan13NotifyAt = now;
-  const msg = '13桁ではありません' + (val ? ': ' + val : '');
-  if (typeof showToast === 'function') showToast(msg, 'warn', 2500);
-  if (typeof setStatus === 'function') setStatus('err', msg);
+  const v = String(val || '').trim();
+  const fmt = String(format || '').toUpperCase().replace('_', ' ');
+  const msg = reason || (/^\d+$/.test(v) && v.length !== 13
+    ? '13桁ではないため登録しません'
+    : 'EAN-13以外は登録しません');
+  const detail = (fmt ? ' / ' + fmt : '') + (v ? ': ' + v : '');
+  if (typeof showToast === 'function') showToast(msg + detail, 'warn', 2800);
+  if (typeof setStatus === 'function') setStatus('err', msg + detail);
+}
+
+function validateScanForCurrentMode(val, format) {
+  const v = String(val || '').trim();
+  if (scanMode !== 'ean13') return { ok: true, value: v, format };
+  const fmt = normalizeZxingFormat(format);
+  const fmtOk = (fmt === 'ean_13' || fmt === 'unknown');
+  const digitsOk = /^\d{13}$/.test(v);
+  if (!digitsOk || !fmtOk) {
+    notifyInvalidEan13(v, fmt === 'unknown' ? format : fmt);
+    return { ok: false, value: v, format };
+  }
+  return { ok: true, value: v, format: 'ean_13' };
 }
 
 function getBcNewCount(item) {
@@ -29,6 +47,19 @@ function adjustBcNewCount(item, delta) {
   showToast('新品: ' + item.newCount + '個', 'ok');
 }
 
+function editBcMemo(item) {
+  if (!item) return;
+  const before = item.memo || '';
+  const text = prompt('このバーコードのメモを入力', before);
+  if (text === null) return;
+  item.memo = String(text).trim();
+  saveBcHistory();
+  renderBcList();
+  if (currentDetail && currentDetail.id === item.id) {
+    openBcModal(item);
+  }
+  showToast(item.memo ? 'メモを保存しました' : 'メモを削除しました', 'ok');
+}
 
 function setBarcodeForNextPhoto(item) {
   if (!item || !item.value) return;
@@ -406,9 +437,9 @@ async function startZxingScan() {
         let val = typeof result.getText === 'function' ? result.getText() : String(result.text || result.rawValue || '');
         let fmtRaw = typeof result.getBarcodeFormat === 'function' ? result.getBarcodeFormat() : result.format;
         let fmt = normalizeZxingFormat(fmtRaw);
-        if (scanMode === 'ean13' && val.length === 12) val = '0' + val;
-        if (scanMode === 'ean13' && val.length !== 13) { notifyInvalidEan13(val); return; }
-        handleScanSuccess(val, fmt === 'unknown' && scanMode === 'ean13' ? 'ean_13' : fmt);
+        const checked = validateScanForCurrentMode(val, fmt);
+        if (!checked.ok) return;
+        handleScanSuccess(checked.value, checked.format);
       } else if (error) {
         const name = error.name || '';
         const msg = error.message || '';
@@ -529,10 +560,10 @@ async function detect() {
     } else if (scanning) {
       const b = barcodes[0];
       let val = b.rawValue;
-      if (scanMode === 'ean13' && val.length === 12) val = '0' + val;
-      if (scanMode === 'ean13' && val.length !== 13) { notifyInvalidEan13(val); raf = requestAnimationFrame(detect); return; }
+      const checked = validateScanForCurrentMode(val, b.format);
+      if (!checked.ok) { raf = requestAnimationFrame(detect); return; }
 
-      handleScanSuccess(val, b.format);
+      handleScanSuccess(checked.value, checked.format);
     }
   } catch (e) {
     console.error('[Scanner] Detect:', e);
@@ -543,6 +574,11 @@ async function detect() {
 }
 
 function handleScanSuccess(val, format) {
+  const checkedScan = validateScanForCurrentMode(val, format);
+  if (!checkedScan.ok) return;
+  val = checkedScan.value;
+  format = checkedScan.format;
+
   // ── 重複チェック ──
   // 同じ値かつ「カメラから一度も消えていない」場合はスキップ（持ち続け対策）
   // _requiresClearFrame が true = 前回スキャン後まだ空フレームを検出していない
@@ -753,6 +789,12 @@ function renderBcList() {
       el.appendChild(badge);
     }
 
+    const memoBtn = document.createElement('button');
+    memoBtn.className = 'card-memo';
+    memoBtn.type = 'button';
+    memoBtn.title = 'メモを編集';
+    memoBtn.textContent = item.memo ? 'メモ✓' : 'メモ';
+
     const plusBtn = document.createElement('button');
     plusBtn.className = 'card-count-btn';
     plusBtn.type = 'button';
@@ -783,6 +825,7 @@ function renderBcList() {
     groupBtn.textContent = '📁';
 
     metaRow.appendChild(metaInfo);
+    metaRow.appendChild(memoBtn);
     metaRow.appendChild(groupBtn);
     metaRow.appendChild(plusBtn);
     metaRow.appendChild(minusBtn);
@@ -793,12 +836,22 @@ function renderBcList() {
     el.appendChild(thumbDiv);
     el.appendChild(valueRow);
     el.appendChild(metaRow);
+    if (item.memo) {
+      const memoLine = document.createElement('div');
+      memoLine.className = 'bc-memo-line';
+      memoLine.textContent = 'メモ: ' + item.memo;
+      el.appendChild(memoLine);
+    }
 
     // イベント
     el.onclick = (e) => {
       if (multiSelModeBc) { toggleMultiSelectBc(item.id, el); return; }
-      if (e.target === checkBtn || e.target === selChk || e.target === deleteBtn || e.target === groupBtn || e.target === inlineJumpBtn || e.target === plusBtn || e.target === minusBtn) return;
+      if (e.target === checkBtn || e.target === selChk || e.target === deleteBtn || e.target === groupBtn || e.target === memoBtn || e.target === inlineJumpBtn || e.target === plusBtn || e.target === minusBtn) return;
       openBcModal(item);
+    };
+    memoBtn.onclick = (e) => {
+      e.stopPropagation();
+      editBcMemo(item);
     };
     plusBtn.onclick = (e) => {
       e.stopPropagation();
@@ -887,6 +940,11 @@ function openBcModal(item) {
   currentDetail = item;
   $('modal-val').textContent  = item.value;
   $('modal-meta').textContent = (item.format||'').toUpperCase().replace('_',' ') + ' · ' + fmtTime(item.timestamp) + ((cfg.countMode || item.newCount !== undefined) ? ' · 新品 ' + getBcNewCount(item) + '個' : '');
+  const memoEl = $('modal-memo');
+  if (memoEl) {
+    memoEl.textContent = item.memo ? 'メモ: ' + item.memo : 'メモなし';
+    memoEl.classList.toggle('empty', !item.memo);
+  }
   $('copied-msg').style.display = 'none';
   const hasFmt = !!JS_FMT[item.format];
   $('modal-bc').style.display  = hasFmt ? '' : 'none';
@@ -903,12 +961,14 @@ function closeBcModal() {
 function exportCSV() {
   if (!bcHistory.length) return;
   const hasG = cfg.useGroup;
-  const hdr  = hasG ? '\uFEFF値,フォーマット,新品数,グループ,日時,確認済み' : '\uFEFF値,フォーマット,新品数,日時,確認済み';
+  const hdr  = hasG ? '\uFEFF値,フォーマット,新品数,メモ,グループ,日時,確認済み' : '\uFEFF値,フォーマット,新品数,メモ,日時,確認済み';
+  const esc = (v) => String(v ?? '').replace(/"/g, '""');
   const rows = [hdr, ...bcHistory.map(x => {
-    const v = `"${x.value}","${(x.format||'').replace('_',' ')}"`;
-    const cnt = `,"${getBcNewCount(x)}"`;
-    const g = hasG ? `,"${x.group||''}"` : '';
-    return v + cnt + g + `,"${fmtTime(x.timestamp)}","${x.checked?'済':''}"`;
+    const v = `"${esc(x.value)}","${esc((x.format||'').replace('_',' '))}"`;
+    const cnt = `,"${esc(getBcNewCount(x))}"`;
+    const memo = `,"${esc(x.memo || '')}"`;
+    const g = hasG ? `,"${esc(x.group||'')}"` : '';
+    return v + cnt + memo + g + `,"${esc(fmtTime(x.timestamp))}","${x.checked?'済':''}"`;
   })];
   const a = document.createElement('a');
   a.href     = URL.createObjectURL(new Blob([rows.join('\n')], { type:'text/csv' }));
@@ -931,6 +991,7 @@ function importCSV(file) {
       const iVal  = headers.findIndex(h => h === '値');
       const iFmt  = headers.findIndex(h => h === 'フォーマット');
       const iGrp  = headers.findIndex(h => h === 'グループ');
+      const iMemo = headers.findIndex(h => h === 'メモ');
       const iChk  = headers.findIndex(h => h === '確認済み');
       if (iVal < 0) { showToast('「値」列が見つかりません', 'warn'); return; }
 
@@ -948,6 +1009,7 @@ function importCSV(file) {
 
         const fmtRaw = iFmt >= 0 ? (cols[iFmt] || '').trim().toLowerCase().replace(/ /g, '_') : '';
         const grp    = iGrp >= 0 && cols[iGrp] ? cols[iGrp].trim() : grpDefault;
+        const memo   = iMemo >= 0 && cols[iMemo] ? cols[iMemo].trim() : '';
         const chk    = iChk >= 0 && cols[iChk] ? cols[iChk].trim() === '済' : false;
 
         bcHistory.push({
@@ -956,6 +1018,7 @@ function importCSV(file) {
           format:    fmtRaw || 'ean_13',
           timestamp: Date.now() + added,
           group:     grp,
+          memo:      memo,
           checked:   chk
         });
         added++;
@@ -1030,6 +1093,10 @@ document.addEventListener('DOMContentLoaded', () => {
   on('btn-modal-photo', 'click', () => {
     if (!currentDetail) return;
     setBarcodeForNextPhoto(currentDetail);
+  });
+  on('btn-modal-memo', 'click', () => {
+    if (!currentDetail) return;
+    editBcMemo(currentDetail);
   });
   on('btn-png', 'click', () => {
     if (!currentDetail) return;
