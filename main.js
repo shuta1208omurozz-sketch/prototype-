@@ -236,6 +236,7 @@ function switchTab(newTab, pushHistory = true) {
   } else if (newTab === 'camera') {
     stopScan();
     startCam();
+    if (typeof updateCameraBarcodeBadge === 'function') updateCameraBarcodeBadge();
     const sv = $('scan-video');
     if (sv) { sv.pause(); sv.srcObject = null; }
 

@@ -74,6 +74,7 @@ function setBarcodeForNextPhoto(item) {
   }
   const lbl = $('orient-label');
   if (lbl) lbl.textContent = '撮影対象 ' + lastScannedValue.slice(-5);
+  if (typeof updateCameraBarcodeBadge === 'function') updateCameraBarcodeBadge();
   if (typeof closeBcModal === 'function') closeBcModal();
   if (typeof switchTab === 'function') switchTab('camera');
 }
@@ -593,6 +594,7 @@ function handleScanSuccess(val, format) {
   }
   lastCode = val; lastCodeTime = Date.now();
   lastScannedValue = val;
+  if (typeof updateCameraBarcodeBadge === 'function') updateCameraBarcodeBadge();
   _requiresClearFrame = true;
 
   // ── 同一数値の扱い ──

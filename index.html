@@ -1663,6 +1663,62 @@
     }
 
 
+
+    /* FIX62: 撮影対象バーコード下5桁表示・お気に入り一括操作 */
+    .cam-bc-target-badge{
+      position:absolute;
+      right:8px;
+      top:8px;
+      z-index:9;
+      min-width:68px;
+      max-width:42%;
+      padding:5px 8px;
+      border-radius:999px;
+      border:1px solid rgba(0,255,136,.72);
+      background:rgba(0,12,14,.78);
+      color:#00ff88;
+      font-family:'Share Tech Mono',monospace;
+      font-size:13px;
+      font-weight:800;
+      letter-spacing:1px;
+      text-align:center;
+      box-shadow:0 0 12px rgba(0,255,136,.18), inset 0 0 10px rgba(0,255,136,.08);
+      pointer-events:none;
+    }
+    .cam-bc-target-badge.warn{
+      border-color:rgba(255,170,68,.78);
+      color:#ffcc88;
+      background:rgba(20,10,0,.72);
+    }
+    .btn-multi-fav-on,.btn-multi-fav-off{
+      border:1px solid rgba(255,214,80,.58);
+      background:rgba(255,214,80,.10);
+      color:#ffe6a3;
+      border-radius:8px;
+      padding:6px 8px;
+      font-size:11px;
+      font-weight:800;
+      white-space:nowrap;
+    }
+    .btn-multi-fav-off{
+      border-color:rgba(180,190,210,.42);
+      background:rgba(180,190,210,.08);
+      color:#d5e4ff;
+    }
+    @media (max-width:380px){
+      .cam-bc-target-badge{
+        right:5px;
+        top:5px;
+        min-width:58px;
+        padding:4px 6px;
+        font-size:11px;
+      }
+      .btn-multi-fav-on,.btn-multi-fav-off{
+        padding:5px 6px;
+        font-size:10px;
+      }
+    }
+
     /* FIX61: EAN-13厳格化・バーコードメモ */
     .card-memo{
       flex:0 0 auto !important;
@@ -1725,7 +1781,7 @@
       </svg>
     </div>
     <div>
-      <div class="hdr-title"><span class="hdr-version-pill" id="app-version-top">VERSION FIX61</span></div>
+      <div class="hdr-title"><span class="hdr-version-pill" id="app-version-top">VERSION FIX62</span></div>
       <div class="hdr-sub">SCAN · PHOTO · STORE</div>
     </div>
     <div class="hdr-count" id="hdr-count">0BC / 0📷</div>
@@ -1841,6 +1897,7 @@
     </div>
     <div class="vf" id="cam-vf">
       <video id="cam-video" muted playsinline autoplay></video>
+      <div id="cam-bc-target-badge" class="cam-bc-target-badge" style="display:none;">BC -----</div>
       <div class="flash" id="flash"></div>
       <div class="focus-ring" id="focus-ring"></div>
       <!-- 横固定モード方向インジケーター -->
@@ -1955,6 +2012,8 @@
       <button class="btn-multi-all" id="btn-multi-all">全選択</button>
       <button class="btn-multi-date" id="btn-multi-date">日付選択</button>
       <button class="btn-multi-hour" id="btn-multi-hour">時間選択</button>
+      <button class="btn-multi-fav-on" id="btn-multi-fav-on" title="選択写真をお気に入りにする">★付ける</button>
+      <button class="btn-multi-fav-off" id="btn-multi-fav-off" title="選択写真のお気に入りを外す">☆外す</button>
       <button class="btn-multi-move" id="btn-multi-move">📁 移動</button>
       <button class="btn-multi-share" id="btn-multi-share">📤 共有</button>
       <button class="btn-multi-dl" id="btn-multi-dl">↓ 保存</button>
@@ -2087,7 +2146,7 @@
     <div class="settings-divider"></div>
     <div class="settings-ver">SCANNER + CAMERA · FIX61</div>
     <div class="app-update-row">
-      <span class="app-version-pill" id="app-version-text">VERSION FIX61</span>
+      <span class="app-version-pill" id="app-version-text">VERSION FIX62</span>
       <span class="save-log-pill" id="save-log-text">保存結果: なし</span>
       <button class="settings-btn update" id="btn-force-update" type="button">更新</button>
     </div>

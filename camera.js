@@ -593,6 +593,7 @@ async function toggleTorch() {
 /* ════ 撮影 ════ */
 async function takePhoto() {
   if (!camActive || !camStream) return;
+  updateCameraBarcodeBadge();
   const video   = $('cam-video');
   const shutter = $('btn-shutter');
   if (!video || video.readyState < 2) return;
@@ -775,6 +776,31 @@ function goToScanModeFromCamera() {
   if (typeof switchTab === 'function') switchTab('scan');
   // 設定で自動開始OFFでも、このボタンは「スキャンモードへ移動」なので明示的に開始する。
   setTimeout(() => { if (activeTab === 'scan' && typeof startScan === 'function') startScan(); }, 80);
+}
+
+
+
+/* ════ FIX62: 撮影対象バーコード表示 ════ */
+function getCurrentPhotoBarcodeSuffix() {
+  const code = String(lastScannedValue || '').replace(/\D/g, '');
+  if (!code) return '';
+  return code.slice(-5);
+}
+
+function updateCameraBarcodeBadge() {
+  const badge = $('cam-bc-target-badge');
+  if (!badge) return;
+  const suffix = getCurrentPhotoBarcodeSuffix();
+  if (!suffix) {
+    badge.style.display = 'none';
+    badge.textContent = 'BC -----';
+    badge.classList.add('warn');
+    return;
+  }
+  badge.style.display = '';
+  badge.textContent = 'BC ' + suffix;
+  badge.classList.remove('warn');
+  badge.title = 'この写真のファイル名はバーコード下5桁 ' + suffix + ' になります';
 }
 
 /* ════ 横固定モード ════ */
@@ -966,6 +992,7 @@ document.addEventListener('webkitfullscreenchange', () => {
 
 /* ════ イベント登録 ════ */
 document.addEventListener('DOMContentLoaded', () => {
+  if (typeof updateCameraBarcodeBadge === 'function') updateCameraBarcodeBadge();
   const on = (id, fn) => { const el = $(id); if (el) el.onclick = fn; };
   on('btn-shutter',    () => { if (Date.now() < window.__suppressCameraShutterClickUntil) return; takePhoto(); });
   on('btn-torch',      toggleTorch);

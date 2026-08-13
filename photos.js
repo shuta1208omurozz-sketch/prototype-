@@ -93,6 +93,33 @@ async function setPhotoFavorite(photo, favorite) {
   if (currentLightbox && currentLightbox.id === photo.id) updateLightboxFavoriteUI();
 }
 
+
+async function setSelectedPhotosFavorite(favorite) {
+  if (!multiSelectedPh.length) {
+    if (typeof showToast === 'function') showToast('写真が選択されていません', 'warn');
+    return;
+  }
+  const selected = multiSelectedPh.map(id => photos.find(p => p.id === id)).filter(Boolean);
+  if (!selected.length) {
+    if (typeof showToast === 'function') showToast('対象写真が見つかりません', 'warn');
+    return;
+  }
+  let changed = 0;
+  for (const p of selected) {
+    if (!!p.favorite === !!favorite) continue;
+    p.favorite = !!favorite;
+    changed++;
+    try { if (typeof dbPut === 'function') await dbPut(p); } catch (e) { console.warn('[Bulk favorite]', e); }
+  }
+  if (typeof updateThumbStrip === 'function') updateThumbStrip();
+  if (typeof updatePhotoFavoriteSaveUI === 'function') updatePhotoFavoriteSaveUI();
+  renderPhotoGrid();
+  updateMultiSelTxtPh();
+  if (typeof showToast === 'function') {
+    showToast((favorite ? '★ お気に入りにしました: ' : '☆ お気に入りを外しました: ') + changed + '枚', changed ? 'ok' : 'warn', 1800);
+  }
+}
+
 function togglePhotoFavorite(photo) {
   if (!photo) return;
   setPhotoFavorite(photo, !isPhotoFavorite(photo));
@@ -980,6 +1007,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   on('btn-photo-fav-filter', () => togglePhotoFavoriteFilter());
   on('btn-photo-fav-save', () => saveFavoritePhotosToDevice());
+  on('btn-multi-fav-on', () => setSelectedPhotosFavorite(true));
+  on('btn-multi-fav-off', () => setSelectedPhotosFavorite(false));
   updatePhotoFavoriteFilterUI();
   updatePhotoFavoriteSaveUI();
   on('btn-ph-select-mode', () => multiSelModePh ? exitMultiSelModePh() : enterMultiSelModePh());
