@@ -1010,11 +1010,20 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
   on('btn-zoom-toggle',    () => setZoomPanel(!zoomPanelOpen));
+  on('set-camera-zoom',   () => {
+    if (typeof switchTab === 'function') switchTab('camera');
+    setTimeout(() => setZoomPanel(true), 80);
+  });
   on('btn-wide-camera',    activateWideCamera);
   on('btn-native-camera',  openNativeCameraCapture);
+  on('set-native-camera', () => {
+    if (typeof switchTab === 'function') switchTab('camera');
+    setTimeout(openNativeCameraCapture, 80);
+  });
   const nativeInput = $('native-camera-input');
   if (nativeInput) nativeInput.addEventListener('change', e => importNativeCameraFile(e.target.files?.[0]));
   on('btn-save-unsaved',   () => { if (typeof saveUnsavedPhotosToDevice === 'function') saveUnsavedPhotosToDevice(); });
+  on('set-save-unsaved',   () => { if (typeof saveUnsavedPhotosToDevice === 'function') saveUnsavedPhotosToDevice(); });
 
   const RATIOS = ['4/3', 'default', '16/9', '21/9'];
   if (cfg.aspectRatio === 'full') cfg.aspectRatio = 'default';

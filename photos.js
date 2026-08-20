@@ -483,12 +483,14 @@ function getUnsavedPhotos() {
 
 function updateUnsavedSaveButton() {
   const n = getUnsavedPhotos().length;
-  const btn = $('btn-save-unsaved');
-  if (btn) {
+  const updateSaveBtn = (btn) => {
+    if (!btn) return;
     btn.disabled = n === 0;
     btn.textContent = (typeof IS_IOS_LIKE !== 'undefined' && IS_IOS_LIKE) ? (n ? `PCへ送る ${n}` : 'PCへ送る') : (n ? `保存 ${n}` : '保存');
     btn.title = n ? ((typeof IS_IOS_LIKE !== 'undefined' && IS_IOS_LIKE) ? `未保存の写真 ${n}枚をZIPでPCへ送る` : `未保存の写真 ${n}枚を保存`) : '未保存の写真はありません';
-  }
+  };
+  updateSaveBtn($('btn-save-unsaved'));
+  updateSaveBtn($('set-save-unsaved'));
   ['unsaved-indicator', 'unsaved-count-inline', 'photo-unsaved-count'].forEach(id => {
     const el = $(id);
     if (el) el.textContent = `未保存 ${n}`;
