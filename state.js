@@ -1,6 +1,6 @@
 'use strict';
 
-const APP_VERSION = 'FIX71';
+const APP_VERSION = 'FIX72';
 const IS_IOS_LIKE = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
 /* ════ キー定数 ════ */
