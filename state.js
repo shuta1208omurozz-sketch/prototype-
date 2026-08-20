@@ -1,6 +1,6 @@
 'use strict';
 
-const APP_VERSION = 'FIX64';
+const APP_VERSION = 'FIX65';
 const IS_IOS_LIKE = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
 /* ════ キー定数 ════ */
@@ -89,7 +89,7 @@ const CAM_QUALITY = {
   max:  { width: { ideal: 4000 }, height: { ideal: 3000 } }
 };
 
-const ASPECT_RATIOS = { 'default': 0, '16/9': 16/9, '21/9': 21/9 };
+const ASPECT_RATIOS = { 'default': 0, '3/4': 3/4, '16/9': 16/9, '21/9': 21/9 };
 
 const JS_FMT = {
   ean_13: 'EAN13', ean_8: 'EAN8',   code_128: 'CODE128',

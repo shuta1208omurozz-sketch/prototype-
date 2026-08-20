@@ -2,8 +2,8 @@
 
 
 function normalizeAspectRatioSetting() {
-  // FIX21: 旧4:3設定は「デフォルト」へ移行。4:3固定ではなく広めの標準カメラ風にする。
-  if (!cfg.aspectRatio || cfg.aspectRatio === '4/3') cfg.aspectRatio = 'default';
+  // FIX65: FULLは廃止。旧FULL/旧4:3設定はデフォルトへ移行。新しく縦寄りの3:4を追加。
+  if (!cfg.aspectRatio || cfg.aspectRatio === 'full' || cfg.aspectRatio === '4/3') cfg.aspectRatio = 'default';
 }
 
 function updateDeviceClassUI() {
