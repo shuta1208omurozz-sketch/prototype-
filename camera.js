@@ -780,7 +780,7 @@ function goToScanModeFromCamera() {
 
 
 
-/* ════ FIX62: 撮影対象バーコード表示 ════ */
+/* ════ FIX63: 撮影対象バーコード表示 ════ */
 function getCurrentPhotoBarcodeSuffix() {
   const code = String(lastScannedValue || '').replace(/\D/g, '');
   if (!code) return '';

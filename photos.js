@@ -281,10 +281,31 @@ function renderPhotoGrid() {
 /* ════ サムネストリップ ════ */
 function updateThumbStrip() {
   const wrap = $('thumb-strip-wrap');
-  if (!thumbStripVisible || !photos.length) { wrap.style.display = 'none'; return; }
+  const toolRow = $('camera-tool-row') || document.querySelector('#pg-camera .zoom-toggle-row');
+  if (!wrap) return;
+
+  if (!thumbStripVisible) {
+    wrap.style.display = 'none';
+    if (toolRow) toolRow.classList.remove('thumb-mode-hidden');
+    return;
+  }
+
+  // FIX64: 最近の写真は「倍率/純正/保存」ラインに表示する。
+  // ON時は操作ラインを隠し、OFF時だけ倍率/純正/保存を出す。
   wrap.style.display = '';
+  if (toolRow) toolRow.classList.add('thumb-mode-hidden');
+
   const strip = $('thumb-strip');
+  if (!strip) return;
   strip.innerHTML = '';
+  if (!photos.length) {
+    const empty = document.createElement('div');
+    empty.className = 'thumb-empty-mini';
+    empty.textContent = '最近の写真なし';
+    strip.appendChild(empty);
+    return;
+  }
+
   const isIOS = (typeof IS_IOS_LIKE !== 'undefined' && IS_IOS_LIKE);
   const maxThumbs = isIOS ? 6 : 10;
   const serialMap = getPhotoSerialMap();
@@ -307,18 +328,24 @@ function updateThumbStrip() {
   if (photos.length > maxThumbs) {
     const m = document.createElement('button');
     m.className = 'more-btn'; m.textContent = '+' + (photos.length - maxThumbs);
-    m.onclick = () => document.querySelector('[data-tab="photos"]').click();
+    m.onclick = () => document.querySelector('[data-tab="photos"]')?.click();
     strip.appendChild(m);
   }
 }
 
 function setThumbVisible(v) {
-  thumbStripVisible = v;
-  localStorage.setItem('sc-thumb-vis', v ? '1' : '0');
-  $('btn-thumb-toggle').classList.toggle('on', v);
-  $('btn-thumb-toggle').textContent  = v ? '🖼 ON' : '🖼 OFF';
-  $('btn-thumb-toggle2').textContent = v ? '非表示' : '表示';
-  $('btn-thumb-toggle2').classList.toggle('on', v);
+  thumbStripVisible = !!v;
+  localStorage.setItem('sc-thumb-vis', thumbStripVisible ? '1' : '0');
+  const btn = $('btn-thumb-toggle');
+  if (btn) {
+    btn.classList.toggle('on', thumbStripVisible);
+    btn.textContent  = thumbStripVisible ? '🖼 ON' : '🖼 OFF';
+  }
+  const btn2 = $('btn-thumb-toggle2');
+  if (btn2) {
+    btn2.textContent = thumbStripVisible ? '非表示' : '表示';
+    btn2.classList.toggle('on', thumbStripVisible);
+  }
   updateThumbStrip();
 }
 
