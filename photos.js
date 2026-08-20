@@ -334,6 +334,7 @@ function updateThumbStrip() {
 }
 
 function setThumbVisible(v) {
+  // FIX67: 縦スクロール補正は使わない。CSS側で最近の写真枠を固定して埋もれを防ぐ。
   thumbStripVisible = !!v;
   localStorage.setItem('sc-thumb-vis', thumbStripVisible ? '1' : '0');
   const btn = $('btn-thumb-toggle');
@@ -347,6 +348,9 @@ function setThumbVisible(v) {
     btn2.classList.toggle('on', thumbStripVisible);
   }
   updateThumbStrip();
+  requestAnimationFrame(() => {
+    if (activeTab === 'camera' && typeof updateCameraGuide === 'function') updateCameraGuide();
+  });
 }
 
 /* ════ 写真削除 ════ */

@@ -2,8 +2,9 @@
 
 
 function normalizeAspectRatioSetting() {
-  // FIX65: FULLは廃止。旧FULL/旧4:3設定はデフォルトへ移行。新しく縦寄りの3:4を追加。
-  if (!cfg.aspectRatio || cfg.aspectRatio === 'full' || cfg.aspectRatio === '4/3') cfg.aspectRatio = 'default';
+  // FIX66: FULLは廃止。旧3:4設定は4:3へ移行。
+  if (!cfg.aspectRatio || cfg.aspectRatio === 'full') cfg.aspectRatio = 'default';
+  if (cfg.aspectRatio === '3/4') cfg.aspectRatio = '4/3';
 }
 
 function updateDeviceClassUI() {
@@ -235,6 +236,7 @@ function switchTab(newTab, pushHistory = true) {
 
   } else if (newTab === 'camera') {
     stopScan();
+    try { window.scrollTo(0, 0); } catch (_) {}
     startCam();
     if (typeof updateCameraBarcodeBadge === 'function') updateCameraBarcodeBadge();
     const sv = $('scan-video');

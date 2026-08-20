@@ -23,10 +23,11 @@ function updateCameraGuide() {
   let text = 'DEFAULT';
 
   if (cfg.aspectRatio === 'full') cfg.aspectRatio = 'default';
+  if (cfg.aspectRatio === '3/4') cfg.aspectRatio = '4/3';
   if (cfg.aspectRatio) {
     let target;
-    if (cfg.aspectRatio === 'default' || cfg.aspectRatio === '4/3') {
-      // FIX28: デフォルトは商品撮影の最大範囲寄り。枠で範囲を狭めない。
+    if (cfg.aspectRatio === 'default') {
+      // デフォルトは商品撮影の最大範囲寄り。枠で範囲を狭めない。
       target = availW / availH;
       text = 'DEFAULT';
     } else {
@@ -289,14 +290,16 @@ function getCameraTargetRatio(mode, fallbackW, fallbackH) {
   // FIX21: FULL/デフォルトは「比率で切る」のではなく、取得できたカメラ映像の比率を基準にする。
   // これにより商品撮影時に勝手に拡大されるのを避ける。
   const nativeRatio = (fallbackW && fallbackH) ? (fallbackW / fallbackH) : 3 / 4;
-  if (mode === 'full' || mode === 'default' || mode === '4/3' || !mode) return nativeRatio;
+  if (mode === 'full' || mode === 'default' || !mode) return nativeRatio;
+  if (mode === '3/4') mode = '4/3';
   const [a, b] = String(mode).split('/').map(Number);
   return (a && b) ? (a / b) : nativeRatio;
 }
 
 function getRatioLabel(mode) {
-  if (mode === 'default' || mode === '4/3' || !mode) return 'デフォルト';
+  if (mode === 'default' || !mode) return 'デフォルト';
   if (mode === 'full') return 'デフォルト';
+  if (mode === '3/4') return '4:3';
   return String(mode).replace('/', ':');
 }
 
@@ -328,12 +331,12 @@ function getCaptureCrop(vw, vh) {
   // FIX29:
   // デフォルト/FULLは最大範囲を優先してクロップしない。
   // 16:9 / 21:9 は「選んだ比率で保存される」ことを優先して、保存時だけ正確にクロップする。
-  const mode = (cfg.aspectRatio === 'full' || cfg.aspectRatio === '4/3') ? 'default' : cfg.aspectRatio;
+  const mode = (cfg.aspectRatio === 'full') ? 'default' : (cfg.aspectRatio === '3/4' ? '4/3' : cfg.aspectRatio);
   let sx = 0, sy = 0, sw = vw, sh = vh;
   let targetRatio = vw / vh;
 
-  if (mode === '3/4' || mode === '16/9' || mode === '21/9') {
-    targetRatio = mode === '3/4' ? (3 / 4) : mode === '16/9' ? (16 / 9) : (21 / 9);
+  if (mode === '4/3' || mode === '16/9' || mode === '21/9') {
+    targetRatio = mode === '4/3' ? (4 / 3) : mode === '16/9' ? (16 / 9) : (21 / 9);
     const srcRatio = vw / vh;
     if (srcRatio > targetRatio) {
       // 元映像が横に広すぎる → 左右を少し切る
@@ -629,8 +632,8 @@ async function takePhoto() {
     ctx.drawImage(video, sx, sy, sw, sh, 0, 0, canvas.height, canvas.width);
     ctx.restore();
   } else {
-    const mode = (cfg.aspectRatio === 'full' || cfg.aspectRatio === '4/3') ? 'default' : cfg.aspectRatio;
-    const outRatio = (mode === '3/4') ? (3 / 4) : (mode === '16/9') ? (16 / 9) : (mode === '21/9') ? (21 / 9) : (sw / sh);
+    const mode = (cfg.aspectRatio === 'full') ? 'default' : (cfg.aspectRatio === '3/4' ? '4/3' : cfg.aspectRatio);
+    const outRatio = (mode === '4/3') ? (4 / 3) : (mode === '16/9') ? (16 / 9) : (mode === '21/9') ? (21 / 9) : (sw / sh);
     canvas.width  = Math.min(sw, maxW);
     canvas.height = Math.round(canvas.width / outRatio);
     ctx.drawImage(video, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
@@ -738,6 +741,7 @@ function applyCameraViewportLayout() {
   // FIX25: すべての比率で範囲優先。比率で映像を切らない。
   // FULLは縦方向の表示スペースを多く取り、デフォルト/他比率も取得映像の比率を基本にする。
   if (cfg.aspectRatio === 'full') cfg.aspectRatio = 'default';
+  if (cfg.aspectRatio === '3/4') cfg.aspectRatio = '4/3';
   {
     const vw = video?.videoWidth || 4;
     const vh = video?.videoHeight || 3;
@@ -754,7 +758,7 @@ function updateCameraModeClass() {
   const full = false;
   const page = $('pg-camera');
   if (page) {
-    page.classList.toggle('default-preview', cfg.aspectRatio === 'default' || cfg.aspectRatio === '4/3' || cfg.aspectRatio === 'full');
+    page.classList.toggle('default-preview', cfg.aspectRatio === 'default' || cfg.aspectRatio === 'full');
     page.classList.toggle('full-preview', !!full);
   }
   // FIX28: FULLでもヘッダー/タブ/操作UIは通常のまま。cam-full-modeによる専用UIは使わない。
@@ -876,8 +880,10 @@ function toggleDirection() {
 }
 
 function setAspectRatio(ratio) {
-  if (ratio === 'full' || ratio === '4/3') ratio = 'default';
-  if (cfg.aspectRatio === 'full' || cfg.aspectRatio === '4/3') cfg.aspectRatio = 'default';
+  if (ratio === 'full') ratio = 'default';
+  if (ratio === '3/4') ratio = '4/3';
+  if (cfg.aspectRatio === 'full') cfg.aspectRatio = 'default';
+  if (cfg.aspectRatio === '3/4') cfg.aspectRatio = '4/3';
   if (cfg.aspectRatio === ratio) return;
   const prevRatio = cfg.aspectRatio;
   cfg.aspectRatio = ratio;
@@ -1010,8 +1016,9 @@ document.addEventListener('DOMContentLoaded', () => {
   if (nativeInput) nativeInput.addEventListener('change', e => importNativeCameraFile(e.target.files?.[0]));
   on('btn-save-unsaved',   () => { if (typeof saveUnsavedPhotosToDevice === 'function') saveUnsavedPhotosToDevice(); });
 
-  const RATIOS = ['default', '3/4', '16/9', '21/9'];
-  if (cfg.aspectRatio === 'full' || cfg.aspectRatio === '4/3') cfg.aspectRatio = 'default';
+  const RATIOS = ['4/3', 'default', '16/9', '21/9'];
+  if (cfg.aspectRatio === 'full') cfg.aspectRatio = 'default';
+  if (cfg.aspectRatio === '3/4') cfg.aspectRatio = '4/3';
   let ratioIdx = Math.max(0, RATIOS.indexOf(cfg.aspectRatio));
   document.querySelectorAll('.ratio-btn').forEach(btn => {
     btn.onclick = () => { setAspectRatio(btn.dataset.r); ratioIdx = RATIOS.indexOf(btn.dataset.r); };
@@ -1026,7 +1033,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let startX = 0, startY = 0, moved = false, suppressClickUntil = 0;
 
     const syncRatioIndex = () => {
-      const idx = RATIOS.indexOf((cfg.aspectRatio === 'full' || cfg.aspectRatio === '4/3') ? 'default' : cfg.aspectRatio);
+      const idx = RATIOS.indexOf(cfg.aspectRatio === 'full' ? 'default' : (cfg.aspectRatio === '3/4' ? '4/3' : cfg.aspectRatio));
       ratioIdx = idx >= 0 ? idx : 0;
     };
     const moveRatio = (dx) => {
