@@ -309,6 +309,12 @@ function updateThumbStrip() {
   const isIOS = (typeof IS_IOS_LIKE !== 'undefined' && IS_IOS_LIKE);
   const maxThumbs = isIOS ? 6 : 10;
   const serialMap = getPhotoSerialMap();
+  const sameCodeMap = new Map();
+  photos.forEach(ph => {
+    const code = String(ph?.scannedCode || '').trim();
+    if (!code) return;
+    sameCodeMap.set(code, (sameCodeMap.get(code) || 0) + 1);
+  });
   photos.slice(0, maxThumbs).forEach(p => {
     const d   = document.createElement('div'); d.className = 'mini-thumb' + (isPhotoFavorite(p) ? ' favorite' : '');
     d.appendChild(createPhotoOrderBadge(p, serialMap.get(p.id) || 0));
@@ -322,6 +328,14 @@ function updateThumbStrip() {
     d.appendChild(img);
     const saveBadgeMini = createSaveBadge(p);
     if (saveBadgeMini) d.appendChild(saveBadgeMini);
+    const sameCodeCount = sameCodeMap.get(String(p?.scannedCode || '').trim()) || 0;
+    if (sameCodeCount > 1) {
+      const countBadge = document.createElement('div');
+      countBadge.className = 'same-code-count';
+      countBadge.textContent = '×' + sameCodeCount;
+      countBadge.title = '同じバーコードの写真: ' + sameCodeCount + '枚';
+      d.appendChild(countBadge);
+    }
     d.onclick = () => openLightbox(p);
     strip.appendChild(d);
   });

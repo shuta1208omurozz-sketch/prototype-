@@ -6,7 +6,7 @@
   <title>Scanner + Camera</title>
 
   <!-- PWA -->
-  <link rel="manifest" href="manifest.json?v=fix67"/>
+  <link rel="manifest" href="manifest.json?v=fix69"/>
   <meta name="mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -2066,7 +2066,7 @@
     }
 
 
-    /* FIX67: カメラ画面は縦スクロール禁止。最近の写真ON/OFFでもシャッター位置を固定し、サムネが下に埋もれないよう専用枠に収める */
+    /* FIX69: カメラ画面は縦スクロール禁止。最近の写真ON/OFFでもシャッター位置を固定し、サムネが下に埋もれないよう専用枠に収める */
     #pg-camera.cam-pg.on{
       display:flex !important;
       flex-direction:column !important;
@@ -2311,6 +2311,380 @@
       }
     }
 
+
+    /* FIX69: シャッター行を絶対配置にして最近の写真ON/OFFでも位置を固定 */
+    #pg-camera.cam-pg.on #cam-controls{
+      position:relative !important;
+      flex:0 0 166px !important;
+      height:166px !important;
+      min-height:166px !important;
+      max-height:166px !important;
+      overflow:hidden !important;
+      display:block !important;
+    }
+    #pg-camera.cam-pg.on #cam-controls .btn-row{
+      position:absolute !important;
+      left:0 !important;
+      right:0 !important;
+      top:0 !important;
+      height:76px !important;
+      min-height:76px !important;
+      max-height:76px !important;
+      margin:0 !important;
+      overflow:visible !important;
+      display:block !important;
+    }
+    #pg-camera.cam-pg.on #thumb-strip-wrap.cam-inline-thumbs{
+      position:absolute !important;
+      left:8px !important;
+      right:8px !important;
+      top:82px !important;
+      height:78px !important;
+      min-height:78px !important;
+      max-height:78px !important;
+      margin:0 !important;
+      padding:4px 6px !important;
+      overflow:hidden !important;
+      box-sizing:border-box !important;
+      z-index:10 !important;
+    }
+    #pg-camera.cam-pg.on #thumb-strip-wrap.cam-inline-thumbs #thumb-strip{
+      height:70px !important;
+      min-height:70px !important;
+      max-height:70px !important;
+      align-items:center !important;
+      gap:6px !important;
+      overflow-x:auto !important;
+      overflow-y:hidden !important;
+      padding:0 !important;
+      box-sizing:border-box !important;
+    }
+    #pg-camera.cam-pg.on #thumb-strip-wrap.cam-inline-thumbs .mini-thumb{
+      flex:0 0 68px !important;
+      width:68px !important;
+      height:68px !important;
+      min-width:68px !important;
+      min-height:68px !important;
+    }
+    #pg-camera.cam-pg.on #thumb-strip-wrap.cam-inline-thumbs .more-btn{
+      flex:0 0 46px !important;
+      width:46px !important;
+      height:68px !important;
+      min-width:46px !important;
+      min-height:68px !important;
+    }
+    #pg-camera.cam-pg.on #camera-tool-row{
+      position:absolute !important;
+      left:8px !important;
+      right:8px !important;
+      top:98px !important;
+      height:40px !important;
+      min-height:40px !important;
+      max-height:40px !important;
+      margin:0 !important;
+      overflow:hidden !important;
+    }
+    #pg-camera.cam-pg.on .save-status-row{
+      display:none !important;
+    }
+    #pg-camera.cam-pg.on #zoom-controls{
+      position:absolute !important;
+      left:8px !important;
+      right:8px !important;
+      bottom:0 !important;
+      z-index:20 !important;
+      margin:0 !important;
+    }
+    #pg-camera.cam-pg.on #thumb-strip-wrap.cam-inline-thumbs .same-code-count{
+      position:absolute !important;
+      right:3px !important;
+      bottom:3px !important;
+      z-index:8 !important;
+      min-width:18px !important;
+      padding:1px 4px !important;
+      border-radius:999px !important;
+      font-family:'Share Tech Mono',monospace !important;
+      font-size:8px !important;
+      line-height:1.2 !important;
+      color:#ffe67a !important;
+      background:rgba(18,12,0,.78) !important;
+      border:1px solid rgba(255,214,102,.58) !important;
+      backdrop-filter:blur(4px) !important;
+      pointer-events:none !important;
+    }
+    @media (max-width:380px){
+      #pg-camera.cam-pg.on #cam-controls{
+        flex-basis:156px !important;
+        height:156px !important;
+        min-height:156px !important;
+        max-height:156px !important;
+      }
+      #pg-camera.cam-pg.on #thumb-strip-wrap.cam-inline-thumbs{
+        top:80px !important;
+        height:72px !important;
+        min-height:72px !important;
+        max-height:72px !important;
+      }
+      #pg-camera.cam-pg.on #thumb-strip-wrap.cam-inline-thumbs #thumb-strip{
+        height:64px !important;
+        min-height:64px !important;
+        max-height:64px !important;
+      }
+      #pg-camera.cam-pg.on #thumb-strip-wrap.cam-inline-thumbs .mini-thumb{
+        flex-basis:62px !important;
+        width:62px !important;
+        height:62px !important;
+        min-width:62px !important;
+        min-height:62px !important;
+      }
+      #pg-camera.cam-pg.on #camera-tool-row{
+        top:94px !important;
+        height:38px !important;
+        min-height:38px !important;
+        max-height:38px !important;
+      }
+    }
+
+
+    /* FIX69: UIを削らずに安定化。シャッター完全固定・最近写真の埋もれ防止・小型端末の詰まり対策 */
+    #pg-camera.cam-pg.on{
+      overflow:hidden !important;
+    }
+    #pg-camera.cam-pg.on #cam-controls{
+      position:relative !important;
+      flex:0 0 166px !important;
+      height:166px !important;
+      min-height:166px !important;
+      max-height:166px !important;
+      overflow:hidden !important;
+      padding:0 !important;
+      margin:0 !important;
+      contain:layout style !important;
+    }
+    #pg-camera.cam-pg.on #cam-controls .btn-row{
+      position:absolute !important;
+      left:0 !important;
+      right:0 !important;
+      top:0 !important;
+      height:76px !important;
+      min-height:76px !important;
+      max-height:76px !important;
+      margin:0 !important;
+      padding:0 !important;
+      display:block !important;
+      overflow:visible !important;
+      transform:none !important;
+    }
+    #pg-camera.cam-pg.on #btn-shutter,
+    #pg-camera.cam-pg.on .btn-shutter,
+    #pg-camera.cam-pg.on .shutter{
+      position:absolute !important;
+      left:50% !important;
+      top:38px !important;
+      transform:translate(-50%, -50%) !important;
+      width:66px !important;
+      height:66px !important;
+      min-width:66px !important;
+      min-height:66px !important;
+      margin:0 !important;
+      z-index:20 !important;
+    }
+    #pg-camera.cam-pg.on #btn-goto-history-main{
+      position:absolute !important;
+      left:calc(50% - 104px) !important;
+      top:38px !important;
+      transform:translateY(-50%) !important;
+      width:48px !important;
+      height:48px !important;
+      min-width:48px !important;
+      min-height:48px !important;
+      margin:0 !important;
+      z-index:21 !important;
+    }
+    #pg-camera.cam-pg.on #cam-bc-target-badge.cam-bc-badge-left{
+      position:absolute !important;
+      left:calc(50% - 178px) !important;
+      top:38px !important;
+      transform:translateY(-50%) !important;
+      display:inline-flex !important;
+      min-width:64px !important;
+      height:34px !important;
+      margin:0 !important;
+      padding:0 7px !important;
+      align-items:center !important;
+      justify-content:center !important;
+      font-size:11px !important;
+      z-index:21 !important;
+      white-space:nowrap !important;
+      pointer-events:none !important;
+    }
+    #pg-camera.cam-pg.on #btn-goto-scan-main{
+      position:absolute !important;
+      left:calc(50% + 52px) !important;
+      top:38px !important;
+      transform:translateY(-50%) !important;
+      width:48px !important;
+      height:48px !important;
+      min-width:48px !important;
+      min-height:48px !important;
+      margin:0 !important;
+      z-index:21 !important;
+    }
+    #pg-camera.cam-pg.on #btn-torch{
+      position:absolute !important;
+      left:calc(50% + 106px) !important;
+      top:38px !important;
+      transform:translateY(-50%) !important;
+      width:48px !important;
+      height:48px !important;
+      min-width:48px !important;
+      min-height:48px !important;
+      margin:0 !important;
+      z-index:21 !important;
+    }
+    #pg-camera.cam-pg.on #thumb-strip-wrap.cam-inline-thumbs{
+      position:absolute !important;
+      left:8px !important;
+      right:8px !important;
+      top:82px !important;
+      height:78px !important;
+      min-height:78px !important;
+      max-height:78px !important;
+      margin:0 !important;
+      padding:4px 6px !important;
+      overflow:hidden !important;
+      box-sizing:border-box !important;
+      z-index:10 !important;
+    }
+    #pg-camera.cam-pg.on #thumb-strip-wrap.cam-inline-thumbs #thumb-strip{
+      height:70px !important;
+      min-height:70px !important;
+      max-height:70px !important;
+      overflow-x:auto !important;
+      overflow-y:hidden !important;
+      align-items:center !important;
+      gap:6px !important;
+      padding:0 !important;
+      box-sizing:border-box !important;
+      scrollbar-width:thin;
+    }
+    #pg-camera.cam-pg.on #thumb-strip-wrap.cam-inline-thumbs .mini-thumb{
+      position:relative !important;
+      flex:0 0 68px !important;
+      width:68px !important;
+      height:68px !important;
+      min-width:68px !important;
+      min-height:68px !important;
+      margin:0 !important;
+      overflow:hidden !important;
+    }
+    #pg-camera.cam-pg.on #thumb-strip-wrap.cam-inline-thumbs .mini-thumb img{
+      width:100% !important;
+      height:100% !important;
+      object-fit:cover !important;
+      display:block !important;
+    }
+    #pg-camera.cam-pg.on #thumb-strip-wrap.cam-inline-thumbs .more-btn{
+      flex:0 0 46px !important;
+      width:46px !important;
+      height:68px !important;
+      min-width:46px !important;
+      min-height:68px !important;
+      margin:0 !important;
+    }
+    #pg-camera.cam-pg.on #camera-tool-row{
+      position:absolute !important;
+      left:8px !important;
+      right:8px !important;
+      top:98px !important;
+      height:40px !important;
+      min-height:40px !important;
+      max-height:40px !important;
+      margin:0 !important;
+      overflow:hidden !important;
+    }
+    #pg-camera.cam-pg.on .save-status-row{
+      display:none !important;
+    }
+    #pg-camera.cam-pg.on #zoom-controls{
+      position:absolute !important;
+      left:8px !important;
+      right:8px !important;
+      bottom:0 !important;
+      z-index:30 !important;
+      margin:0 !important;
+    }
+    @media (max-width:380px){
+      #pg-camera.cam-pg.on #cam-controls{
+        flex-basis:156px !important;
+        height:156px !important;
+        min-height:156px !important;
+        max-height:156px !important;
+      }
+      #pg-camera.cam-pg.on #btn-shutter,
+      #pg-camera.cam-pg.on .btn-shutter,
+      #pg-camera.cam-pg.on .shutter{
+        top:36px !important;
+        width:62px !important;
+        height:62px !important;
+        min-width:62px !important;
+        min-height:62px !important;
+      }
+      #pg-camera.cam-pg.on #btn-goto-history-main{
+        left:calc(50% - 92px) !important;
+        top:36px !important;
+        width:44px !important;
+        height:44px !important;
+        min-width:44px !important;
+        min-height:44px !important;
+      }
+      #pg-camera.cam-pg.on #cam-bc-target-badge.cam-bc-badge-left{
+        left:calc(50% - 158px) !important;
+        top:36px !important;
+        min-width:58px !important;
+        height:30px !important;
+        font-size:9px !important;
+      }
+      #pg-camera.cam-pg.on #btn-goto-scan-main{
+        left:calc(50% + 50px) !important;
+        top:36px !important;
+        width:44px !important;
+        height:44px !important;
+        min-width:44px !important;
+        min-height:44px !important;
+      }
+      #pg-camera.cam-pg.on #btn-torch{
+        left:calc(50% + 100px) !important;
+        top:36px !important;
+        width:44px !important;
+        height:44px !important;
+        min-width:44px !important;
+        min-height:44px !important;
+      }
+      #pg-camera.cam-pg.on #thumb-strip-wrap.cam-inline-thumbs{
+        top:78px !important;
+        height:72px !important;
+        min-height:72px !important;
+        max-height:72px !important;
+      }
+      #pg-camera.cam-pg.on #thumb-strip-wrap.cam-inline-thumbs #thumb-strip{
+        height:64px !important;
+        min-height:64px !important;
+        max-height:64px !important;
+      }
+      #pg-camera.cam-pg.on #thumb-strip-wrap.cam-inline-thumbs .mini-thumb{
+        flex-basis:62px !important;
+        width:62px !important;
+        height:62px !important;
+        min-width:62px !important;
+        min-height:62px !important;
+      }
+      #pg-camera.cam-pg.on #camera-tool-row{
+        top:92px !important;
+        height:38px !important;
+      }
+    }
+
 </style>
 </head>
 <body class="theme-cyan">
@@ -2326,7 +2700,7 @@
       </svg>
     </div>
     <div>
-      <div class="hdr-title"><span class="hdr-version-pill" id="app-version-top">VERSION FIX67</span></div>
+      <div class="hdr-title"><span class="hdr-version-pill" id="app-version-top">VERSION FIX69</span></div>
       <div class="hdr-sub">SCAN · PHOTO · STORE</div>
     </div>
     <div class="hdr-count" id="hdr-count">0BC / 0📷</div>
@@ -2689,9 +3063,9 @@
       <button class="settings-btn danger" id="set-clear-photos">写真を全削除</button>
     </div>
     <div class="settings-divider"></div>
-    <div class="settings-ver">SCANNER + CAMERA · FIX67</div>
+    <div class="settings-ver">SCANNER + CAMERA · FIX69</div>
     <div class="app-update-row">
-      <span class="app-version-pill" id="app-version-text">VERSION FIX67</span>
+      <span class="app-version-pill" id="app-version-text">VERSION FIX69</span>
       <span class="save-log-pill" id="save-log-text">保存結果: なし</span>
       <button class="settings-btn update" id="btn-force-update" type="button">更新</button>
     </div>
@@ -2784,13 +3158,13 @@
 <div class="toast" id="toast"></div>
 
 <!-- ==================== JSモジュールの読み込み ==================== -->
-<script src="state.js?v=fix67"></script>
-<script src="utils.js?v=fix67"></script>
-<script src="storage.js?v=fix67"></script>
-<script src="scanner.js?v=fix67"></script>
-<script src="camera.js?v=fix67"></script>
-<script src="photos.js?v=fix67"></script>
-<script src="main.js?v=fix67"></script>
+<script src="state.js?v=fix69"></script>
+<script src="utils.js?v=fix69"></script>
+<script src="storage.js?v=fix69"></script>
+<script src="scanner.js?v=fix69"></script>
+<script src="camera.js?v=fix69"></script>
+<script src="photos.js?v=fix69"></script>
+<script src="main.js?v=fix69"></script>
 
 <!-- Service Worker 登録 -->
 <script>
