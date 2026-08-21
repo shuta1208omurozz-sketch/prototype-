@@ -849,7 +849,7 @@ function updateCameraQuickBar() {
   const code = getCurrentBarcodeValue();
   if (!code) {
     info.textContent = 'BC未選択 / 写真0枚 / メモなし';
-    memoBtn.textContent = 'メモ';
+    memoBtn.textContent = 'BCメモ';
     memoBtn.disabled = true;
     memoBtn.classList.remove('has-memo');
     mergeBtn.textContent = '結合';
@@ -864,7 +864,7 @@ function updateCameraQuickBar() {
   const hasMemo = !!String(item?.memo || '').trim();
   info.textContent = `BC ${suffix} / 写真${list.length}枚 / ${hasMemo ? 'メモあり' : 'メモなし'}`;
 
-  memoBtn.textContent = hasMemo ? 'メモ✓' : 'メモ';
+  memoBtn.textContent = hasMemo ? 'BCメモ✓' : 'BCメモ';
   memoBtn.disabled = false;
   memoBtn.classList.toggle('has-memo', hasMemo);
 

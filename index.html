@@ -3063,7 +3063,7 @@
     }
 
 
-    /* FIX75: カメラ上部クイックバー（メモ/結合） */
+    /* FIX76: カメラ上部クイックバー（メモ/結合） */
     .cam-quick-row{
       display:flex;
       align-items:center;
@@ -3126,6 +3126,63 @@
       .cam-quick-btn{ min-width:52px; height:23px; font-size:9px; padding:0 8px; }
     }
 
+
+    /* FIX76 override: BCメモ/結合をアスペクト比とシャッターの間に置く。上部情報は消す */
+    .cam-quick-row{
+      display:flex !important;
+      align-items:center !important;
+      justify-content:center !important;
+      gap:10px !important;
+      margin:8px 18px 8px !important;
+      padding:0 !important;
+      min-height:30px !important;
+      background:transparent !important;
+      border:none !important;
+      box-shadow:none !important;
+    }
+    .cam-controls > .cam-quick-row{ order:0 !important; }
+    .cam-quick-info{ display:none !important; }
+    .cam-quick-actions{
+      display:flex !important;
+      align-items:center !important;
+      justify-content:center !important;
+      gap:10px !important;
+      width:100% !important;
+      flex:0 0 auto !important;
+    }
+    .cam-quick-btn{
+      min-width:84px !important;
+      height:30px !important;
+      border-radius:999px !important;
+      border:1px solid rgba(0,212,255,.45) !important;
+      background:rgba(0,10,24,.72) !important;
+      color:#9eefff !important;
+      font-family:'Share Tech Mono',monospace !important;
+      font-size:11px !important;
+      letter-spacing:.8px !important;
+      padding:0 12px !important;
+      display:inline-flex !important;
+      align-items:center !important;
+      justify-content:center !important;
+      white-space:nowrap !important;
+      box-shadow:0 0 0 1px rgba(0,212,255,.05) inset !important;
+    }
+    .cam-quick-btn.memo.has-memo{
+      border-color:rgba(255,210,0,.72) !important;
+      background:rgba(255,210,0,.10) !important;
+      color:#ffe07f !important;
+    }
+    .cam-quick-btn.merge{
+      border-color:rgba(0,255,136,.55) !important;
+      color:#9effc7 !important;
+      background:rgba(0,255,136,.08) !important;
+    }
+    @media (max-width: 420px){
+      .cam-quick-row{ margin:7px 12px 7px !important; gap:8px !important; min-height:28px !important; }
+      .cam-quick-actions{ gap:8px !important; }
+      .cam-quick-btn{ min-width:76px !important; height:28px !important; font-size:10px !important; padding:0 10px !important; }
+    }
+
 </style>
 </head>
 <body class="theme-cyan">
@@ -3141,7 +3198,7 @@
       </svg>
     </div>
     <div>
-      <div class="hdr-title"><span class="hdr-version-pill" id="app-version-top">VERSION FIX75</span></div>
+      <div class="hdr-title"><span class="hdr-version-pill" id="app-version-top">VERSION FIX76</span></div>
       <div class="hdr-sub">SCAN · PHOTO · STORE</div>
     </div>
     <div class="hdr-count" id="hdr-count">0BC / 0📷</div>
@@ -3312,14 +3369,14 @@
         <button class="thumb-toggle-btn aspect-thumb-toggle on" id="btn-thumb-toggle" title="最近の写真表示切替">🖼 ON</button>
       </div>
     </div>
-    <div class="cam-quick-row" id="cam-quick-row">
-      <div class="cam-quick-info" id="cam-quick-info">BC未選択 / 写真0枚 / メモなし</div>
-      <div class="cam-quick-actions">
-        <button id="btn-cam-memo" class="cam-quick-btn memo" type="button">メモ</button>
-        <button id="btn-cam-merge" class="cam-quick-btn merge" type="button">結合</button>
-      </div>
-    </div>
     <div class="cam-controls" id="cam-controls">
+      <div class="cam-quick-row" id="cam-quick-row">
+        <div class="cam-quick-info" id="cam-quick-info">BC未選択 / 写真0枚 / メモなし</div>
+        <div class="cam-quick-actions">
+          <button id="btn-cam-memo" class="cam-quick-btn memo" type="button">BCメモ</button>
+          <button id="btn-cam-merge" class="cam-quick-btn merge" type="button">結合</button>
+        </div>
+      </div>
       <div class="btn-row">
         <div id="cam-bc-target-badge" class="cam-bc-target-badge cam-bc-badge-left" style="display:none;">BC -----</div>
         <button id="btn-goto-history-main" class="btn-sub" title="バーコード履歴へ移動" aria-label="バーコード履歴へ移動" style="background:rgba(0,212,255,.10);border-color:#00d4ff;color:#9eefff;font-family:'Share Tech Mono',monospace;font-size:10px;">BC</button>
@@ -3528,9 +3585,9 @@
       <button class="settings-btn danger" id="set-clear-photos">写真を全削除</button>
     </div>
     <div class="settings-divider"></div>
-    <div class="settings-ver">SCANNER + CAMERA · FIX75</div>
+    <div class="settings-ver">SCANNER + CAMERA · FIX76</div>
     <div class="app-update-row">
-      <span class="app-version-pill" id="app-version-text">VERSION FIX75</span>
+      <span class="app-version-pill" id="app-version-text">VERSION FIX76</span>
       <span class="save-log-pill" id="save-log-text">保存結果: なし</span>
       <button class="settings-btn update" id="btn-force-update" type="button">更新</button>
     </div>
@@ -3563,7 +3620,7 @@
     <div class="modal-acts">
       <button class="btn-png" id="btn-png" style="display:none">↓ PNG保存</button>
       <button class="btn-copy" id="btn-copy">コピー</button>
-      <button class="btn-modal-memo" id="btn-modal-memo" type="button">メモ</button>
+      <button class="btn-modal-memo" id="btn-modal-memo" type="button">BCメモ</button>
       <button class="btn-modal-photo" id="btn-modal-photo" type="button">📷 このBCで撮影</button>
       <button class="btn-modal-del" id="btn-modal-del">削除</button>
     </div>
@@ -3623,13 +3680,13 @@
 <div class="toast" id="toast"></div>
 
 <!-- ==================== JSモジュールの読み込み ==================== -->
-<script src="state.js?v=fix75"></script>
-<script src="utils.js?v=fix75"></script>
-<script src="storage.js?v=fix75"></script>
-<script src="scanner.js?v=fix75"></script>
-<script src="camera.js?v=fix75"></script>
-<script src="photos.js?v=fix75"></script>
-<script src="main.js?v=fix75"></script>
+<script src="state.js?v=fix76"></script>
+<script src="utils.js?v=fix76"></script>
+<script src="storage.js?v=fix76"></script>
+<script src="scanner.js?v=fix76"></script>
+<script src="camera.js?v=fix76"></script>
+<script src="photos.js?v=fix76"></script>
+<script src="main.js?v=fix76"></script>
 
 <!-- Service Worker 登録 -->
 <script>
