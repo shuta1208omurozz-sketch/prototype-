@@ -3311,6 +3311,78 @@
       box-shadow:0 2px 8px rgba(0,0,0,.35); z-index:4;
     }
 
+
+    /* FIX79: 強制レイアウト修正。BCメモ/選択結合をカメラ上に出さず、最近写真OFFなら枠ごと消す */
+    #pg-camera .cam-quick-row{
+      order:3 !important;
+      display:flex !important;
+      align-items:center !important;
+      justify-content:center !important;
+      gap:8px !important;
+      margin:0 8px 2px !important;
+      padding:0 !important;
+      min-height:26px !important;
+      height:26px !important;
+      background:transparent !important;
+      border:none !important;
+      box-shadow:none !important;
+      flex:0 0 26px !important;
+    }
+    #pg-camera .cam-quick-info{ display:none !important; }
+    #pg-camera .cam-quick-actions{ display:flex !important; align-items:center !important; justify-content:center !important; gap:8px !important; width:100% !important; }
+    #pg-camera .cam-quick-btn{ min-width:76px !important; height:26px !important; font-size:10px !important; padding:0 10px !important; }
+    #pg-camera #cam-vf{ order:1 !important; }
+    #pg-camera .cam-settings-row{ order:2 !important; margin:2px 8px 0 !important; padding:2px 4px 0 !important; flex:0 0 auto !important; }
+    #pg-camera #cam-controls{ order:4 !important; }
+    #pg-camera #thumb-strip-wrap[style*="display: none"],
+    #pg-camera #thumb-strip-wrap[style*="display:none"]{
+      display:none !important;
+      height:0 !important;
+      min-height:0 !important;
+      max-height:0 !important;
+      padding:0 !important;
+      margin:0 !important;
+      border:0 !important;
+      overflow:hidden !important;
+    }
+    #pg-camera.cam-pg.on #cam-controls:has(#thumb-strip-wrap[style*="display: none"]),
+    #pg-camera.cam-pg.on #cam-controls:has(#thumb-strip-wrap[style*="display:none"]){
+      height:78px !important;
+      min-height:78px !important;
+      max-height:78px !important;
+      flex-basis:78px !important;
+      padding:2px 8px 4px !important;
+    }
+    #pg-camera.cam-pg.on #cam-controls:has(#thumb-strip-wrap[style*="display: none"]) .btn-row,
+    #pg-camera.cam-pg.on #cam-controls:has(#thumb-strip-wrap[style*="display:none"]) .btn-row{
+      margin:0 auto !important;
+    }
+    #pg-camera.cam-pg.on #thumb-strip-wrap.cam-inline-thumbs:not([style*="display: none"]):not([style*="display:none"]){
+      display:block !important;
+      height:88px !important;
+      min-height:88px !important;
+      max-height:88px !important;
+      padding:4px 6px !important;
+      margin:0 !important;
+    }
+    #pg-camera.cam-pg.on #thumb-strip-wrap.cam-inline-thumbs:not([style*="display: none"]):not([style*="display:none"]) #thumb-strip{
+      height:78px !important;
+      min-height:78px !important;
+      max-height:78px !important;
+    }
+    #pg-camera.cam-pg.on #thumb-strip-wrap.cam-inline-thumbs:not([style*="display: none"]):not([style*="display:none"]) .mini-thumb{
+      width:76px !important;
+      height:76px !important;
+      min-width:76px !important;
+      min-height:76px !important;
+      flex-basis:76px !important;
+    }
+    .merge-order-badge{
+      position:absolute; right:6px; bottom:6px; width:22px; height:22px; border-radius:50%;
+      background:rgba(0,212,255,.92); color:#001018; font:700 12px/22px sans-serif; text-align:center;
+      box-shadow:0 2px 8px rgba(0,0,0,.35); z-index:20; pointer-events:none;
+    }
+
 </style>
 </head>
 <body class="theme-cyan">
@@ -3326,7 +3398,7 @@
       </svg>
     </div>
     <div>
-      <div class="hdr-title"><span class="hdr-version-pill" id="app-version-top">VERSION FIX78</span></div>
+      <div class="hdr-title"><span class="hdr-version-pill" id="app-version-top">VERSION FIX79</span></div>
       <div class="hdr-sub">SCAN · PHOTO · STORE</div>
     </div>
     <div class="hdr-count" id="hdr-count">0BC / 0📷</div>
@@ -3713,9 +3785,9 @@
       <button class="settings-btn danger" id="set-clear-photos">写真を全削除</button>
     </div>
     <div class="settings-divider"></div>
-    <div class="settings-ver">SCANNER + CAMERA · FIX78</div>
+    <div class="settings-ver">SCANNER + CAMERA · FIX79</div>
     <div class="app-update-row">
-      <span class="app-version-pill" id="app-version-text">VERSION FIX78</span>
+      <span class="app-version-pill" id="app-version-text">VERSION FIX79</span>
       <span class="save-log-pill" id="save-log-text">保存結果: なし</span>
       <button class="settings-btn update" id="btn-force-update" type="button">更新</button>
     </div>
@@ -3808,13 +3880,13 @@
 <div class="toast" id="toast"></div>
 
 <!-- ==================== JSモジュールの読み込み ==================== -->
-<script src="state.js?v=fix78"></script>
-<script src="utils.js?v=fix78"></script>
-<script src="storage.js?v=fix78"></script>
-<script src="scanner.js?v=fix78"></script>
-<script src="camera.js?v=fix78"></script>
-<script src="photos.js?v=fix78"></script>
-<script src="main.js?v=fix78"></script>
+<script src="state.js?v=fix79"></script>
+<script src="utils.js?v=fix79"></script>
+<script src="storage.js?v=fix79"></script>
+<script src="scanner.js?v=fix79"></script>
+<script src="camera.js?v=fix79"></script>
+<script src="photos.js?v=fix79"></script>
+<script src="main.js?v=fix79"></script>
 
 
 <script>
@@ -3915,6 +3987,97 @@
     updateMergeGuide();
   }
   window.addEventListener('load', patchWhenReady);
+})();
+</script>
+
+
+<script>
+(function(){
+  function q(id){ return document.getElementById(id); }
+  function tryPatch(){
+    try {
+      if (typeof enterMergeMode !== 'function' || typeof renderPhotoGrid !== 'function') { setTimeout(tryPatch, 200); return; }
+      if (window.__fix79Patched) return;
+      window.__fix79Patched = true;
+
+      function selectedList(){ try { return mergeSelected || []; } catch(e) { return []; } }
+      function allPhotos(){ try { return photos || []; } catch(e) { return []; } }
+      function filteredPhotos(){ try { return (typeof getFilteredPh === 'function' ? getFilteredPh() : allPhotos()); } catch(e) { return allPhotos(); } }
+
+      const oldUpdate = (typeof updateCameraQuickBar === 'function') ? updateCameraQuickBar : null;
+      if (oldUpdate) {
+        updateCameraQuickBar = function(){
+          oldUpdate.apply(this, arguments);
+          const b = q('btn-cam-merge');
+          if (b) { b.disabled = false; b.textContent = '選択結合'; b.title = '写真を選んで、選んだ順番で結合します'; }
+        };
+      }
+
+      function updateGuide(){
+        const n = selectedList().length;
+        const txt = q('merge-bar-txt');
+        const exec = q('btn-merge-exec');
+        if (txt) txt.textContent = n === 0 ? '写真をタップした順に結合（2枚以上）' : `${n}枚 選択中 / タップ順で結合`;
+        if (exec) { exec.textContent = n >= 2 ? 'レイアウト' : '結合'; exec.disabled = n < 2; }
+        const title = document.querySelector('.merge-modal-title');
+        if (title) title.textContent = '結合レイアウトを選択（選択順）';
+      }
+      function updateBadges(){
+        let mm = false; try { mm = !!mergeMode; } catch(e) {}
+        document.querySelectorAll('.merge-order-badge').forEach(el => el.remove());
+        if (!mm) return;
+        const list = filteredPhotos();
+        const sel = selectedList();
+        const cards = Array.from(document.querySelectorAll('#photo-grid .photo-card.photo-item'));
+        cards.forEach((card, idx) => {
+          const p = list[idx];
+          if (!p) return;
+          const order = sel.indexOf(p.id);
+          if (order >= 0) {
+            card.style.position = 'relative';
+            const b = document.createElement('div');
+            b.className = 'merge-order-badge';
+            b.textContent = String(order + 1);
+            card.appendChild(b);
+          }
+        });
+      }
+
+      const origEnter = enterMergeMode;
+      enterMergeMode = function(){ origEnter.apply(this, arguments); updateGuide(); setTimeout(updateBadges, 0); };
+      const origExit = exitMergeMode;
+      exitMergeMode = function(){ origExit.apply(this, arguments); updateGuide(); };
+      const origToggle = toggleMergeSelect;
+      toggleMergeSelect = function(id, itemEl){ origToggle.apply(this, arguments); updateGuide(); updateBadges(); };
+      const origRender = renderPhotoGrid;
+      renderPhotoGrid = function(){ origRender.apply(this, arguments); updateGuide(); setTimeout(updateBadges, 0); };
+
+      const camMerge = q('btn-cam-merge');
+      if (camMerge) {
+        const nb = camMerge.cloneNode(true);
+        camMerge.parentNode.replaceChild(nb, camMerge);
+        nb.disabled = false;
+        nb.textContent = '選択結合';
+        nb.title = '写真を選んで、選んだ順番で結合します';
+        nb.addEventListener('click', function(e){
+          e.preventDefault(); e.stopPropagation(); if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+          const tab = document.querySelector('[data-tab="photos"]');
+          if (tab) tab.click();
+          setTimeout(function(){
+            if (allPhotos().length < 2) { if (typeof showToast === 'function') showToast('[E026] 2枚以上の写真が必要です', 'warn'); return; }
+            let mm = false; try { mm = !!mergeMode; } catch(_) {}
+            if (!mm) enterMergeMode();
+            updateGuide(); updateBadges();
+            const bar = q('merge-bar'); if (bar) bar.scrollIntoView({block:'nearest'});
+            if (typeof showToast === 'function') showToast('写真をタップした順に結合します。2枚以上選んで「レイアウト」を押してください', '', 4200);
+          }, 120);
+        }, true);
+      }
+      if (typeof updateCameraQuickBar === 'function') updateCameraQuickBar();
+      updateGuide();
+    } catch (e) { console.warn('[FIX79 patch]', e); }
+  }
+  window.addEventListener('load', tryPatch);
 })();
 </script>
 
