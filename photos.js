@@ -287,6 +287,7 @@ function updateThumbStrip() {
   if (!thumbStripVisible) {
     wrap.style.display = 'none';
     if (toolRow) toolRow.classList.remove('thumb-mode-hidden');
+    if (typeof updateCameraQuickBar === 'function') updateCameraQuickBar();
     return;
   }
 
@@ -303,6 +304,7 @@ function updateThumbStrip() {
     empty.className = 'thumb-empty-mini';
     empty.textContent = '最近の写真なし';
     strip.appendChild(empty);
+    if (typeof updateCameraQuickBar === 'function') updateCameraQuickBar();
     return;
   }
 
@@ -345,6 +347,7 @@ function updateThumbStrip() {
     m.onclick = () => document.querySelector('[data-tab="photos"]')?.click();
     strip.appendChild(m);
   }
+  if (typeof updateCameraQuickBar === 'function') updateCameraQuickBar();
 }
 
 function setThumbVisible(v) {
@@ -1026,14 +1029,21 @@ async function mergeImages(sel, layout) {
 
     const dataUrl      = c.toDataURL('image/jpeg', 0.88);
     const thumbDataUrl = await createThumbnail(dataUrl, 400);
+    const mergedCodeCandidates = sel.map(p => String(p?.scannedCode || '').trim()).filter(Boolean);
+    const mergedCode = mergedCodeCandidates.length && mergedCodeCandidates.every(v => v === mergedCodeCandidates[0])
+      ? mergedCodeCandidates[0]
+      : '';
     const merged = {
       id: Date.now() + Math.random(), dataUrl, thumbDataUrl,
       timestamp: Date.now(), facingMode: 'merged', rotation: 0,
-      merged: true, group: cfg.useGroup ? cfg.currentGroup : ''
+      merged: true, group: cfg.useGroup ? cfg.currentGroup : '',
+      scannedCode: mergedCode,
+      savedToDevice: false
     };
     await dbPut(merged); await dbPrune(MAX_PH);
     photos = (await dbAll()).reverse();
     updateCounts(); exitMergeMode(); renderPhotoGrid(); updateThumbStrip();
+    if (typeof updateCameraQuickBar === 'function') updateCameraQuickBar();
     showToast('✓ ' + n + '枚を結合しました', 'ok');
     openLightbox(merged);
   } catch (e) { showToast('[E020] 結合失敗: ' + e.message, 'err', 4000); }

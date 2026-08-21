@@ -542,10 +542,14 @@ function bindEvents() {
   });
   on('btn-merge-cancel', 'click', exitMergeMode);
   on('btn-merge-exec',   'click', () => { if (mergeSelected.length >= 2) $('merge-modal').style.display = ''; });
-  on('merge-modal-cancel', 'click', () => $('merge-modal').style.display = 'none');
+  on('merge-modal-cancel', 'click', () => { window.__cameraMergePhotos = null; $('merge-modal').style.display = 'none'; });
   document.querySelectorAll('.merge-layout-btn').forEach(btn => btn.addEventListener('click', () => {
     $('merge-modal').style.display = 'none';
-    mergeImages(mergeSelected.map(id => photos.find(p => p.id === id)).filter(Boolean), btn.dataset.layout);
+    const preSel = Array.isArray(window.__cameraMergePhotos) && window.__cameraMergePhotos.length
+      ? window.__cameraMergePhotos.slice()
+      : mergeSelected.map(id => photos.find(p => p.id === id)).filter(Boolean);
+    window.__cameraMergePhotos = null;
+    mergeImages(preSel, btn.dataset.layout);
   }));
 
   // iOS / グループ移動

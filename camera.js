@@ -794,12 +794,101 @@ function updateCameraBarcodeBadge() {
     badge.style.display = 'none';
     badge.textContent = 'BC -----';
     badge.classList.add('warn');
+    if (typeof updateCameraQuickBar === 'function') updateCameraQuickBar();
     return;
   }
   badge.style.display = '';
   badge.textContent = 'BC ' + suffix;
   badge.classList.remove('warn');
   badge.title = 'この写真のファイル名はバーコード下5桁 ' + suffix + ' になります';
+  if (typeof updateCameraQuickBar === 'function') updateCameraQuickBar();
+}
+
+function getCurrentBarcodeValue() {
+  return String(lastScannedValue || '').trim();
+}
+
+function findBarcodeHistoryItemByValue(code) {
+  const v = String(code || '').trim();
+  if (!v || !Array.isArray(bcHistory)) return null;
+  return bcHistory.find(item => String(item?.value || '').trim() === v) || null;
+}
+
+function ensureCurrentBarcodeHistoryItem() {
+  const code = getCurrentBarcodeValue();
+  if (!code) return null;
+  let item = findBarcodeHistoryItemByValue(code);
+  if (item) return item;
+  item = {
+    id: Date.now() + Math.random(),
+    value: code,
+    format: code.length === 13 ? 'ean_13' : 'unknown',
+    timestamp: Date.now(),
+    checked: false,
+    newCount: 1,
+    memo: '',
+    group: cfg.useGroup ? (cfg.currentGroup || '') : ''
+  };
+  bcHistory.unshift(item);
+  try { if (typeof saveBcHistory === 'function') saveBcHistory(); } catch (_) {}
+  return item;
+}
+
+function getCurrentBarcodePhotos() {
+  const code = getCurrentBarcodeValue();
+  if (!code || !Array.isArray(photos)) return [];
+  return photos.filter(p => p && !p.merged && String(p.scannedCode || '').trim() === code);
+}
+
+function updateCameraQuickBar() {
+  const info = $('cam-quick-info');
+  const memoBtn = $('btn-cam-memo');
+  const mergeBtn = $('btn-cam-merge');
+  if (!info || !memoBtn || !mergeBtn) return;
+
+  const code = getCurrentBarcodeValue();
+  if (!code) {
+    info.textContent = 'BC未選択 / 写真0枚 / メモなし';
+    memoBtn.textContent = 'メモ';
+    memoBtn.disabled = true;
+    memoBtn.classList.remove('has-memo');
+    mergeBtn.textContent = '結合';
+    mergeBtn.disabled = true;
+    mergeBtn.title = '撮影対象バーコードがありません';
+    return;
+  }
+
+  const item = findBarcodeHistoryItemByValue(code);
+  const list = getCurrentBarcodePhotos();
+  const suffix = code.replace(/\D/g, '').slice(-5) || code.slice(-5);
+  const hasMemo = !!String(item?.memo || '').trim();
+  info.textContent = `BC ${suffix} / 写真${list.length}枚 / ${hasMemo ? 'メモあり' : 'メモなし'}`;
+
+  memoBtn.textContent = hasMemo ? 'メモ✓' : 'メモ';
+  memoBtn.disabled = false;
+  memoBtn.classList.toggle('has-memo', hasMemo);
+
+  mergeBtn.textContent = list.length >= 2 ? `結合 ${list.length}` : '結合';
+  mergeBtn.disabled = list.length < 2;
+  mergeBtn.title = list.length >= 2 ? '同じバーコードの写真を結合' : '同じバーコードの写真が2枚以上必要です';
+}
+
+function openMergeModalForCurrentBarcode() {
+  const code = getCurrentBarcodeValue();
+  if (!code) {
+    if (typeof showToast === 'function') showToast('撮影対象バーコードを選択してください', 'warn', 2500);
+    return;
+  }
+  const list = getCurrentBarcodePhotos();
+  if (list.length < 2) {
+    if (typeof showToast === 'function') showToast('[E026] 同じバーコードの写真が2枚以上必要です', 'warn', 2800);
+    return;
+  }
+  window.__cameraMergePhotos = list.slice();
+  const txt = $('merge-bar-txt');
+  if (txt) txt.textContent = `BC ${code.slice(-5)} の写真 ${list.length}枚を結合`;
+  const modal = $('merge-modal');
+  if (modal) modal.style.display = '';
 }
 
 /* ════ 横固定モード ════ */
@@ -994,6 +1083,7 @@ document.addEventListener('webkitfullscreenchange', () => {
 /* ════ イベント登録 ════ */
 document.addEventListener('DOMContentLoaded', () => {
   if (typeof updateCameraBarcodeBadge === 'function') updateCameraBarcodeBadge();
+  if (typeof updateCameraQuickBar === 'function') updateCameraQuickBar();
   const on = (id, fn) => { const el = $(id); if (el) el.onclick = fn; };
   on('btn-shutter',    () => { if (Date.now() < window.__suppressCameraShutterClickUntil) return; takePhoto(); });
   on('btn-torch',      toggleTorch);
@@ -1002,6 +1092,13 @@ document.addEventListener('DOMContentLoaded', () => {
   on('btn-direction',  toggleDirection);
   on('btn-goto-scan',      goToScanFromCamera);
   on('btn-goto-scan-main', goToScanFromCamera);
+  on('btn-cam-memo', () => {
+    const item = ensureCurrentBarcodeHistoryItem();
+    if (!item) { if (typeof showToast === 'function') showToast('撮影対象バーコードを選択してください', 'warn', 2400); return; }
+    if (typeof editBcMemo === 'function') editBcMemo(item);
+    if (typeof updateCameraQuickBar === 'function') setTimeout(updateCameraQuickBar, 0);
+  });
+  on('btn-cam-merge', openMergeModalForCurrentBarcode);
   on('btn-goto-history-main', () => {
     if (typeof forceTorchOff === 'function') void forceTorchOff();
     if (typeof switchTab === 'function') {
