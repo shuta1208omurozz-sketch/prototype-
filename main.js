@@ -69,6 +69,35 @@ function updateJumpButtonUI() {
   });
 }
 
+
+async function clearAppCacheOnly() {
+  const ok = confirm('キャッシュだけ削除します。\n写真・BC履歴・メモ・設定は消しません。\n続行しますか？');
+  if (!ok) return;
+  try {
+    showToast('キャッシュ削除中...', '', 2200);
+
+    // Service Workerを解除。古いindex/main/photos等を掴んだままになる問題を避ける。
+    if ('serviceWorker' in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(r => r.unregister().catch(() => false)));
+    }
+
+    // Cache Storageのみ削除。IndexedDB/localStorageは触らないので写真/BC履歴は残す。
+    if ('caches' in window) {
+      const keys = await caches.keys();
+      await Promise.all(keys.map(k => caches.delete(k)));
+    }
+
+    showToast('キャッシュを削除しました。再読み込みします', 'ok', 1800);
+  } catch (e) {
+    console.warn('[ClearCacheOnly]', e);
+    showToast('キャッシュ削除でエラー: ' + (e.message || e), 'err', 3500);
+  } finally {
+    const base = location.href.split('?')[0].split('#')[0];
+    location.replace(base + '?v=' + encodeURIComponent(typeof APP_VERSION !== 'undefined' ? APP_VERSION : Date.now()) + '&cache=clear#settings');
+  }
+}
+
 async function forceAppUpdate() {
   try {
     showToast('更新準備中...', '', 1500);
@@ -324,6 +353,7 @@ window.jumpListItemsFromElement = jumpListItemsFromElement;
 function bindEvents() {
   const on = (id, ev, fn) => $(id)?.addEventListener(ev, fn);
   on('btn-force-update', 'click', forceAppUpdate);
+  on('btn-clear-cache', 'click', clearAppCacheOnly);
   on('btn-bc-jump-3', 'click', () => jumpListItems('bc-list', '.bc-card', getJumpStep()));
   on('btn-ph-jump-3', 'click', () => jumpListItems('photo-grid', '.photo-card', getJumpStep()));
 
