@@ -3063,7 +3063,7 @@
     }
 
 
-    /* FIX76: カメラ上部クイックバー（メモ/結合） */
+    /* FIX77: カメラ上部クイックバー（メモ/結合） */
     .cam-quick-row{
       display:flex;
       align-items:center;
@@ -3127,7 +3127,7 @@
     }
 
 
-    /* FIX76 override: BCメモ/結合をアスペクト比とシャッターの間に置く。上部情報は消す */
+    /* FIX77 override: BCメモ/結合をアスペクト比とシャッターの間に置く。上部情報は消す */
     .cam-quick-row{
       display:flex !important;
       align-items:center !important;
@@ -3183,6 +3183,134 @@
       .cam-quick-btn{ min-width:76px !important; height:28px !important; font-size:10px !important; padding:0 10px !important; }
     }
 
+
+    /* FIX77: BCメモ/結合をアスペクト比の直下へ移動し、最近の写真が埋もれないよう調整 */
+    #pg-camera.cam-pg.on .cam-settings-row{ margin:3px 8px 2px !important; padding:3px 4px 2px !important; }
+    #pg-camera.cam-pg.on > .cam-quick-row{
+      order:2.5 !important;
+      display:flex !important;
+      align-items:center !important;
+      justify-content:center !important;
+      gap:10px !important;
+      margin:0 10px 4px !important;
+      padding:0 !important;
+      min-height:30px !important;
+      background:transparent !important;
+      border:none !important;
+      box-shadow:none !important;
+      flex:0 0 auto !important;
+    }
+    #pg-camera.cam-pg.on > .cam-quick-row .cam-quick-info{ display:none !important; }
+    #pg-camera.cam-pg.on > .cam-quick-row .cam-quick-actions{
+      display:flex !important; align-items:center !important; justify-content:center !important; gap:10px !important; width:100% !important;
+    }
+    #pg-camera.cam-pg.on > .cam-quick-row .cam-quick-btn{
+      min-width:88px !important; height:30px !important; padding:0 12px !important; border-radius:999px !important;
+      display:inline-flex !important; align-items:center !important; justify-content:center !important;
+      font-family:'Share Tech Mono',monospace !important; font-size:11px !important; letter-spacing:.8px !important; white-space:nowrap !important;
+    }
+    #pg-camera.cam-pg.on #cam-controls{
+      height:166px !important; min-height:166px !important; max-height:166px !important; padding:4px 8px 8px !important;
+      display:block !important;
+    }
+    #pg-camera.cam-pg.on #cam-controls .btn-row{ margin:0 auto 4px !important; }
+    #pg-camera.cam-pg.on #thumb-strip-wrap.cam-inline-thumbs{
+      margin:0 !important; height:84px !important; min-height:84px !important; max-height:84px !important;
+    }
+    #pg-camera.cam-pg.on #thumb-strip-wrap.cam-inline-thumbs #thumb-strip{
+      height:74px !important; min-height:74px !important; max-height:74px !important;
+    }
+    #pg-camera.cam-pg.on #thumb-strip-wrap.cam-inline-thumbs .mini-thumb{
+      flex:0 0 72px !important; width:72px !important; height:72px !important; min-width:72px !important; min-height:72px !important;
+    }
+    #pg-camera.cam-pg.on #camera-tool-row,
+    #pg-camera.cam-pg.on .save-status-row{ display:none !important; }
+    @media(max-width:380px){
+      #pg-camera.cam-pg.on > .cam-quick-row{ margin:0 8px 3px !important; min-height:28px !important; }
+      #pg-camera.cam-pg.on > .cam-quick-row .cam-quick-actions{ gap:8px !important; }
+      #pg-camera.cam-pg.on > .cam-quick-row .cam-quick-btn{ min-width:80px !important; height:28px !important; font-size:10px !important; }
+      #pg-camera.cam-pg.on #cam-controls{ height:156px !important; min-height:156px !important; max-height:156px !important; padding:4px 6px 7px !important; }
+      #pg-camera.cam-pg.on #thumb-strip-wrap.cam-inline-thumbs{ height:80px !important; min-height:80px !important; max-height:80px !important; }
+      #pg-camera.cam-pg.on #thumb-strip-wrap.cam-inline-thumbs #thumb-strip{ height:70px !important; min-height:70px !important; max-height:70px !important; }
+      #pg-camera.cam-pg.on #thumb-strip-wrap.cam-inline-thumbs .mini-thumb{ flex-basis:68px !important; width:68px !important; height:68px !important; min-width:68px !important; min-height:68px !important; }
+    }
+
+
+    /* FIX78: 最近の写真が埋もれないよう最終固定 */
+    #pg-camera.cam-pg.on .cam-settings-row{
+      margin:2px 8px 0 !important;
+      padding:2px 4px 0 !important;
+      flex:0 0 auto !important;
+    }
+    #pg-camera.cam-pg.on > .cam-quick-row{
+      margin:0 8px 2px !important;
+      min-height:28px !important;
+      flex:0 0 auto !important;
+    }
+    #pg-camera.cam-pg.on > .cam-quick-row .cam-quick-btn{
+      min-width:78px !important;
+      height:28px !important;
+      font-size:10px !important;
+      padding:0 10px !important;
+    }
+    #pg-camera.cam-pg.on #cam-controls{
+      height:144px !important;
+      min-height:144px !important;
+      max-height:144px !important;
+      padding:2px 8px 4px !important;
+      overflow:visible !important;
+      flex:0 0 144px !important;
+    }
+    #pg-camera.cam-pg.on #cam-controls .btn-row{
+      margin:0 auto 2px !important;
+    }
+    #pg-camera.cam-pg.on #thumb-strip-wrap.cam-inline-thumbs{
+      display:block !important;
+      position:relative !important;
+      top:auto !important; left:auto !important; right:auto !important; bottom:auto !important;
+      height:92px !important;
+      min-height:92px !important;
+      max-height:92px !important;
+      padding:4px 6px !important;
+      margin:0 !important;
+      overflow:hidden !important;
+      flex:0 0 92px !important;
+    }
+    #pg-camera.cam-pg.on #thumb-strip-wrap.cam-inline-thumbs #thumb-strip{
+      height:82px !important;
+      min-height:82px !important;
+      max-height:82px !important;
+      overflow-x:auto !important;
+      overflow-y:hidden !important;
+      padding:0 !important;
+      gap:6px !important;
+      align-items:center !important;
+    }
+    #pg-camera.cam-pg.on #thumb-strip-wrap.cam-inline-thumbs .mini-thumb{
+      flex:0 0 80px !important;
+      width:80px !important;
+      height:80px !important;
+      min-width:80px !important;
+      min-height:80px !important;
+    }
+    #pg-camera.cam-pg.on #thumb-strip-wrap.cam-inline-thumbs .more-btn{
+      height:80px !important;
+      min-height:80px !important;
+    }
+    @media(max-width:380px){
+      #pg-camera.cam-pg.on #cam-controls{ height:138px !important; min-height:138px !important; max-height:138px !important; padding:2px 6px 4px !important; flex-basis:138px !important; }
+      #pg-camera.cam-pg.on #thumb-strip-wrap.cam-inline-thumbs{ height:86px !important; min-height:86px !important; max-height:86px !important; flex-basis:86px !important; }
+      #pg-camera.cam-pg.on #thumb-strip-wrap.cam-inline-thumbs #thumb-strip{ height:76px !important; min-height:76px !important; max-height:76px !important; }
+      #pg-camera.cam-pg.on #thumb-strip-wrap.cam-inline-thumbs .mini-thumb{ width:74px !important; height:74px !important; min-width:74px !important; min-height:74px !important; flex-basis:74px !important; }
+      #pg-camera.cam-pg.on > .cam-quick-row .cam-quick-btn{ min-width:72px !important; height:26px !important; font-size:9px !important; }
+    }
+    /* FIX78: merge順番バッジ */
+    .merge-order-badge{
+      position:absolute; right:6px; bottom:6px; width:22px; height:22px; border-radius:50%;
+      background:rgba(0,212,255,.92); color:#001018; font:700 12px/22px sans-serif; text-align:center;
+      box-shadow:0 2px 8px rgba(0,0,0,.35); z-index:4;
+    }
+
 </style>
 </head>
 <body class="theme-cyan">
@@ -3198,7 +3326,7 @@
       </svg>
     </div>
     <div>
-      <div class="hdr-title"><span class="hdr-version-pill" id="app-version-top">VERSION FIX76</span></div>
+      <div class="hdr-title"><span class="hdr-version-pill" id="app-version-top">VERSION FIX78</span></div>
       <div class="hdr-sub">SCAN · PHOTO · STORE</div>
     </div>
     <div class="hdr-count" id="hdr-count">0BC / 0📷</div>
@@ -3369,14 +3497,14 @@
         <button class="thumb-toggle-btn aspect-thumb-toggle on" id="btn-thumb-toggle" title="最近の写真表示切替">🖼 ON</button>
       </div>
     </div>
-    <div class="cam-controls" id="cam-controls">
-      <div class="cam-quick-row" id="cam-quick-row">
-        <div class="cam-quick-info" id="cam-quick-info">BC未選択 / 写真0枚 / メモなし</div>
-        <div class="cam-quick-actions">
-          <button id="btn-cam-memo" class="cam-quick-btn memo" type="button">BCメモ</button>
-          <button id="btn-cam-merge" class="cam-quick-btn merge" type="button">結合</button>
-        </div>
+    <div class="cam-quick-row" id="cam-quick-row">
+      <div class="cam-quick-info" id="cam-quick-info">BC未選択 / 写真0枚 / メモなし</div>
+      <div class="cam-quick-actions">
+        <button id="btn-cam-memo" class="cam-quick-btn memo" type="button">BCメモ</button>
+        <button id="btn-cam-merge" class="cam-quick-btn merge" type="button">結合</button>
       </div>
+    </div>
+    <div class="cam-controls" id="cam-controls">
       <div class="btn-row">
         <div id="cam-bc-target-badge" class="cam-bc-target-badge cam-bc-badge-left" style="display:none;">BC -----</div>
         <button id="btn-goto-history-main" class="btn-sub" title="バーコード履歴へ移動" aria-label="バーコード履歴へ移動" style="background:rgba(0,212,255,.10);border-color:#00d4ff;color:#9eefff;font-family:'Share Tech Mono',monospace;font-size:10px;">BC</button>
@@ -3585,9 +3713,9 @@
       <button class="settings-btn danger" id="set-clear-photos">写真を全削除</button>
     </div>
     <div class="settings-divider"></div>
-    <div class="settings-ver">SCANNER + CAMERA · FIX76</div>
+    <div class="settings-ver">SCANNER + CAMERA · FIX78</div>
     <div class="app-update-row">
-      <span class="app-version-pill" id="app-version-text">VERSION FIX76</span>
+      <span class="app-version-pill" id="app-version-text">VERSION FIX78</span>
       <span class="save-log-pill" id="save-log-text">保存結果: なし</span>
       <button class="settings-btn update" id="btn-force-update" type="button">更新</button>
     </div>
@@ -3680,13 +3808,115 @@
 <div class="toast" id="toast"></div>
 
 <!-- ==================== JSモジュールの読み込み ==================== -->
-<script src="state.js?v=fix76"></script>
-<script src="utils.js?v=fix76"></script>
-<script src="storage.js?v=fix76"></script>
-<script src="scanner.js?v=fix76"></script>
-<script src="camera.js?v=fix76"></script>
-<script src="photos.js?v=fix76"></script>
-<script src="main.js?v=fix76"></script>
+<script src="state.js?v=fix78"></script>
+<script src="utils.js?v=fix78"></script>
+<script src="storage.js?v=fix78"></script>
+<script src="scanner.js?v=fix78"></script>
+<script src="camera.js?v=fix78"></script>
+<script src="photos.js?v=fix78"></script>
+<script src="main.js?v=fix78"></script>
+
+
+<script>
+(function(){
+  function q(id){ return document.getElementById(id); }
+  function patchWhenReady(){
+    if (typeof window.enterMergeMode !== 'function' || typeof window.renderPhotoGrid !== 'function') {
+      setTimeout(patchWhenReady, 200);
+      return;
+    }
+    if (window.__fix78Patched) return;
+    window.__fix78Patched = true;
+
+    const origEnter = window.enterMergeMode;
+    const origExit = window.exitMergeMode;
+    const origToggle = window.toggleMergeSelect;
+    const origRender = window.renderPhotoGrid;
+
+    function updateMergeGuide(){
+      const txt = q('merge-bar-txt');
+      const execBtn = q('btn-merge-exec');
+      if (!txt || !execBtn) return;
+      const n = Array.isArray(window.mergeSelected) ? window.mergeSelected.length : 0;
+      txt.textContent = n === 0 ? '写真をタップした順に結合（2枚以上）' : `${n}枚 選択中 / タップ順で結合`;
+      execBtn.textContent = n >= 2 ? 'レイアウト' : '結合';
+      execBtn.disabled = n < 2;
+      const title = document.querySelector('.merge-modal-title');
+      if (title) title.textContent = '結合レイアウトを選択（選択順で結合）';
+    }
+
+    function updateMergeOrderBadges(){
+      if (!window.mergeMode) return;
+      const cards = Array.from(document.querySelectorAll('#photo-grid .photo-card.photo-item'));
+      const list = (typeof window.getFilteredPh === 'function' ? window.getFilteredPh() : (window.photos || [])).slice();
+      cards.forEach((card, idx) => {
+        card.style.position = 'relative';
+        card.querySelectorAll('.merge-order-badge').forEach(el => el.remove());
+        const p = list[idx];
+        if (!p || !Array.isArray(window.mergeSelected)) return;
+        const order = window.mergeSelected.indexOf(p.id);
+        if (order >= 0) {
+          const b = document.createElement('div');
+          b.className = 'merge-order-badge';
+          b.textContent = String(order + 1);
+          card.appendChild(b);
+        }
+      });
+    }
+
+    window.enterMergeMode = function(){
+      origEnter.apply(this, arguments);
+      updateMergeGuide();
+      setTimeout(updateMergeOrderBadges, 0);
+    };
+    window.exitMergeMode = function(){
+      origExit.apply(this, arguments);
+      updateMergeGuide();
+    };
+    window.toggleMergeSelect = function(id, itemEl){
+      origToggle.apply(this, arguments);
+      updateMergeGuide();
+      updateMergeOrderBadges();
+    };
+    window.renderPhotoGrid = function(){
+      origRender.apply(this, arguments);
+      updateMergeGuide();
+      setTimeout(updateMergeOrderBadges, 0);
+    };
+
+    const mergeBtn = q('btn-cam-merge');
+    if (mergeBtn) {
+      const newBtn = mergeBtn.cloneNode(true);
+      mergeBtn.parentNode.replaceChild(newBtn, mergeBtn);
+      newBtn.textContent = '選択結合';
+      newBtn.title = '写真を選んで順番付きで結合';
+      newBtn.addEventListener('click', function(ev){
+        ev.preventDefault();
+        ev.stopPropagation();
+        ev.stopImmediatePropagation && ev.stopImmediatePropagation();
+        const tab = document.querySelector('[data-tab="photos"]');
+        if (tab) tab.click();
+        setTimeout(function(){
+          if (!window.mergeMode) {
+            if (typeof window.enterMergeMode === 'function') window.enterMergeMode();
+            else q('btn-merge-mode') && q('btn-merge-mode').click();
+          }
+          updateMergeGuide();
+          updateMergeOrderBadges();
+          const bar = q('merge-bar');
+          if (bar) bar.scrollIntoView({ block: 'nearest' });
+          if (typeof window.showToast === 'function') {
+            window.showToast('写真をタップした順に結合されます。2枚以上選んで「レイアウト」を押してください', '', 4500);
+          }
+        }, 100);
+      }, true);
+    }
+
+    updateMergeGuide();
+  }
+  window.addEventListener('load', patchWhenReady);
+})();
+</script>
 
 <!-- Service Worker 登録 -->
 <script>
