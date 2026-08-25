@@ -481,7 +481,7 @@ async function rotateLightboxPhoto() {
 function getUnsavedPhotos() {
   // 既存の過去写真は undefined のため「保存対象外」にする。
   // このFIX以降に撮った写真だけ savedToDevice:false が付き、未保存として扱う。
-  return photos.filter(p => p && p.savedToDevice === false && !p.merged);
+  return photos.filter(p => p && p.savedToDevice === false);
 }
 
 function updateUnsavedSaveButton() {
@@ -1041,10 +1041,32 @@ async function mergeImages(sel, layout) {
       savedToDevice: false
     };
     await dbPut(merged); await dbPrune(MAX_PH);
+
+    // FIX85: 結合画像は作成後すぐダウンロード開始する。失敗時は未保存として残す。
+    let mergedSaved = false;
+    try {
+      mergedSaved = await downloadOnePhotoDirect(merged);
+      if (mergedSaved) {
+        merged.savedToDevice = true;
+        await dbPut(merged);
+        if (typeof setSaveResultLog === 'function') setSaveResultLog(1, 0, 1, '結合画像を保存開始');
+      } else if (typeof setSaveResultLog === 'function') {
+        setSaveResultLog(0, 1, 1, '[E085] 結合画像保存失敗');
+      }
+    } catch (saveErr) {
+      console.error('[MergeAutoSave]', saveErr);
+      if (typeof setSaveResultLog === 'function') setSaveResultLog(0, 1, 1, '[E085] 結合画像保存失敗');
+    }
+
     photos = (await dbAll()).reverse();
+
+    // FIX85: 結合後に結合元写真の削除確認は出さない。
+    // Downloadフォルダ等に保存済みの画像はPWAから削除できないため、元写真はアプリ内に残す。
+
     updateCounts(); exitMergeMode(); renderPhotoGrid(); updateThumbStrip();
+    if (typeof updateUnsavedSaveButton === 'function') updateUnsavedSaveButton();
     if (typeof updateCameraQuickBar === 'function') updateCameraQuickBar();
-    showToast('✓ ' + n + '枚を結合しました', 'ok');
+    showToast('✓ ' + n + '枚を結合しました' + (mergedSaved ? ' / 保存開始' : ' / 未保存'), mergedSaved ? 'ok' : 'warn', 3600);
     openLightbox(merged);
   } catch (e) { showToast('[E020] 結合失敗: ' + e.message, 'err', 4000); }
 }

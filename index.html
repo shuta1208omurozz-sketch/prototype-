@@ -3557,6 +3557,90 @@
       filter:saturate(.5);
     }
 
+
+
+    /* FIX83: スキャン結果のBCメモを見える位置へ移動。撮影ボタン横に固定表示 */
+    .scan-bc-actions{
+      display:grid !important;
+      grid-template-columns:minmax(0, 1.8fr) minmax(86px, .72fr) !important;
+      gap:8px !important;
+      align-items:stretch !important;
+      margin:10px 0 10px !important;
+      width:100% !important;
+    }
+    .scan-bc-actions #btn-warp-cam,
+    .scan-bc-actions .scan-bc-memo-main{
+      width:100% !important;
+      min-width:0 !important;
+      height:44px !important;
+      min-height:44px !important;
+      margin:0 !important;
+      border-radius:8px !important;
+      display:flex !important;
+      align-items:center !important;
+      justify-content:center !important;
+      box-sizing:border-box !important;
+      white-space:nowrap !important;
+    }
+    .scan-bc-actions .scan-bc-memo-main{
+      border:1px solid rgba(255,210,0,.72) !important;
+      background:rgba(255,210,0,.10) !important;
+      color:#ffe07f !important;
+      font-family:'Share Tech Mono',monospace !important;
+      font-size:11px !important;
+      letter-spacing:.8px !important;
+      padding:0 8px !important;
+    }
+    .scan-bc-actions .scan-bc-memo-main.has-memo{
+      background:rgba(255,210,0,.18) !important;
+      color:#fff0a8 !important;
+      box-shadow:0 0 0 1px rgba(255,210,0,.18) inset !important;
+    }
+    .scan-bc-actions .scan-bc-memo-main:disabled{
+      opacity:.45 !important;
+      filter:saturate(.55) !important;
+    }
+    .scan-bc-footer{
+      justify-content:center !important;
+      gap:10px !important;
+      margin-top:8px !important;
+    }
+    .scan-bc-footer .scan-bc-meta{
+      flex:1 1 170px !important;
+      min-width:160px !important;
+      text-align:center !important;
+    }
+    @media(max-width:380px){
+      .scan-bc-actions{ grid-template-columns:1.55fr .75fr !important; gap:6px !important; margin:8px 0 8px !important; }
+      .scan-bc-actions #btn-warp-cam,
+      .scan-bc-actions .scan-bc-memo-main{ height:40px !important; min-height:40px !important; font-size:10px !important; }
+      .scan-bc-actions .scan-bc-memo-main{ padding:0 6px !important; }
+    }
+
+
+
+    /* FIX84: スキャン停止横のカメラボタンをBCメモへ変更。撮影ボタン横のメモは誤タップ防止で非表示 */
+    #pg-scan .scan-action-row #btn-scan-to-camera{
+      border-color:rgba(255,210,0,.72) !important;
+      color:#ffe07f !important;
+      background:rgba(255,210,0,.10) !important;
+    }
+    #pg-scan .scan-action-row #btn-scan-to-camera.has-memo{
+      background:rgba(255,210,0,.18) !important;
+      color:#fff0a8 !important;
+      box-shadow:0 0 0 1px rgba(255,210,0,.18) inset !important;
+    }
+    #pg-scan .scan-action-row #btn-scan-to-camera:disabled{
+      opacity:.45 !important;
+      filter:saturate(.55) !important;
+    }
+    .scan-bc-actions{
+      grid-template-columns:1fr !important;
+    }
+    .scan-bc-actions .scan-bc-memo-main{
+      display:none !important;
+    }
+
 </style>
 </head>
 <body class="theme-cyan">
@@ -3572,7 +3656,7 @@
       </svg>
     </div>
     <div>
-      <div class="hdr-title"><span class="hdr-version-pill" id="app-version-top">VERSION FIX82</span></div>
+      <div class="hdr-title"><span class="hdr-version-pill" id="app-version-top">VERSION FIX85</span></div>
       <div class="hdr-sub">SCAN · PHOTO · STORE</div>
     </div>
     <div class="hdr-count" id="hdr-count">0BC / 0📷</div>
@@ -3621,21 +3705,23 @@
       <div class="sbar"><div class="sdot" id="sdot"></div><span id="stxt">待機中</span></div>
       <div class="scan-action-row">
         <button class="btn-main" id="btn-scan">▶ スキャン開始</button>
-        <button class="btn-main" id="btn-scan-to-camera" type="button">📷 カメラ</button>
+        <button class="btn-main" id="btn-scan-to-camera" type="button" disabled>BCメモ</button>
       </div>
     </div>
     <div class="scan-bc-section" id="scan-bc-section">
       <div class="scan-bc-placeholder" id="scan-bc-placeholder">— バーコード表示エリア —</div>
       <div class="scan-bc-display" id="scan-bc-display" style="display:none">
         <div class="scan-bc-val" id="scan-bc-val"></div>
-        <button id="btn-warp-cam" class="warp-cam-btn">📷 撮影する</button>
+        <div class="scan-bc-actions" id="scan-bc-actions">
+          <button id="btn-warp-cam" class="warp-cam-btn">📷 撮影する</button>
+          <button class="scan-bc-memo scan-bc-memo-main" id="scan-bc-memo" type="button" disabled>BCメモ</button>
+        </div>
         <div class="scan-bc-canvas-wrap" id="scan-bc-canvas-wrap">
           <canvas id="scan-bc-canvas"></canvas>
         </div>
         <div class="scan-bc-footer">
           <div class="scan-bc-meta" id="scan-bc-meta"></div>
           <button class="scan-bc-copy" id="scan-bc-copy">📋 コピー</button>
-          <button class="scan-bc-memo" id="scan-bc-memo" type="button" disabled>BCメモ</button>
         </div>
       </div>
       <div class="scan-bc-dup" id="scan-bc-dup">⊘ 登録済み</div>
@@ -3960,9 +4046,9 @@
       <button class="settings-btn danger" id="set-clear-photos">写真を全削除</button>
     </div>
     <div class="settings-divider"></div>
-    <div class="settings-ver">SCANNER + CAMERA · FIX82</div>
+    <div class="settings-ver">SCANNER + CAMERA · FIX85</div>
     <div class="app-update-row">
-      <span class="app-version-pill" id="app-version-text">VERSION FIX82</span>
+      <span class="app-version-pill" id="app-version-text">VERSION FIX85</span>
       <span class="save-log-pill" id="save-log-text">保存結果: なし</span>
       <button class="settings-btn update" id="btn-force-update" type="button">更新</button>
       <button class="settings-btn danger" id="btn-clear-cache" type="button">キャッシュ削除</button>
@@ -4056,13 +4142,13 @@
 <div class="toast" id="toast"></div>
 
 <!-- ==================== JSモジュールの読み込み ==================== -->
-<script src="state.js?v=fix82"></script>
-<script src="utils.js?v=fix82"></script>
-<script src="storage.js?v=fix82"></script>
-<script src="scanner.js?v=fix82"></script>
-<script src="camera.js?v=fix82"></script>
-<script src="photos.js?v=fix82"></script>
-<script src="main.js?v=fix82"></script>
+<script src="state.js?v=fix85"></script>
+<script src="utils.js?v=fix85"></script>
+<script src="storage.js?v=fix85"></script>
+<script src="scanner.js?v=fix85"></script>
+<script src="camera.js?v=fix85"></script>
+<script src="photos.js?v=fix85"></script>
+<script src="main.js?v=fix85"></script>
 
 
 <script>

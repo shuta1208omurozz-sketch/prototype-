@@ -68,15 +68,17 @@ function ensureBcItemForMemo(val, format = '') {
 }
 
 function updateScanMemoButton() {
-  const btn = $('scan-bc-memo');
-  if (!btn) return;
   const v = String(lastScannedValue || '').trim();
   const item = findBcItemByValue(v);
   const hasMemo = !!String(item?.memo || '').trim();
-  btn.disabled = !v;
-  btn.textContent = hasMemo ? 'BCメモ✓' : 'BCメモ';
-  btn.classList.toggle('has-memo', hasMemo);
-  btn.title = v ? 'このバーコードのメモを編集' : 'バーコード読取後に使えます';
+  ['scan-bc-memo', 'btn-scan-to-camera'].forEach(id => {
+    const btn = $(id);
+    if (!btn) return;
+    btn.disabled = !v;
+    btn.textContent = hasMemo ? 'BCメモ✓' : 'BCメモ';
+    btn.classList.toggle('has-memo', hasMemo);
+    btn.title = v ? 'このバーコードのメモを編集' : 'バーコード読取後に使えます';
+  });
 }
 
 function editCurrentScanMemo() {
@@ -1119,9 +1121,7 @@ function parseCsvRow(line) {
 document.addEventListener('DOMContentLoaded', () => {
   const on = (id, ev, fn) => $(id)?.addEventListener(ev, fn);
   on('btn-scan', 'click', () => scanning ? stopScan() : startScan());
-  on('btn-scan-to-camera', 'click', () => {
-    if (typeof switchTab === 'function') switchTab('camera');
-  });
+  on('btn-scan-to-camera', 'click', editCurrentScanMemo);
   on('btn-warp-cam', 'click', () => switchTab('camera'));
   on('scan-bc-copy', 'click', () => {
     if (!lastScannedValue) return;
