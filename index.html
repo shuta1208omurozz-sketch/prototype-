@@ -3484,6 +3484,79 @@
       #pg-camera.cam-pg.on #thumb-strip-wrap.cam-inline-thumbs:not([style*="display: none"]):not([style*="display:none"]) .mini-thumb{ width:74px !important; height:74px !important; min-width:74px !important; min-height:74px !important; flex-basis:74px !important; }
     }
 
+
+
+    /* FIX82: BCメモ/選択結合を左寄せにして、シャッターの真上を避ける */
+    #pg-camera.cam-pg.on > .cam-quick-row{
+      position:fixed !important;
+      left:8px !important;
+      right:auto !important;
+      width:auto !important;
+      max-width:calc(100vw - 16px) !important;
+      justify-content:flex-start !important;
+      padding:0 !important;
+      margin:0 !important;
+      bottom:calc(max(4px, env(safe-area-inset-bottom)) + 176px) !important;
+      z-index:10002 !important;
+      pointer-events:auto !important;
+    }
+    #pg-camera.cam-pg.on > .cam-quick-row .cam-quick-actions{
+      width:auto !important;
+      justify-content:flex-start !important;
+      gap:6px !important;
+    }
+    #pg-camera.cam-pg.on > .cam-quick-row .cam-quick-btn{
+      min-width:70px !important;
+      max-width:82px !important;
+      height:25px !important;
+      font-size:9px !important;
+      padding:0 8px !important;
+    }
+    #pg-camera.cam-pg.on > .cam-quick-row .cam-quick-btn.merge{
+      min-width:78px !important;
+      max-width:92px !important;
+    }
+    #pg-camera.cam-pg.on:has(#thumb-strip-wrap[style*="display: none"]) > .cam-quick-row,
+    #pg-camera.cam-pg.on:has(#thumb-strip-wrap[style*="display:none"]) > .cam-quick-row{
+      bottom:calc(max(4px, env(safe-area-inset-bottom)) + 86px) !important;
+    }
+    @media(max-width:380px){
+      #pg-camera.cam-pg.on > .cam-quick-row{ left:6px !important; bottom:calc(max(4px, env(safe-area-inset-bottom)) + 170px) !important; }
+      #pg-camera.cam-pg.on > .cam-quick-row .cam-quick-actions{ gap:5px !important; }
+      #pg-camera.cam-pg.on > .cam-quick-row .cam-quick-btn{ min-width:64px !important; max-width:76px !important; height:24px !important; font-size:8.5px !important; padding:0 6px !important; }
+      #pg-camera.cam-pg.on:has(#thumb-strip-wrap[style*="display: none"]) > .cam-quick-row,
+      #pg-camera.cam-pg.on:has(#thumb-strip-wrap[style*="display:none"]) > .cam-quick-row{ bottom:calc(max(4px, env(safe-area-inset-bottom)) + 82px) !important; }
+    }
+
+    /* FIX82: スキャン結果にもBCメモボタン */
+    .scan-bc-footer{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      flex-wrap:wrap;
+    }
+    .scan-bc-footer .scan-bc-meta{ flex:1 1 auto; min-width:140px; }
+    .scan-bc-memo{
+      border:1px solid rgba(0,212,255,.45);
+      background:rgba(0,212,255,.08);
+      color:#9eefff;
+      border-radius:999px;
+      padding:5px 10px;
+      font-family:'Share Tech Mono',monospace;
+      font-size:10px;
+      letter-spacing:.8px;
+      white-space:nowrap;
+    }
+    .scan-bc-memo.has-memo{
+      border-color:rgba(255,210,0,.70);
+      background:rgba(255,210,0,.10);
+      color:#ffe07f;
+    }
+    .scan-bc-memo:disabled{
+      opacity:.45;
+      filter:saturate(.5);
+    }
+
 </style>
 </head>
 <body class="theme-cyan">
@@ -3499,7 +3572,7 @@
       </svg>
     </div>
     <div>
-      <div class="hdr-title"><span class="hdr-version-pill" id="app-version-top">VERSION FIX81</span></div>
+      <div class="hdr-title"><span class="hdr-version-pill" id="app-version-top">VERSION FIX82</span></div>
       <div class="hdr-sub">SCAN · PHOTO · STORE</div>
     </div>
     <div class="hdr-count" id="hdr-count">0BC / 0📷</div>
@@ -3562,6 +3635,7 @@
         <div class="scan-bc-footer">
           <div class="scan-bc-meta" id="scan-bc-meta"></div>
           <button class="scan-bc-copy" id="scan-bc-copy">📋 コピー</button>
+          <button class="scan-bc-memo" id="scan-bc-memo" type="button" disabled>BCメモ</button>
         </div>
       </div>
       <div class="scan-bc-dup" id="scan-bc-dup">⊘ 登録済み</div>
@@ -3886,9 +3960,9 @@
       <button class="settings-btn danger" id="set-clear-photos">写真を全削除</button>
     </div>
     <div class="settings-divider"></div>
-    <div class="settings-ver">SCANNER + CAMERA · FIX81</div>
+    <div class="settings-ver">SCANNER + CAMERA · FIX82</div>
     <div class="app-update-row">
-      <span class="app-version-pill" id="app-version-text">VERSION FIX81</span>
+      <span class="app-version-pill" id="app-version-text">VERSION FIX82</span>
       <span class="save-log-pill" id="save-log-text">保存結果: なし</span>
       <button class="settings-btn update" id="btn-force-update" type="button">更新</button>
       <button class="settings-btn danger" id="btn-clear-cache" type="button">キャッシュ削除</button>
@@ -3982,13 +4056,13 @@
 <div class="toast" id="toast"></div>
 
 <!-- ==================== JSモジュールの読み込み ==================== -->
-<script src="state.js?v=fix81"></script>
-<script src="utils.js?v=fix81"></script>
-<script src="storage.js?v=fix81"></script>
-<script src="scanner.js?v=fix81"></script>
-<script src="camera.js?v=fix81"></script>
-<script src="photos.js?v=fix81"></script>
-<script src="main.js?v=fix81"></script>
+<script src="state.js?v=fix82"></script>
+<script src="utils.js?v=fix82"></script>
+<script src="storage.js?v=fix82"></script>
+<script src="scanner.js?v=fix82"></script>
+<script src="camera.js?v=fix82"></script>
+<script src="photos.js?v=fix82"></script>
+<script src="main.js?v=fix82"></script>
 
 
 <script>

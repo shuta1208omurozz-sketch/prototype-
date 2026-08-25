@@ -37,6 +37,58 @@ function saveBcHistory() {
   localStorage.setItem(BC_KEY, JSON.stringify(bcHistory));
 }
 
+
+function findBcItemByValue(val) {
+  const v = String(val || '').trim();
+  if (!v || !Array.isArray(bcHistory)) return null;
+  return bcHistory.find(x => String(x?.value || '').trim() === v) || null;
+}
+
+function ensureBcItemForMemo(val, format = '') {
+  const v = String(val || '').trim();
+  if (!v) return null;
+  let item = findBcItemByValue(v);
+  if (item) return item;
+  const grp = cfg.useGroup ? cfg.currentGroup : '未分類';
+  item = {
+    id: Date.now() + Math.random(),
+    value: v,
+    format: format || (v.length === 13 ? 'ean_13' : 'unknown'),
+    timestamp: Date.now(),
+    group: grp,
+    checked: false,
+    newCount: cfg.countMode ? 1 : undefined,
+    memo: ''
+  };
+  bcHistory.unshift(item);
+  saveBcHistory();
+  updateCounts();
+  renderBcList();
+  return item;
+}
+
+function updateScanMemoButton() {
+  const btn = $('scan-bc-memo');
+  if (!btn) return;
+  const v = String(lastScannedValue || '').trim();
+  const item = findBcItemByValue(v);
+  const hasMemo = !!String(item?.memo || '').trim();
+  btn.disabled = !v;
+  btn.textContent = hasMemo ? 'BCメモ✓' : 'BCメモ';
+  btn.classList.toggle('has-memo', hasMemo);
+  btn.title = v ? 'このバーコードのメモを編集' : 'バーコード読取後に使えます';
+}
+
+function editCurrentScanMemo() {
+  const item = ensureBcItemForMemo(lastScannedValue);
+  if (!item) {
+    if (typeof showToast === 'function') showToast('先にバーコードを読み込んでください', 'warn', 2400);
+    return;
+  }
+  editBcMemo(item);
+  updateScanMemoButton();
+}
+
 function adjustBcNewCount(item, delta) {
   if (!item) return;
   item.newCount = Math.max(0, getBcNewCount(item) + delta);
@@ -58,6 +110,8 @@ function editBcMemo(item) {
   if (currentDetail && currentDetail.id === item.id) {
     openBcModal(item);
   }
+  if (typeof updateScanMemoButton === 'function') updateScanMemoButton();
+  if (typeof updateCameraQuickBar === 'function') updateCameraQuickBar();
   showToast(item.memo ? 'メモを保存しました' : 'メモを削除しました', 'ok');
 }
 
@@ -595,6 +649,7 @@ function handleScanSuccess(val, format) {
   lastCode = val; lastCodeTime = Date.now();
   lastScannedValue = val;
   if (typeof updateCameraBarcodeBadge === 'function') updateCameraBarcodeBadge();
+  if (typeof updateScanMemoButton === 'function') updateScanMemoButton();
   _requiresClearFrame = true;
 
   // ── 同一数値の扱い ──
@@ -614,6 +669,7 @@ function handleScanSuccess(val, format) {
     if (dispEl) dispEl.style.display = '';
     if (valEl)  valEl.textContent    = val;
     if (metaEl) metaEl.textContent   = '新品 ' + existing.newCount + '個 · ' + fmtShort(existing.timestamp);
+    if (typeof updateScanMemoButton === 'function') updateScanMemoButton();
     updateCounts();
     renderBcList();
     showToast('新品 +1: ' + existing.newCount + '個', 'ok');
@@ -633,6 +689,7 @@ function handleScanSuccess(val, format) {
     if (phEl)   phEl.style.display   = 'none';
     if (dispEl) dispEl.style.display = '';
     if (valEl)  valEl.textContent    = val;
+    if (typeof updateScanMemoButton === 'function') updateScanMemoButton();
     if (!cfg.continuousScan) stopScan();
     return;
   }
@@ -653,6 +710,7 @@ function handleScanSuccess(val, format) {
   if (dispEl) dispEl.style.display = '';
   if (valEl)  valEl.textContent    = val;
   if (metaEl) metaEl.textContent   = (format || '').toUpperCase().replace('_', ' ') + ' · ' + fmtShort(item.timestamp) + (cfg.countMode ? ' · 新品 ' + getBcNewCount(item) + '個' : '');
+  if (typeof updateScanMemoButton === 'function') updateScanMemoButton();
   if (cnvEl && wrapEl) {
     if (JS_FMT[format]) {
       wrapEl.style.display = '';
@@ -1069,6 +1127,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!lastScannedValue) return;
     navigator.clipboard.writeText(lastScannedValue).then(() => showToast('コピーしました', 'ok'));
   });
+  on('scan-bc-memo', 'click', editCurrentScanMemo);
+  if (typeof updateScanMemoButton === 'function') updateScanMemoButton();
   on('search-box', 'input', renderBcList);
   on('btn-bc-compact', 'click', () => {
     cfg.bcCompactMode = !cfg.bcCompactMode; saveCfg(); applyCfgToUI(); renderBcList();
